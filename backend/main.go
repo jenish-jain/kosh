@@ -21,6 +21,20 @@ func main() {
 	credPath := sh.EnvOrDefault("CREDENTIALS_PATH", "credentials.json")
 	frontendDist := sh.EnvOrDefault("FRONTEND_DIST", "../frontend/dist")
 
+	// Tab definitions — order controls creation order in the spreadsheet.
+	koshTabs := []sh.TabDef{
+		{Name: "Members",   Columns: []string{"id", "name", "full_name", "relation", "slab", "color"}},
+		{Name: "MF",        Columns: []string{"id", "name", "plan", "platform", "member", "invested", "current", "sip", "notes"}},
+		{Name: "Stocks",    Columns: []string{"id", "name", "ticker", "qty", "avg_price", "last_price", "member"}},
+		{Name: "Metals",    Columns: []string{"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"}},
+		{Name: "Fixed",     Columns: []string{"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"}},
+		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity"}},
+		{Name: "SIPs",      Columns: []string{"id", "fund", "member", "amount", "day", "status", "start_date", "platform"}},
+		{Name: "Lumpsums",  Columns: []string{"id", "fund", "member", "amount", "date"}},
+		{Name: "History",   Columns: []string{"month", "value"}},
+		{Name: "Config",    Columns: []string{"key", "value"}},
+	}
+
 	// Try to create a real Sheets client; fall back to dev mode if credentials missing.
 	var client *sh.Client
 	if spreadsheetID != "" {
@@ -31,6 +45,10 @@ func main() {
 			} else {
 				client = c
 				log.Printf("✓ Connected to Google Sheets (%s)", spreadsheetID)
+				fmt.Println("  Verifying tabs…")
+				if err := client.EnsureTabs(koshTabs); err != nil {
+					log.Printf("⚠ EnsureTabs: %v", err)
+				}
 			}
 		} else {
 			log.Printf("⚠ %s not found — running in dev mode", credPath)

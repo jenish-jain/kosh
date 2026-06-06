@@ -16,6 +16,12 @@ type Client struct {
 	spreadsheetID string
 }
 
+// TabDef describes a sheet tab and its required header columns in order.
+type TabDef struct {
+	Name    string
+	Columns []string
+}
+
 func NewClient(credentialsPath, spreadsheetID string) (*Client, error) {
 	ctx := context.Background()
 	svc, err := sheets.NewService(ctx, option.WithCredentialsFile(credentialsPath))
@@ -23,6 +29,59 @@ func NewClient(credentialsPath, spreadsheetID string) (*Client, error) {
 		return nil, fmt.Errorf("creating sheets service: %w", err)
 	}
 	return &Client{svc: svc, spreadsheetID: spreadsheetID}, nil
+}
+
+// EnsureTabs creates any missing tabs and writes the header row if row 1 is empty.
+// Tabs are created in the order given. Existing tabs with existing row-1 content
+// are left untouched. Returns the first fatal error; tab-level errors are logged.
+func (c *Client) EnsureTabs(tabs []TabDef) error {
+	meta, err := c.svc.Spreadsheets.Get(c.spreadsheetID).Do()
+	if err != nil {
+		return fmt.Errorf("reading spreadsheet metadata: %w", err)
+	}
+
+	existing := map[string]bool{}
+	for _, s := range meta.Sheets {
+		existing[s.Properties.Title] = true
+	}
+
+	for _, tab := range tabs {
+		// Create tab if it doesn't exist.
+		if !existing[tab.Name] {
+			req := &sheets.BatchUpdateSpreadsheetRequest{
+				Requests: []*sheets.Request{{
+					AddSheet: &sheets.AddSheetRequest{
+						Properties: &sheets.SheetProperties{Title: tab.Name},
+					},
+				}},
+			}
+			if _, err := c.svc.Spreadsheets.BatchUpdate(c.spreadsheetID, req).Do(); err != nil {
+				fmt.Printf("  ✗ Could not create tab %q: %v\n", tab.Name, err)
+				continue
+			}
+			fmt.Printf("  + Created tab %q\n", tab.Name)
+		}
+
+		// Write header row if row 1 is empty.
+		resp, _ := c.svc.Spreadsheets.Values.Get(c.spreadsheetID, tab.Name+"!1:1").Do()
+		if resp != nil && len(resp.Values) > 0 {
+			fmt.Printf("  ✓ Tab %q — header present\n", tab.Name)
+			continue
+		}
+		header := make([]interface{}, len(tab.Columns))
+		for i, col := range tab.Columns {
+			header[i] = col
+		}
+		vr := &sheets.ValueRange{Values: [][]interface{}{header}}
+		if _, err := c.svc.Spreadsheets.Values.
+			Update(c.spreadsheetID, tab.Name+"!A1", vr).
+			ValueInputOption("RAW").Do(); err != nil {
+			fmt.Printf("  ✗ Could not write header for %q: %v\n", tab.Name, err)
+			continue
+		}
+		fmt.Printf("  + Wrote header for %q\n", tab.Name)
+	}
+	return nil
 }
 
 // ReadSheet returns all rows (including header) from a named sheet.
