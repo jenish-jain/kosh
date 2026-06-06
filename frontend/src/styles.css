@@ -341,15 +341,19 @@ td.r .edit-cell { text-align: right; }
   border-radius: var(--r);
   box-shadow: var(--shadow-lg);
   max-width: 100%;
+  max-height: calc(100vh - 40px);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .modal-head {
   display: flex; align-items: center;
   padding: 18px 22px;
   border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
 }
 .modal-head h3 { font-size: 16px; font-weight: 700; flex: 1; }
-.modal-body { padding: 22px; }
+.modal-body { padding: 22px; overflow-y: auto; flex: 1; }
 
 /* ── Form fields ── */
 .field { display: block; margin-bottom: 14px; }
