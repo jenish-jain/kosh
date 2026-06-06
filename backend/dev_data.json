@@ -67,6 +67,10 @@
     "surcharge_from": 5000000,
     "next_surcharge_at": 10000000,
     "parents_capacity_mom": 700000,
-    "parents_capacity_dad": 750000
+    "parents_capacity_dad": 750000,
+    "deduction_80c": 150000,
+    "deduction_80d": 25000,
+    "other_deductions": 50000,
+    "saved_by_filing": 64350
   }
 }

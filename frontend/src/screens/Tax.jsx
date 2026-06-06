@@ -1,0 +1,272 @@
+import { useState } from 'react'
+import { fmtINR, fmtCompact, TODAY_DISPLAY } from '../data/helpers.js'
+import { EdRule } from '../components/Primitives.jsx'
+
+const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
+const SERIF = "var(--serif)"
+
+// ── Tax math (old regime) ────────────────────────────────────
+function taxOldRegime(income) {
+  if (income <= 250000) return 0
+  let t = 0
+  if (income > 1000000) t += (income - 1000000) * 0.30
+  if (income > 500000)  t += (Math.min(income, 1000000) - 500000) * 0.20
+  if (income > 250000)  t += (Math.min(income, 500000) - 250000) * 0.05
+  let surcharge = 0
+  if (income > 10000000) surcharge = t * 0.15
+  else if (income > 5000000) surcharge = t * 0.10
+  const cess = (t + surcharge) * 0.04
+  return Math.round(t + surcharge + cess)
+}
+
+function slabLabel(income) {
+  if (income <= 250000) return '0%'
+  if (income <= 500000) return '5%'
+  if (income <= 1000000) return '20%'
+  if (income <= 5000000) return '30%'
+  return '30% + surcharge'
+}
+
+function effectiveRate(income) {
+  const t = taxOldRegime(income)
+  return income > 0 ? (t / income * 100).toFixed(1) : '0.0'
+}
+
+// ── Surcharge runway bar ──────────────────────────────────────
+function SurchargeBar({ income }) {
+  const lo = 5000000, hi = 10000000
+  const pct = Math.min(Math.max((income - lo) / (hi - lo), 0), 1)
+  const inRange = income > lo && income < hi
+  const past = income >= hi
+  const below = income <= lo
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, letterSpacing: '.04em', marginBottom: 6 }}>
+        <span>₹50L — 10% surcharge starts</span>
+        <span>₹1Cr — 15% surcharge</span>
+      </div>
+      <div style={{ height: 10, background: 'var(--line)', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0,
+          width: below ? '0%' : past ? '100%' : `${pct * 100}%`,
+          background: inRange ? 'var(--warn)' : past ? 'var(--neg)' : 'var(--accent)',
+          borderRadius: 3,
+          transition: 'width .4s ease'
+        }} />
+      </div>
+      <div style={{ fontSize: 12, marginTop: 7, color: 'var(--ink-3)', fontWeight: 600 }}>
+        {below
+          ? `₹${fmtCompact(lo - income)} below the 10% surcharge threshold — no surcharge`
+          : past
+          ? `Income above ₹1Cr — 15% surcharge applies`
+          : `₹${fmtCompact(income - lo)} into the 10% surcharge zone`}
+      </div>
+    </div>
+  )
+}
+
+// ── Income split planner ──────────────────────────────────────
+function SplitPlanner({ data, grossIncome }) {
+  const parents = (data.members || []).filter(m =>
+    (m.relation === 'Father' || m.relation?.startsWith('Father') || m.relation === 'Mother') && m.id !== 'you'
+  )
+  const [shifted, setShifted] = useState(0)
+  const parentCount = parents.length || 1
+  const cfg = data.config || {}
+
+  const myIncome = grossIncome - shifted
+  const perParent = shifted / parentCount
+
+  const baseMyTax = taxOldRegime(grossIncome)
+  const myTax = taxOldRegime(myIncome)
+  const parentTax = parents.length > 0 ? parents.reduce((a, m) => a + taxOldRegime(perParent), 0) : taxOldRegime(perParent)
+  const saved = baseMyTax - myTax - parentTax
+
+  const sliderMax = Math.min(grossIncome * 0.5, 4000000)
+
+  const capacities = {
+    mom: cfg.parents_capacity_mom || 500000,
+    dad: cfg.parents_capacity_dad || 500000,
+  }
+
+  return (
+    <div>
+      <div style={{ ...KICK, marginBottom: 14 }}>Income-split planner</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 32, alignItems: 'center' }}>
+        <div>
+          <div style={KICK}>Shift to family</div>
+          <div className="num serif-num" style={{ fontSize: 38, marginTop: 8 }}>{fmtINR(shifted)}</div>
+          <input type="range" min="0" max={Math.round(sliderMax)} step="10000" value={shifted}
+            onChange={e => setShifted(Number(e.target.value))}
+            style={{ width: '100%', marginTop: 12, accentColor: 'var(--accent)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', fontWeight: 700 }}>
+            <span>₹0</span><span>₹{fmtCompact(sliderMax)}</span>
+          </div>
+        </div>
+        <div style={{ width: 1, background: 'var(--line)', alignSelf: 'stretch' }} />
+        <div>
+          <div style={KICK}>Tax saved vs. no split</div>
+          <div className="num serif-num" style={{ fontSize: 38, marginTop: 8, color: saved > 0 ? 'var(--pos)' : 'var(--ink-3)' }}>
+            {saved > 0 ? '+' : ''}{fmtINR(Math.max(0, saved))}
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 6 }}>
+            Your effective tax: {fmtINR(myTax)}
+            {parents.length > 0 && ` · parents pay ${fmtINR(parentTax)}`}
+          </div>
+        </div>
+      </div>
+
+      {parents.length > 0 && shifted > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${parents.length},1fr)`, gap: 18, marginTop: 24 }}>
+          {parents.map(m => {
+            const cap = m.relation?.startsWith('Mother') ? capacities.mom : capacities.dad
+            const used = perParent
+            const pct = Math.min(used / cap * 100, 100)
+            return (
+              <div key={m.id}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{m.full_name || m.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginBottom: 10 }}>
+                  Receives {fmtCompact(perParent)} · slab {m.slab}%
+                </div>
+                <div style={{ height: 7, background: 'var(--line)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: pct > 90 ? 'var(--warn)' : 'var(--accent)', borderRadius: 2, transition: 'width .3s' }} />
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 5 }}>
+                  {fmtCompact(used)} of {fmtCompact(cap)} estimated capacity
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {parents.length === 0 && (
+        <div className="empty-hint" style={{ marginTop: 12 }}>Add family members with a lower tax slab (Father / Mother) to use this planner.</div>
+      )}
+    </div>
+  )
+}
+
+// ── Main screen ──────────────────────────────────────────────
+export default function Tax({ data, memberId }) {
+  const cfg = data.config || {}
+  const selfMember = (data.members || []).find(m => m.id === 'you') || {}
+
+  const grossIncome = cfg.gross_income || 0
+  const taxPayable = taxOldRegime(grossIncome)
+  const slab = slabLabel(grossIncome)
+  const effRate = effectiveRate(grossIncome)
+  const capitalGains = cfg.capital_gains_this_year || 0
+  const savedByFiling = cfg.saved_by_filing || 0
+  const deduction80c = cfg.deduction_80c || 0
+  const deduction80d = cfg.deduction_80d || 0
+  const otherDeductions = cfg.other_deductions || 0
+
+  const totalDeductions = deduction80c + deduction80d + otherDeductions
+  const taxableIncome = Math.max(0, grossIncome - totalDeductions)
+  const taxAfterDeductions = taxOldRegime(taxableIncome)
+
+  const memberName = memberId
+    ? ((data.members || []).find(m => m.id === memberId)?.full_name || '').replace(' (You)', '')
+    : (selfMember.full_name || 'Jenish').replace(' (You)', '')
+
+  return (
+    <div className="fade-in">
+      <div className="stmt-band">
+        <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
+        <div className="stmt-meta">{memberName} · FY 2025-26 · {TODAY_DISPLAY}</div>
+      </div>
+      <EdRule thick />
+
+      {/* 4 headline figures */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0 }}>
+        {[
+          { label: 'Gross income', value: fmtINR(grossIncome), sub: 'before deductions' },
+          { label: 'Current slab', value: slab, sub: `${effRate}% effective rate` },
+          { label: 'Capital gains', value: fmtCompact(capitalGains), sub: 'unrealised this FY' },
+          { label: 'Saved by splitting', value: savedByFiling > 0 ? '+' + fmtINR(savedByFiling) : '—', sub: 'vs. no family routing', color: savedByFiling > 0 ? 'var(--pos)' : 'var(--ink)' },
+        ].map((f, i) => (
+          <div key={i} style={{ paddingLeft: i ? 28 : 0, borderLeft: i ? '1px solid var(--line)' : 'none' }}>
+            <div style={KICK}>{f.label}</div>
+            <div className="num serif-num" style={{ fontSize: 36, marginTop: 10, color: f.color || 'var(--ink)' }}>{f.value}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>{f.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <EdRule />
+
+      {/* Surcharge runway */}
+      <div style={{ ...KICK, marginBottom: 12 }}>Surcharge runway</div>
+      <SurchargeBar income={grossIncome} />
+
+      <EdRule />
+
+      {/* Two columns: tax payable + deductions */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 36, alignItems: 'start' }}>
+        <div>
+          <div style={KICK}>Tax payable (old regime)</div>
+          <div className="num serif-num" style={{ fontSize: 48, marginTop: 10 }}>{fmtINR(taxPayable)}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+            {[
+              { label: 'Effective rate', value: `${effRate}%` },
+              { label: 'After deductions', value: fmtCompact(taxAfterDeductions) },
+              { label: '4% cess', value: fmtCompact(Math.round(taxPayable * 0.04 / 1.04)) },
+              { label: 'Net take-home', value: fmtCompact(grossIncome - taxAfterDeductions) },
+            ].map((r, i) => (
+              <div key={i}>
+                <div style={KICK}>{r.label}</div>
+                <div className="num serif-num" style={{ fontSize: 20, marginTop: 6 }}>{r.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--line)', alignSelf: 'stretch' }} />
+
+        <div>
+          <div style={KICK}>Deduction breakdown</div>
+          <div style={{ marginTop: 12 }}>
+            {[
+              { label: '80C (ELSS · PF · LIC)', cap: 150000, used: deduction80c },
+              { label: '80D (health insurance)', cap: 50000, used: deduction80d },
+              { label: 'Other (NPS · LTA etc.)', cap: 150000, used: otherDeductions },
+            ].map(d => {
+              const pct = d.cap > 0 ? Math.min(d.used / d.cap * 100, 100) : 0
+              return (
+                <div key={d.label} style={{ marginBottom: 18 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{d.label}</span>
+                    <span className="num serif-num" style={{ fontSize: 13 }}>{fmtINR(d.used)} / {fmtCompact(d.cap)}</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--line)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--pos)' : 'var(--accent)', borderRadius: 2 }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>
+                    {pct >= 100 ? 'Maxed out' : `₹${fmtCompact(d.cap - d.used)} room remaining`}
+                  </div>
+                </div>
+              )
+            })}
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={KICK}>Total deductions</div>
+              <div className="num serif-num" style={{ fontSize: 22 }}>{fmtINR(totalDeductions)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <EdRule />
+
+      {/* Income split planner */}
+      <SplitPlanner data={data} grossIncome={grossIncome} />
+
+      <EdRule />
+
+      <div style={{ fontFamily: SERIF, fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink-3)', lineHeight: 1.7 }}>
+        Indicative figures under old regime · no marginal relief applied · consult a qualified CA before acting on any strategy.
+      </div>
+    </div>
+  )
+}

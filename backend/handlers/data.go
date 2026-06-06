@@ -125,6 +125,10 @@ type Config struct {
 	NextSurchargeAt      float64 `json:"next_surcharge_at"`
 	ParentsCapacityMom   float64 `json:"parents_capacity_mom"`
 	ParentsCapacityDad   float64 `json:"parents_capacity_dad"`
+	Deduction80C         float64 `json:"deduction_80c"`
+	Deduction80D         float64 `json:"deduction_80d"`
+	OtherDeductions      float64 `json:"other_deductions"`
+	SavedByFiling        float64 `json:"saved_by_filing"`
 }
 
 // Handler wraps a Sheets client (may be nil in dev mode).
@@ -320,6 +324,10 @@ func parseConfig(m map[string]string) Config {
 		NextSurchargeAt:      pf("next_surcharge_at"),
 		ParentsCapacityMom:   pf("parents_capacity_mom"),
 		ParentsCapacityDad:   pf("parents_capacity_dad"),
+		Deduction80C:         pf("deduction_80c"),
+		Deduction80D:         pf("deduction_80d"),
+		OtherDeductions:      pf("other_deductions"),
+		SavedByFiling:        pf("saved_by_filing"),
 	}
 }
 
