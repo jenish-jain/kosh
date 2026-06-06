@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	sh "kosh/sheets"
 )
@@ -162,16 +164,24 @@ func loadDevData() *Data {
 }
 
 func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
+	var d *Data
 	if h.devData != nil {
-		writeJSON(w, h.devData)
-		return
+		// Shallow-copy so we don't mutate the cached struct across requests.
+		cp := *h.devData
+		fixed := make([]Fixed, len(cp.Fixed))
+		copy(fixed, cp.Fixed)
+		cp.Fixed = fixed
+		d = &cp
+	} else {
+		var err error
+		d, err = h.fetchFromSheets()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
-	data, err := h.fetchFromSheets()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, data)
+	computeFixedValues(d)
+	writeJSON(w, d)
 }
 
 func (h *Handler) fetchFromSheets() (*Data, error) {
@@ -234,10 +244,13 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 
 	if rows, e := h.client.ReadSheet("Fixed"); e == nil {
 		for _, row := range rows[1:] {
+			// CurrentValue is intentionally not read from column 6 — it is
+			// computed at request time by computeFixedValues so it is always
+			// accurate without requiring manual sheet updates.
 			d.Fixed = append(d.Fixed, Fixed{
 				ID: sh.ColStr(row, 0), Kind: sh.ColStr(row, 1), Name: sh.ColStr(row, 2),
 				Member: sh.ColStr(row, 3), Principal: sh.ColFloat(row, 4),
-				Rate: sh.ColFloat(row, 5), CurrentValue: sh.ColFloat(row, 6),
+				Rate: sh.ColFloat(row, 5),
 				Opened: sh.ColStr(row, 7), Matures: sh.ColStr(row, 8), Monthly: sh.ColFloat(row, 9),
 			})
 		}
@@ -337,4 +350,82 @@ func parseFloat64(s string) (float64, error) {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
+}
+
+// ── Fixed / RD value computation ─────────────────────────────────────────────
+// Values are computed at request time using quarterly compounding (standard for
+// Indian banks). The current_value column in the sheet is ignored.
+
+func computeFixedValues(d *Data) {
+	for i := range d.Fixed {
+		d.Fixed[i].CurrentValue = computeFixedValue(d.Fixed[i])
+	}
+}
+
+func computeFixedValue(f Fixed) float64 {
+	if f.Rate == 0 || f.Opened == "" {
+		return f.Principal
+	}
+	if f.Kind == "RD" {
+		return rdCurrentValue(f.Monthly, f.Rate, f.Opened, f.Matures)
+	}
+	return fdCurrentValue(f.Principal, f.Rate, f.Opened)
+}
+
+// fdCurrentValue: P × (1 + r/4)^(4t) — quarterly compounding.
+func fdCurrentValue(principal, ratePercent float64, opened string) float64 {
+	if principal == 0 {
+		return 0
+	}
+	t := yearsSince(opened)
+	if t <= 0 {
+		return principal
+	}
+	r := ratePercent / 100.0
+	return principal * math.Pow(1+r/4, 4*t)
+}
+
+// rdCurrentValue: each monthly installment compounds from its deposit date.
+// Installments are capped at the tenure derived from opened→matures.
+func rdCurrentValue(monthly, ratePercent float64, opened, matures string) float64 {
+	if monthly == 0 {
+		return 0
+	}
+	r := ratePercent / 100.0
+	tenure := monthsBetween(opened, matures)
+	elapsed := monthsBetween(opened, time.Now().Format("2006-01-02"))
+	if elapsed <= 0 {
+		return 0
+	}
+	made := elapsed
+	if tenure > 0 && made > tenure {
+		made = tenure
+	}
+	total := 0.0
+	for i := 0; i < made; i++ {
+		months := float64(elapsed - i)
+		total += monthly * math.Pow(1+r/4, 4*months/12)
+	}
+	return total
+}
+
+func yearsSince(dateStr string) float64 {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return 0
+	}
+	return time.Since(t).Hours() / (24 * 365.25)
+}
+
+func monthsBetween(fromStr, toStr string) int {
+	from, e1 := time.Parse("2006-01-02", fromStr)
+	to, e2 := time.Parse("2006-01-02", toStr)
+	if e1 != nil || e2 != nil {
+		return 0
+	}
+	m := (to.Year()-from.Year())*12 + int(to.Month()-from.Month())
+	if m < 0 {
+		return 0
+	}
+	return m
 }

@@ -282,10 +282,9 @@ function computeMatures(openedStr, tenureMonths) {
 }
 
 // ── Fixed / RD Table ─────────────────────────────────────────
-function FixedTable({ data, rows, all, dirty, setDirty }) {
+function FixedTable({ data, rows, all }) {
   const inv = rows.reduce((a, x) => a + (x.principal || 0), 0)
-  const cur = rows.reduce((a, x) => a + (x.current_value || x.principal || 0), 0)
-  const mark = (id, field, val) => setDirty(d => ({ ...d, [id]: { ...(d[id] || {}), [field]: val } }))
+  const cur = rows.reduce((a, x) => a + (x.current_value || 0), 0)
   const kindPill = { FD: 'accent', RD: 'gold' }
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -298,13 +297,13 @@ function FixedTable({ data, rows, all, dirty, setDirty }) {
           <th className="r">Monthly</th>
           <th className="r">Principal</th>
           <th className="r">Matures</th>
-          <th className="r">Current value</th>
+          <th className="r">Value today</th>
         </tr></thead>
         <tbody>
           {rows.map(r => {
             const dl = daysLeft(r.matures)
             const urgent = dl !== null && dl >= 0 && dl < 90
-            const dR = dirty[r.id] || {}
+            const gain = r.current_value - r.principal
             return (
               <tr key={r.id}>
                 <td style={{ minWidth: 200 }}>
@@ -323,16 +322,15 @@ function FixedTable({ data, rows, all, dirty, setDirty }) {
                   </div>
                 </td>
                 <td className="r">
-                  <EditCell value={dR.current_value ?? r.current_value} type="number" align="right"
-                    format={v => v ? fmtINR(v) : '—'}
-                    onChange={v => mark(r.id, 'current_value', v)} />
+                  <div className="num cell-strong">{fmtINR(r.current_value)}</div>
+                  {gain > 0 && <div className="cell-sub" style={{ color: 'var(--pos)' }}>+{fmtINR(gain)}</div>}
                 </td>
               </tr>
             )
           })}
         </tbody>
       </table>
-      <TotalsBar inv={inv} cur={cur} label={`${rows.length} deposit${rows.length !== 1 ? 's' : ''}`} curLabel="Current value" />
+      <TotalsBar inv={inv} cur={cur} label={`${rows.length} deposit${rows.length !== 1 ? 's' : ''}`} curLabel="Value today" />
     </div>
   )
 }
@@ -546,7 +544,7 @@ export default function Investments({ data, memberId, showToast }) {
       {/* Tables */}
       {tab === 'mf'        && <MFTable        data={data} rows={h.mf}        all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'stocks'    && <StockTable     data={data} rows={h.stocks}    all={all} dirty={dirty} setDirty={setDirty} />}
-      {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} dirty={dirty} setDirty={setDirty} />}
+      {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} />}
       {tab === 'metals'    && <MetalTable     data={data} rows={h.metals}    all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'insurance' && <InsuranceTable data={data} rows={h.insurance} all={all} dirty={dirty} setDirty={setDirty} />}
 
