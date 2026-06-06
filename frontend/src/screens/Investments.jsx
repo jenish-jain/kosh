@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useData } from '../data/context.jsx'
-import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL, TODAY_DISPLAY } from '../data/helpers.js'
+import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL, TODAY_DISPLAY, TODAY_STR } from '../data/helpers.js'
 import { EdRule, Modal, Field, EditCell, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
 
@@ -23,11 +23,12 @@ function SummaryTiles({ data, memberId, activeTab, setTab }) {
   const tiles = [
     { k: 'mf',        label: 'Mutual funds',   inv: c.mf.inv,        cur: c.mf.cur },
     { k: 'stocks',    label: 'Stocks',          inv: c.stocks.inv,    cur: c.stocks.cur },
+    { k: 'fixed',     label: 'FD / RD',         inv: c.fixed.inv,     cur: c.fixed.cur },
     { k: 'metals',    label: 'Gold & silver',   inv: c.metals.inv,    cur: c.metals.cur },
     { k: 'insurance', label: 'Insurance',       inv: c.insurance.inv, cur: c.insurance.cur },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 26 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 18, marginBottom: 26 }}>
       {tiles.map((t, i) => (
         <div key={t.k} onClick={() => setTab(t.k)}
           style={{ paddingLeft: i ? 24 : 0, borderLeft: i ? '1px solid var(--line)' : 'none', cursor: 'pointer' }}>
@@ -257,10 +258,89 @@ function InsuranceTable({ data, rows, all, dirty, setDirty }) {
   )
 }
 
+// ── Fixed / RD helpers ───────────────────────────────────────
+function daysLeft(dateStr) {
+  if (!dateStr) return null
+  return Math.ceil((new Date(dateStr) - new Date()) / 864e5)
+}
+
+function fmtCountdown(days) {
+  if (days === null) return '—'
+  if (days < 0) return 'Matured'
+  if (days === 0) return 'Today'
+  if (days < 30) return `${days}d left`
+  if (days < 365) return `${Math.round(days / 30)}mo left`
+  const y = Math.floor(days / 365)
+  const m = Math.round((days % 365) / 30)
+  return m > 0 ? `${y}y ${m}mo left` : `${y}y left`
+}
+
+function computeMatures(openedStr, tenureMonths) {
+  const d = new Date(openedStr || TODAY_STR)
+  d.setMonth(d.getMonth() + Math.round(tenureMonths))
+  return d.toISOString().slice(0, 10)
+}
+
+// ── Fixed / RD Table ─────────────────────────────────────────
+function FixedTable({ data, rows, all, dirty, setDirty }) {
+  const inv = rows.reduce((a, x) => a + (x.principal || 0), 0)
+  const cur = rows.reduce((a, x) => a + (x.current_value || x.principal || 0), 0)
+  const mark = (id, field, val) => setDirty(d => ({ ...d, [id]: { ...(d[id] || {}), [field]: val } }))
+  const kindPill = { FD: 'accent', RD: 'gold' }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tbl">
+        <thead><tr>
+          <th>Deposit</th>
+          {all && <th>Owner</th>}
+          <th>Kind</th>
+          <th className="r">Rate</th>
+          <th className="r">Monthly</th>
+          <th className="r">Principal</th>
+          <th className="r">Matures</th>
+          <th className="r">Current value</th>
+        </tr></thead>
+        <tbody>
+          {rows.map(r => {
+            const dl = daysLeft(r.matures)
+            const urgent = dl !== null && dl >= 0 && dl < 90
+            const dR = dirty[r.id] || {}
+            return (
+              <tr key={r.id}>
+                <td style={{ minWidth: 200 }}>
+                  <div className="cell-strong">{r.name}</div>
+                  <div className="cell-sub">{fmtDate(r.opened)}</div>
+                </td>
+                {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
+                <td><span className={'pill ' + (kindPill[r.kind] || 'neutral')}>{r.kind}</span></td>
+                <td className="r num">{r.rate}%</td>
+                <td className="r num">{r.monthly ? fmtINR(r.monthly) : '—'}</td>
+                <td className="r num">{fmtINR(r.principal)}</td>
+                <td className="r">
+                  <div className="num" style={{ fontWeight: 600, fontSize: 13 }}>{r.matures}</div>
+                  <div className="cell-sub" style={{ color: urgent ? 'var(--warn)' : undefined }}>
+                    {fmtCountdown(dl)}
+                  </div>
+                </td>
+                <td className="r">
+                  <EditCell value={dR.current_value ?? r.current_value} type="number" align="right"
+                    format={v => v ? fmtINR(v) : '—'}
+                    onChange={v => mark(r.id, 'current_value', v)} />
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <TotalsBar inv={inv} cur={cur} label={`${rows.length} deposit${rows.length !== 1 ? 's' : ''}`} curLabel="Current value" />
+    </div>
+  )
+}
+
 // ── Add Modal ────────────────────────────────────────────────
 function AddModal({ tab, memberId, data, onClose }) {
   const { add } = useData()
-  const [form, setForm] = useState({ member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment' })
+  const [form, setForm] = useState({ member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment', fdKind: 'FD' })
   const up = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const n = v => Number(v) || 0
 
@@ -272,8 +352,14 @@ function AddModal({ tab, memberId, data, onClose }) {
       await add('Stocks', { id, name: form.name || 'New Stock', ticker: (form.ticker || form.name || 'NEW').toUpperCase().slice(0, 8), qty: n(form.qty), avg_price: n(form.avg), last_price: n(form.ltp) || n(form.avg), member: form.member })
     } else if (tab === 'metals') {
       await add('Metals', { id, type: form.metalType, date_purchased: new Date().toISOString().slice(0, 10), grams: n(form.grams), buy_rate: n(form.buyRate), today_price: n(form.buyRate), place: form.place || '—', member: form.member })
-    } else {
+    } else if (tab === 'insurance') {
       await add('Insurance', { id, name: form.name || 'New plan', type: form.insType, member: form.member, premium: n(form.premium), freq: form.freq, paid: n(form.paid), value: n(form.value), cover: n(form.cover), maturity: n(form.maturity) || 2040 })
+    } else if (tab === 'fixed') {
+      const tenure = n(form.tenure)
+      const monthly = form.fdKind === 'RD' ? n(form.monthly) : 0
+      const principal = form.fdKind === 'FD' ? n(form.principal) : monthly * tenure
+      const matures = computeMatures(form.opened || TODAY_STR, tenure)
+      await add('Fixed', { id, kind: form.fdKind, name: form.name || 'New deposit', member: form.member, principal, rate: n(form.rate), current_value: principal, opened: form.opened || TODAY_STR, matures, monthly })
     }
     onClose()
   }
@@ -288,7 +374,7 @@ function AddModal({ tab, memberId, data, onClose }) {
     </Field>
   )
 
-  const titles = { mf: 'Add mutual fund', stocks: 'Add stock', metals: 'Add metal', insurance: 'Add insurance / plan' }
+  const titles = { mf: 'Add mutual fund', stocks: 'Add stock', metals: 'Add metal', insurance: 'Add insurance / plan', fixed: 'Add deposit (FD / RD)' }
 
   return (
     <Modal title={titles[tab]} onClose={onClose}>
@@ -354,6 +440,37 @@ function AddModal({ tab, memberId, data, onClose }) {
         </div>
       </>}
 
+      {tab === 'fixed' && <>
+        <Field label="Kind">
+          <div className="seg" style={{ display: 'flex' }}>
+            <button className={form.fdKind === 'FD' ? 'active' : ''} onClick={() => up('fdKind', 'FD')} style={{ flex: 1 }}>Fixed Deposit</button>
+            <button className={form.fdKind === 'RD' ? 'active' : ''} onClick={() => up('fdKind', 'RD')} style={{ flex: 1 }}>Recurring Deposit</button>
+          </div>
+        </Field>
+        <Field label="Bank / Institution"><input className="input" value={form.name || ''} onChange={e => up('name', e.target.value)} placeholder="e.g. SBI, HDFC Bank" /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Interest rate (% p.a.)"><input className="input" type="number" step="0.01" value={form.rate || ''} onChange={e => up('rate', e.target.value)} placeholder="e.g. 7.1" /></Field>
+          <Field label="Opened date"><input className="input" type="date" value={form.opened || TODAY_STR} onChange={e => up('opened', e.target.value)} /></Field>
+        </div>
+        {form.fdKind === 'FD' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Principal amount"><input className="input" type="number" value={form.principal || ''} onChange={e => up('principal', e.target.value)} /></Field>
+            <Field label="Tenure (months)"><input className="input" type="number" value={form.tenure || ''} onChange={e => up('tenure', e.target.value)} placeholder="e.g. 24" /></Field>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Monthly installment"><input className="input" type="number" value={form.monthly || ''} onChange={e => up('monthly', e.target.value)} /></Field>
+            <Field label="Tenure (months)"><input className="input" type="number" value={form.tenure || ''} onChange={e => up('tenure', e.target.value)} placeholder="e.g. 12" /></Field>
+          </div>
+        )}
+        {(form.tenure > 0) && (
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '8px 12px', background: 'var(--bg-2,#f7f5f0)', borderRadius: 4, lineHeight: 1.6 }}>
+            {form.fdKind === 'RD' && form.monthly > 0 && <>Total committed: <strong>{fmtINR(n(form.monthly) * n(form.tenure))}</strong> · </>}
+            Matures: <strong>{computeMatures(form.opened || TODAY_STR, n(form.tenure))}</strong>
+          </div>
+        )}
+      </>}
+
       {memberPicker}
       <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
         <button className="btn" onClick={onClose}>Cancel</button>
@@ -374,14 +491,15 @@ export default function Investments({ data, memberId, showToast }) {
   const h = holdingsFor(data, memberId)
   const all = !memberId
   const tabs = [
-    ['mf', 'Mutual Funds', h.mf.length],
-    ['stocks', 'Stocks', h.stocks.length],
-    ['metals', 'Gold & Silver', h.metals.length],
-    ['insurance', 'Insurance & Plans', h.insurance.length],
+    ['mf',        'Mutual Funds',       h.mf.length],
+    ['stocks',    'Stocks',             h.stocks.length],
+    ['fixed',     'Deposits',           h.fixed.length],
+    ['metals',    'Gold & Silver',      h.metals.length],
+    ['insurance', 'Insurance & Plans',  h.insurance.length],
   ]
 
   // sheet name map
-  const sheetMap = { mf: 'MF', stocks: 'Stocks', metals: 'Metals', insurance: 'Insurance' }
+  const sheetMap = { mf: 'MF', stocks: 'Stocks', metals: 'Metals', insurance: 'Insurance', fixed: 'Fixed' }
 
   const hasDirty = Object.keys(dirty).length > 0
 
@@ -426,9 +544,10 @@ export default function Investments({ data, memberId, showToast }) {
       </div>
 
       {/* Tables */}
-      {tab === 'mf'        && <MFTable       data={data} rows={h.mf}        all={all} dirty={dirty} setDirty={setDirty} />}
-      {tab === 'stocks'    && <StockTable    data={data} rows={h.stocks}    all={all} dirty={dirty} setDirty={setDirty} />}
-      {tab === 'metals'    && <MetalTable    data={data} rows={h.metals}    all={all} dirty={dirty} setDirty={setDirty} />}
+      {tab === 'mf'        && <MFTable        data={data} rows={h.mf}        all={all} dirty={dirty} setDirty={setDirty} />}
+      {tab === 'stocks'    && <StockTable     data={data} rows={h.stocks}    all={all} dirty={dirty} setDirty={setDirty} />}
+      {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} dirty={dirty} setDirty={setDirty} />}
+      {tab === 'metals'    && <MetalTable     data={data} rows={h.metals}    all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'insurance' && <InsuranceTable data={data} rows={h.insurance} all={all} dirty={dirty} setDirty={setDirty} />}
 
       <SaveBar dirty={hasDirty} saving={saving} onSave={save} />
