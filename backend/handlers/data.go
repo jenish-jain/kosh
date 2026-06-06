@@ -1,0 +1,336 @@
+package handlers
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
+	sh "kosh/sheets"
+)
+
+// Data is the full payload returned by GET /api/data.
+type Data struct {
+	Members   []Member   `json:"members"`
+	MF        []MFRow    `json:"mf"`
+	Stocks    []Stock    `json:"stocks"`
+	Metals    []Metal    `json:"metals"`
+	Fixed     []Fixed    `json:"fixed"`
+	Insurance []Insurance `json:"insurance"`
+	SIPs      []SIP      `json:"sips"`
+	Lumpsums  []Lumpsum  `json:"lumpsums"`
+	History   []History  `json:"history"`
+	Config    Config     `json:"config"`
+}
+
+type Member struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+	Relation string `json:"relation"`
+	Slab     int    `json:"slab"`
+	Color    string `json:"color"`
+}
+
+type MFRow struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Plan     string  `json:"plan"`
+	Platform string  `json:"platform"`
+	Member   string  `json:"member"`
+	Invested float64 `json:"invested"`
+	Current  float64 `json:"current"`
+	SIP      float64 `json:"sip"`
+	Notes    string  `json:"notes"`
+}
+
+type Stock struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Ticker    string  `json:"ticker"`
+	Qty       float64 `json:"qty"`
+	AvgPrice  float64 `json:"avg_price"`
+	LastPrice float64 `json:"last_price"`
+	Member    string  `json:"member"`
+}
+
+type Metal struct {
+	ID            string  `json:"id"`
+	Type          string  `json:"type"`
+	DatePurchased string  `json:"date_purchased"`
+	Grams         float64 `json:"grams"`
+	BuyRate       float64 `json:"buy_rate"`
+	TodayPrice    float64 `json:"today_price"`
+	Place         string  `json:"place"`
+	Member        string  `json:"member"`
+}
+
+type Fixed struct {
+	ID           string  `json:"id"`
+	Kind         string  `json:"kind"`
+	Name         string  `json:"name"`
+	Member       string  `json:"member"`
+	Principal    float64 `json:"principal"`
+	Rate         float64 `json:"rate"`
+	CurrentValue float64 `json:"current_value"`
+	Opened       string  `json:"opened"`
+	Matures      string  `json:"matures"`
+	Monthly      float64 `json:"monthly"`
+}
+
+type Insurance struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Member   string  `json:"member"`
+	Premium  float64 `json:"premium"`
+	Freq     string  `json:"freq"`
+	Paid     float64 `json:"paid"`
+	Value    float64 `json:"value"`
+	Cover    float64 `json:"cover"`
+	Maturity int     `json:"maturity"`
+}
+
+type SIP struct {
+	ID        string  `json:"id"`
+	Fund      string  `json:"fund"`
+	Member    string  `json:"member"`
+	Amount    float64 `json:"amount"`
+	Day       int     `json:"day"`
+	Status    string  `json:"status"`
+	StartDate string  `json:"start_date"`
+	Platform  string  `json:"platform"`
+}
+
+type Lumpsum struct {
+	ID     string  `json:"id"`
+	Fund   string  `json:"fund"`
+	Member string  `json:"member"`
+	Amount float64 `json:"amount"`
+	Date   string  `json:"date"`
+}
+
+type History struct {
+	Month string  `json:"month"`
+	Value float64 `json:"value"`
+}
+
+type Config struct {
+	GrossIncome          float64 `json:"gross_income"`
+	Regime               string  `json:"regime"`
+	CapitalGainsThisYear float64 `json:"capital_gains_this_year"`
+	ShiftedToParents     float64 `json:"shifted_to_parents"`
+	SurchargeFrom        float64 `json:"surcharge_from"`
+	NextSurchargeAt      float64 `json:"next_surcharge_at"`
+	ParentsCapacityMom   float64 `json:"parents_capacity_mom"`
+	ParentsCapacityDad   float64 `json:"parents_capacity_dad"`
+}
+
+// Handler wraps a Sheets client (may be nil in dev mode).
+type Handler struct {
+	client  *sh.Client
+	devData *Data
+}
+
+func NewHandler(client *sh.Client) *Handler {
+	h := &Handler{client: client}
+	if client == nil {
+		h.devData = loadDevData()
+	}
+	return h
+}
+
+func loadDevData() *Data {
+	b, err := os.ReadFile("dev_data.json")
+	if err != nil {
+		fmt.Println("[dev] dev_data.json not found, returning empty data")
+		return &Data{}
+	}
+	var d Data
+	if err := json.Unmarshal(b, &d); err != nil {
+		fmt.Println("[dev] failed to parse dev_data.json:", err)
+		return &Data{}
+	}
+	fmt.Println("[dev] loaded dev_data.json")
+	return &d
+}
+
+func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
+	if h.devData != nil {
+		writeJSON(w, h.devData)
+		return
+	}
+	data, err := h.fetchFromSheets()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, data)
+}
+
+func (h *Handler) fetchFromSheets() (*Data, error) {
+	d := &Data{}
+	var err error
+
+	// Members
+	if rows, e := h.client.ReadSheet("Members"); e == nil {
+		for _, row := range rows[1:] { // skip header
+			d.Members = append(d.Members, Member{
+				ID: sh.ColStr(row, 0), Name: sh.ColStr(row, 1),
+				FullName: sh.ColStr(row, 2), Relation: sh.ColStr(row, 3),
+				Slab: sh.ColInt(row, 4), Color: sh.ColStr(row, 5),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// MF
+	if rows, e := h.client.ReadSheet("MF"); e == nil {
+		for _, row := range rows[1:] {
+			d.MF = append(d.MF, MFRow{
+				ID: sh.ColStr(row, 0), Name: sh.ColStr(row, 1), Plan: sh.ColStr(row, 2),
+				Platform: sh.ColStr(row, 3), Member: sh.ColStr(row, 4),
+				Invested: sh.ColFloat(row, 5), Current: sh.ColFloat(row, 6),
+				SIP: sh.ColFloat(row, 7), Notes: sh.ColStr(row, 8),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Stocks
+	if rows, e := h.client.ReadSheet("Stocks"); e == nil {
+		for _, row := range rows[1:] {
+			d.Stocks = append(d.Stocks, Stock{
+				ID: sh.ColStr(row, 0), Name: sh.ColStr(row, 1), Ticker: sh.ColStr(row, 2),
+				Qty: sh.ColFloat(row, 3), AvgPrice: sh.ColFloat(row, 4),
+				LastPrice: sh.ColFloat(row, 5), Member: sh.ColStr(row, 6),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Metals
+	if rows, e := h.client.ReadSheet("Metals"); e == nil {
+		for _, row := range rows[1:] {
+			d.Metals = append(d.Metals, Metal{
+				ID: sh.ColStr(row, 0), Type: sh.ColStr(row, 1), DatePurchased: sh.ColStr(row, 2),
+				Grams: sh.ColFloat(row, 3), BuyRate: sh.ColFloat(row, 4),
+				TodayPrice: sh.ColFloat(row, 5), Place: sh.ColStr(row, 6), Member: sh.ColStr(row, 7),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Fixed
+	if rows, e := h.client.ReadSheet("Fixed"); e == nil {
+		for _, row := range rows[1:] {
+			d.Fixed = append(d.Fixed, Fixed{
+				ID: sh.ColStr(row, 0), Kind: sh.ColStr(row, 1), Name: sh.ColStr(row, 2),
+				Member: sh.ColStr(row, 3), Principal: sh.ColFloat(row, 4),
+				Rate: sh.ColFloat(row, 5), CurrentValue: sh.ColFloat(row, 6),
+				Opened: sh.ColStr(row, 7), Matures: sh.ColStr(row, 8), Monthly: sh.ColFloat(row, 9),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Insurance
+	if rows, e := h.client.ReadSheet("Insurance"); e == nil {
+		for _, row := range rows[1:] {
+			d.Insurance = append(d.Insurance, Insurance{
+				ID: sh.ColStr(row, 0), Name: sh.ColStr(row, 1), Type: sh.ColStr(row, 2),
+				Member: sh.ColStr(row, 3), Premium: sh.ColFloat(row, 4), Freq: sh.ColStr(row, 5),
+				Paid: sh.ColFloat(row, 6), Value: sh.ColFloat(row, 7),
+				Cover: sh.ColFloat(row, 8), Maturity: sh.ColInt(row, 9),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// SIPs
+	if rows, e := h.client.ReadSheet("SIPs"); e == nil {
+		for _, row := range rows[1:] {
+			d.SIPs = append(d.SIPs, SIP{
+				ID: sh.ColStr(row, 0), Fund: sh.ColStr(row, 1), Member: sh.ColStr(row, 2),
+				Amount: sh.ColFloat(row, 3), Day: sh.ColInt(row, 4),
+				Status: sh.ColStr(row, 5), StartDate: sh.ColStr(row, 6), Platform: sh.ColStr(row, 7),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Lumpsums
+	if rows, e := h.client.ReadSheet("Lumpsums"); e == nil {
+		for _, row := range rows[1:] {
+			d.Lumpsums = append(d.Lumpsums, Lumpsum{
+				ID: sh.ColStr(row, 0), Fund: sh.ColStr(row, 1), Member: sh.ColStr(row, 2),
+				Amount: sh.ColFloat(row, 3), Date: sh.ColStr(row, 4),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// History
+	if rows, e := h.client.ReadSheet("History"); e == nil {
+		for _, row := range rows[1:] {
+			d.History = append(d.History, History{
+				Month: sh.ColStr(row, 0), Value: sh.ColFloat(row, 1),
+			})
+		}
+	} else {
+		err = e
+	}
+
+	// Config (key-value pairs)
+	if rows, e := h.client.ReadSheet("Config"); e == nil {
+		cfg := map[string]string{}
+		for _, row := range rows[1:] {
+			if len(row) >= 2 {
+				cfg[strings.TrimSpace(sh.ColStr(row, 0))] = sh.ColStr(row, 1)
+			}
+		}
+		d.Config = parseConfig(cfg)
+	} else {
+		err = e
+	}
+
+	return d, err
+}
+
+func parseConfig(m map[string]string) Config {
+	pf := func(k string) float64 {
+		v, _ := parseFloat64(m[k])
+		return v
+	}
+	return Config{
+		GrossIncome:          pf("gross_income"),
+		Regime:               m["regime"],
+		CapitalGainsThisYear: pf("capital_gains_this_year"),
+		ShiftedToParents:     pf("shifted_to_parents"),
+		SurchargeFrom:        pf("surcharge_from"),
+		NextSurchargeAt:      pf("next_surcharge_at"),
+		ParentsCapacityMom:   pf("parents_capacity_mom"),
+		ParentsCapacityDad:   pf("parents_capacity_dad"),
+	}
+}
+
+func parseFloat64(s string) (float64, error) {
+	s = strings.ReplaceAll(s, ",", "")
+	var v float64
+	_, err := fmt.Sscanf(s, "%f", &v)
+	return v, err
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(v)
+}
