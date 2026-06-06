@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DataProvider, useData } from './data/context.jsx'
 import { memberTotal, fmtINR, fmtCompact } from './data/helpers.js'
 import { Icon } from './components/Icons.jsx'
@@ -8,6 +8,7 @@ import Investments from './screens/Investments.jsx'
 import SIPs from './screens/SIPs.jsx'
 import Family from './screens/Family.jsx'
 import Tax from './screens/Tax.jsx'
+import Login from './screens/Login.jsx'
 
 const NAV = [
   { id: 'dashboard',   label: 'Dashboard',      icon: 'dash' },
@@ -17,7 +18,7 @@ const NAV = [
   { id: 'tax',         label: 'Tax',             icon: 'tax' },
 ]
 
-function Sidebar({ screen, setScreen, data }) {
+function Sidebar({ screen, setScreen, data, user, onLogout }) {
   const household = data ? memberTotal(data, null) : 0
   return (
     <aside className="sidebar">
@@ -52,12 +53,24 @@ function Sidebar({ screen, setScreen, data }) {
           {data ? (
             <>
               <div className="net-val num">{fmtINR(household)}</div>
-              <div className="net-sub">{data.members?.length || 0} members · local</div>
+              <div className="net-sub">{data.members?.length || 0} members · live</div>
             </>
           ) : (
             <div className="net-val" style={{ opacity: .4 }}>—</div>
           )}
         </div>
+        {user && onLogout && (
+          <button onClick={onLogout} style={{
+            marginTop: 10, width: '100%', background: 'none', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 0', color: 'var(--ink-3)', fontSize: 12, fontWeight: 600,
+          }}>
+            <Icon name="x" size={14} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </span>
+          </button>
+        )}
       </div>
     </aside>
   )
@@ -113,7 +126,7 @@ function ErrorScreen({ message }) {
   )
 }
 
-function AppShell() {
+function AppShell({ user, onLogout }) {
   const { data, loading, error } = useData()
   const [screen, setScreenRaw] = useState(() => localStorage.getItem('kosh.screen') || 'dashboard')
   const [member, setMemberRaw] = useState(() => { const v = localStorage.getItem('kosh.member'); return v === 'null' || !v ? null : v })
@@ -141,7 +154,7 @@ function AppShell() {
 
   return (
     <div className="app">
-      <Sidebar screen={screen} setScreen={setScreen} data={data} />
+      <Sidebar screen={screen} setScreen={setScreen} data={data} user={user} onLogout={onLogout} />
       <div className="main">
         <header className="topbar">
           <div style={{ flex: 1 }} />
@@ -159,9 +172,38 @@ function AppShell() {
 }
 
 export default function App() {
+  const [authState, setAuthState] = useState('checking') // 'checking' | 'login' | 'authed'
+  const [user, setUser] = useState(null)
+  const [clientId, setClientId] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/auth/config')
+      .then(r => r.json())
+      .then(cfg => {
+        if (!cfg.enabled) { setAuthState('authed'); return }
+        setClientId(cfg.client_id)
+        return fetch('/api/auth/me', { credentials: 'include' })
+          .then(r => { if (r.ok) return r.json(); throw new Error() })
+          .then(u => { setUser(u); setAuthState('authed') })
+          .catch(() => setAuthState('login'))
+      })
+      .catch(() => setAuthState('authed'))
+  }, [])
+
+  const handleLogin = u => { setUser(u); setAuthState('authed') }
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
+    setUser(null)
+    setAuthState('login')
+  }
+
+  if (authState === 'checking') return <LoadingScreen />
+  if (authState === 'login') return <Login clientId={clientId} onLogin={handleLogin} />
+
   return (
     <DataProvider>
-      <AppShell />
+      <AppShell user={user} onLogout={clientId ? handleLogout : null} />
     </DataProvider>
   )
 }

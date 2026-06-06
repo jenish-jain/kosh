@@ -16,10 +16,13 @@ import (
 func main() {
 	_ = godotenv.Load() // load .env if present; ignore error if not
 
-	port := sh.EnvOrDefault("PORT", "8080")
+	port          := sh.EnvOrDefault("PORT", "8080")
 	spreadsheetID := os.Getenv("SPREADSHEET_ID")
-	credPath := sh.EnvOrDefault("CREDENTIALS_PATH", "credentials.json")
-	frontendDist := sh.EnvOrDefault("FRONTEND_DIST", "../frontend/dist")
+	credPath      := sh.EnvOrDefault("CREDENTIALS_PATH", "credentials.json")
+	frontendDist  := sh.EnvOrDefault("FRONTEND_DIST", "../frontend/dist")
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	sessionSecret  := os.Getenv("SESSION_SECRET")
+	allowedRaw     := os.Getenv("ALLOWED_EMAILS") // comma-separated
 
 	// Tab definitions — order controls creation order in the spreadsheet.
 	koshTabs := []sh.TabDef{
@@ -35,7 +38,7 @@ func main() {
 		{Name: "Config",    Columns: []string{"key", "value"}},
 	}
 
-	// Try to create a real Sheets client; fall back to dev mode if credentials missing.
+	// ── Sheets client ──────────────────────────────────────────────────────────
 	var client *sh.Client
 	if spreadsheetID != "" {
 		if _, err := os.Stat(credPath); err == nil {
@@ -57,18 +60,75 @@ func main() {
 		log.Println("⚠ SPREADSHEET_ID not set — running in dev mode (dev_data.json)")
 	}
 
+	// ── Auth ───────────────────────────────────────────────────────────────────
+	// Auth is enabled only when GOOGLE_CLIENT_ID + SESSION_SECRET are both set.
+	// Without them the app runs open (useful for local dev).
+	var auth *handlers.AuthHandler
+	authEnabled := googleClientID != "" && sessionSecret != ""
+	if authEnabled {
+		emails := strings.Split(allowedRaw, ",")
+		auth = handlers.NewAuthHandler(emails, googleClientID, sessionSecret)
+		log.Printf("✓ Auth enabled — %d allowed email(s)", len(emails))
+	} else {
+		log.Println("⚠ Auth disabled (GOOGLE_CLIENT_ID / SESSION_SECRET not set)")
+	}
+
+	// protect wraps a handler with auth if auth is enabled.
+	protect := func(next http.HandlerFunc) http.HandlerFunc {
+		if auth != nil {
+			return auth.Require(next)
+		}
+		return next
+	}
+
 	h := handlers.NewHandler(client)
 	mux := http.NewServeMux()
 
-	// Health check — lists which sheet tabs are readable
+	// ── Auth routes (always registered, no auth required) ─────────────────────
+	mux.HandleFunc("/api/auth/config", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions { return }
+		if authEnabled {
+			auth.Config(w, r)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
+		}
+	})
+	mux.HandleFunc("/api/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions { return }
+		if auth != nil {
+			auth.Login(w, r)
+		} else {
+			http.Error(w, "auth not configured", http.StatusNotFound)
+		}
+	})
+	mux.HandleFunc("/api/auth/me", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions { return }
+		if auth != nil {
+			auth.Me(w, r)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
+		}
+	})
+	mux.HandleFunc("/api/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions { return }
+		if auth != nil {
+			auth.Logout(w, r)
+		} else {
+			http.Error(w, "auth not configured", http.StatusNotFound)
+		}
+	})
+
+	// ── Health check (no auth required — useful for diagnostics) ──────────────
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		status := map[string]interface{}{
-			"mode": "dev",
-		}
+		if r.Method == http.MethodOptions { return }
+		status := map[string]interface{}{"mode": "dev", "auth": authEnabled}
 		if client != nil {
 			status["mode"] = "live"
 			status["spreadsheet_id"] = spreadsheetID
@@ -87,42 +147,33 @@ func main() {
 		json.NewEncoder(w).Encode(status)
 	})
 
-	// API routes
+	// ── Protected API routes ───────────────────────────────────────────────────
 	mux.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		h.GetData(w, r)
+		if r.Method == http.MethodOptions { return }
+		protect(h.GetData)(w, r)
 	})
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		// Route by method + path depth
-		// POST /api/{sheet}        → add row
-		// PUT  /api/{sheet}/{id}   → update row
-		// DELETE /api/{sheet}/{id} → delete row
+		if r.Method == http.MethodOptions { return }
 		path := strings.TrimPrefix(r.URL.Path, "/api/")
 		parts := strings.Split(path, "/")
 		switch {
 		case r.Method == http.MethodPost && len(parts) == 1:
-			h.AddRow(w, r)
+			protect(h.AddRow)(w, r)
 		case r.Method == http.MethodPut && len(parts) == 2:
-			h.UpdateRow(w, r)
+			protect(h.UpdateRow)(w, r)
 		case r.Method == http.MethodDelete && len(parts) == 2:
-			h.DeleteRow(w, r)
+			protect(h.DeleteRow)(w, r)
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
 		}
 	})
 
-	// Serve frontend static files
+	// ── Frontend static files ──────────────────────────────────────────────────
 	fs := http.FileServer(http.Dir(frontendDist))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// SPA fallback: if file not found, serve index.html
 		path := frontendDist + r.URL.Path
 		if _, err := os.Stat(path); os.IsNotExist(err) && !strings.HasPrefix(r.URL.Path, "/assets/") {
 			http.ServeFile(w, r, frontendDist+"/index.html")
