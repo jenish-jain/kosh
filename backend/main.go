@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"kosh/handlers"
 	sh "kosh/sheets"
@@ -40,6 +41,33 @@ func main() {
 
 	h := handlers.NewHandler(client)
 	mux := http.NewServeMux()
+
+	// Health check — lists which sheet tabs are readable
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		status := map[string]interface{}{
+			"mode": "dev",
+		}
+		if client != nil {
+			status["mode"] = "live"
+			status["spreadsheet_id"] = spreadsheetID
+			tabs := []string{"Members", "MF", "Stocks", "Metals", "Fixed", "Insurance", "SIPs", "Lumpsums", "History", "Config"}
+			tabStatus := map[string]string{}
+			for _, tab := range tabs {
+				if _, err := client.ReadSheet(tab); err != nil {
+					tabStatus[tab] = err.Error()
+				} else {
+					tabStatus[tab] = "ok"
+				}
+			}
+			status["tabs"] = tabStatus
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(status)
+	})
 
 	// API routes
 	mux.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {

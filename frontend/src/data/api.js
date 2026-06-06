@@ -7,7 +7,10 @@ let _cache = null
 
 export async function fetchData() {
   const res = await fetch(`${BASE}/data`)
-  if (!res.ok) throw new Error(`Failed to load data: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body.trim() || `Server error ${res.status}`)
+  }
   _cache = await res.json()
   return _cache
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -175,11 +176,15 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) fetchFromSheets() (*Data, error) {
 	d := &Data{}
-	var err error
 
-	// Members
+	// tabLog logs a warning for a tab read failure but does not abort — a missing
+	// or unshared tab should not crash the whole app.
+	tabLog := func(tab string, e error) {
+		log.Printf("⚠  sheet %q unavailable: %v", tab, e)
+	}
+
 	if rows, e := h.client.ReadSheet("Members"); e == nil {
-		for _, row := range rows[1:] { // skip header
+		for _, row := range rows[1:] {
 			d.Members = append(d.Members, Member{
 				ID: sh.ColStr(row, 0), Name: sh.ColStr(row, 1),
 				FullName: sh.ColStr(row, 2), Relation: sh.ColStr(row, 3),
@@ -187,10 +192,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Members", e)
 	}
 
-	// MF
 	if rows, e := h.client.ReadSheet("MF"); e == nil {
 		for _, row := range rows[1:] {
 			d.MF = append(d.MF, MFRow{
@@ -201,10 +205,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("MF", e)
 	}
 
-	// Stocks
 	if rows, e := h.client.ReadSheet("Stocks"); e == nil {
 		for _, row := range rows[1:] {
 			d.Stocks = append(d.Stocks, Stock{
@@ -214,10 +217,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Stocks", e)
 	}
 
-	// Metals
 	if rows, e := h.client.ReadSheet("Metals"); e == nil {
 		for _, row := range rows[1:] {
 			d.Metals = append(d.Metals, Metal{
@@ -227,10 +229,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Metals", e)
 	}
 
-	// Fixed
 	if rows, e := h.client.ReadSheet("Fixed"); e == nil {
 		for _, row := range rows[1:] {
 			d.Fixed = append(d.Fixed, Fixed{
@@ -241,10 +242,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Fixed", e)
 	}
 
-	// Insurance
 	if rows, e := h.client.ReadSheet("Insurance"); e == nil {
 		for _, row := range rows[1:] {
 			d.Insurance = append(d.Insurance, Insurance{
@@ -255,10 +255,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Insurance", e)
 	}
 
-	// SIPs
 	if rows, e := h.client.ReadSheet("SIPs"); e == nil {
 		for _, row := range rows[1:] {
 			d.SIPs = append(d.SIPs, SIP{
@@ -268,10 +267,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("SIPs", e)
 	}
 
-	// Lumpsums
 	if rows, e := h.client.ReadSheet("Lumpsums"); e == nil {
 		for _, row := range rows[1:] {
 			d.Lumpsums = append(d.Lumpsums, Lumpsum{
@@ -280,10 +278,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("Lumpsums", e)
 	}
 
-	// History
 	if rows, e := h.client.ReadSheet("History"); e == nil {
 		for _, row := range rows[1:] {
 			d.History = append(d.History, History{
@@ -291,10 +288,9 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 			})
 		}
 	} else {
-		err = e
+		tabLog("History", e)
 	}
 
-	// Config (key-value pairs)
 	if rows, e := h.client.ReadSheet("Config"); e == nil {
 		cfg := map[string]string{}
 		for _, row := range rows[1:] {
@@ -304,10 +300,10 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 		}
 		d.Config = parseConfig(cfg)
 	} else {
-		err = e
+		tabLog("Config", e)
 	}
 
-	return d, err
+	return d, nil
 }
 
 func parseConfig(m map[string]string) Config {
