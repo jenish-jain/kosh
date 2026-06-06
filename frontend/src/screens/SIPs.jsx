@@ -94,6 +94,85 @@ function EditSipModal({ sip, onClose, onSave }) {
   )
 }
 
+// ── Add SIP modal ────────────────────────────────────────────
+function AddSipModal({ memberId, data, onClose }) {
+  const { add } = useData()
+  const mfOptions = (data.mf || []).filter(f => !memberId || f.member === memberId)
+  const [useExisting, setUseExisting] = useState(mfOptions.length > 0)
+  const [fundId, setFundId] = useState(mfOptions[0]?.id || '')
+  const [fundName, setFundName] = useState('')
+  const [member, setMember] = useState(memberId || data.members?.[0]?.id || 'you')
+  const [amount, setAmount] = useState('')
+  const [day, setDay] = useState(1)
+  const [platform, setPlatform] = useState('')
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+
+  const resolvedFund = useExisting
+    ? (data.mf || []).find(x => x.id === fundId)
+    : null
+
+  const submit = async () => {
+    const name = useExisting ? (resolvedFund?.name || fundId) : fundName
+    const owner = useExisting ? (resolvedFund?.member || member) : member
+    if (!name || !amount || !day) return
+    await add('SIPs', {
+      id: 'sip' + Date.now(),
+      fund: name,
+      member: owner,
+      amount: Number(amount),
+      day: Number(day),
+      status: 'active',
+      start_date: startDate,
+      platform: useExisting ? (resolvedFund?.platform || platform) : platform,
+    })
+    onClose()
+  }
+
+  return (
+    <Modal title="Add SIP" onClose={onClose}>
+      <Field label="Fund">
+        <div className="seg" style={{ display: 'flex', marginBottom: 10 }}>
+          <button className={useExisting ? 'active' : ''} onClick={() => setUseExisting(true)} style={{ flex: 1 }} disabled={mfOptions.length === 0}>Pick from my MFs</button>
+          <button className={!useExisting ? 'active' : ''} onClick={() => setUseExisting(false)} style={{ flex: 1 }}>Enter manually</button>
+        </div>
+        {useExisting ? (
+          <select className="input" value={fundId} onChange={e => setFundId(e.target.value)}>
+            {mfOptions.map(f => {
+              const m = (data.members || []).find(m => m.id === f.member)
+              return <option key={f.id} value={f.id}>{f.name}{m ? ` — ${m.name}` : ''}</option>
+            })}
+          </select>
+        ) : (
+          <input className="input" value={fundName} onChange={e => setFundName(e.target.value)} placeholder="e.g. Quant Small Cap Fund" />
+        )}
+      </Field>
+
+      {!useExisting && (
+        <Field label="Owner">
+          <div className="seg" style={{ display: 'flex' }}>
+            {(data.members || []).map(m => (
+              <button key={m.id} className={member === m.id ? 'active' : ''} onClick={() => setMember(m.id)} style={{ flex: 1 }}>{m.name}</button>
+            ))}
+          </div>
+        </Field>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Monthly amount"><input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 5000" /></Field>
+        <Field label="Debit day (1–28)"><input className="input" type="number" min="1" max="28" value={day} onChange={e => setDay(e.target.value)} /></Field>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Platform"><input className="input" value={platform} onChange={e => setPlatform(e.target.value)} placeholder={useExisting ? resolvedFund?.platform || 'e.g. Groww' : 'e.g. Groww'} /></Field>
+        <Field label="Start date"><input className="input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></Field>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={submit}>Add SIP</button>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Lumpsum modal ────────────────────────────────────────────
 function LumpsumModal({ memberId, data, onClose }) {
   const { add } = useData()
@@ -141,6 +220,7 @@ export default function SIPs({ data, memberId, showToast }) {
   const { update } = useData()
   const [editSip, setEditSip] = useState(null)
   const [showLump, setShowLump] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
   const [dirty, setDirty] = useState({}) // id → full updated sip object
   const [saving, setSaving] = useState(false)
 
@@ -196,8 +276,9 @@ export default function SIPs({ data, memberId, showToast }) {
             <div className="num serif-num" style={{ fontSize: 30, marginTop: 8 }}>{f.value}</div>
           </div>
         ))}
-        <div style={{ paddingLeft: 24, borderLeft: '1px solid var(--line)' }}>
-          <button className="btn primary" onClick={() => setShowLump(true)}><Icon name="plus" size={15} /> Lumpsum top-up</button>
+        <div style={{ paddingLeft: 24, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button className="btn primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={15} /> Add SIP</button>
+          <button className="btn" onClick={() => setShowLump(true)}><Icon name="plus" size={15} /> Lumpsum top-up</button>
         </div>
       </div>
 
@@ -277,6 +358,7 @@ export default function SIPs({ data, memberId, showToast }) {
 
       {editSip && <EditSipModal sip={editSip} onClose={() => setEditSip(null)} onSave={handleEditSave} />}
       {showLump && <LumpsumModal memberId={memberId} data={data} onClose={() => setShowLump(false)} />}
+      {showAdd  && <AddSipModal  memberId={memberId} data={data} onClose={() => setShowAdd(false)} />}
     </div>
   )
 }
