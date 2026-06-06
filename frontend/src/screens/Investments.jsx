@@ -3,6 +3,7 @@ import { useData } from '../data/context.jsx'
 import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL, TODAY_DISPLAY, TODAY_STR } from '../data/helpers.js'
 import { EdRule, Modal, Field, EditCell, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
+import UploadZone from '../components/UploadZone.jsx'
 
 const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
 const SERIF = "var(--serif)"
@@ -335,10 +336,45 @@ function FixedTable({ data, rows, all }) {
   )
 }
 
+// ── Map AI-extracted fields → AddModal form state ────────────
+function extractedToForm(tab, fields) {
+  if (!fields) return {}
+  const num = k => (fields[k] != null && fields[k] !== '' ? Number(fields[k]) : '')
+  if (tab === 'fixed') {
+    const opened  = fields.opened  || TODAY_STR
+    const matures = fields.matures || ''
+    const tenure  = opened && matures
+      ? Math.round((new Date(matures) - new Date(opened)) / (365.25 / 12 * 864e5))
+      : ''
+    return { fdKind: 'FD', name: fields.name || '', rate: num('rate'), opened, principal: num('principal'), tenure }
+  }
+  if (tab === 'insurance') {
+    return {
+      insType:  fields.type    || 'Endowment',
+      name:     fields.name    || '',
+      premium:  num('premium'),
+      freq:     fields.freq    || 'annual',
+      cover:    num('cover'),
+      maturity: num('maturity'),
+    }
+  }
+  if (tab === 'metals') {
+    return {
+      metalType: fields.type === 'Silver' ? 'Silver' : 'Gold',
+      grams:     num('grams'),
+      buyRate:   num('buy_rate'),
+      place:     fields.place  || '',
+    }
+  }
+  return {}
+}
+
 // ── Add Modal ────────────────────────────────────────────────
-function AddModal({ tab, memberId, data, onClose }) {
+function AddModal({ tab, memberId, data, onClose, initialForm }) {
   const { add } = useData()
-  const [form, setForm] = useState({ member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment', fdKind: 'FD' })
+  const defaults = { member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment', fdKind: 'FD' }
+  const [form, setForm] = useState(initialForm ? { ...defaults, ...initialForm } : defaults)
+  const fromUpload = !!initialForm
   const up = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const n = v => Number(v) || 0
 
@@ -376,6 +412,15 @@ function AddModal({ tab, memberId, data, onClose }) {
 
   return (
     <Modal title={titles[tab]} onClose={onClose}>
+      {fromUpload && (
+        <div style={{
+          margin: '0 0 16px', padding: '9px 14px', borderRadius: 4,
+          background: 'var(--accent-soft)', color: 'var(--accent-ink)',
+          fontSize: 12.5, fontWeight: 600,
+        }}>
+          ✦ Pre-filled by Claude from your document — review each field before saving.
+        </div>
+      )}
       {tab === 'mf' && <>
         <Field label="Fund name"><input className="input" value={form.name || ''} onChange={e => up('name', e.target.value)} placeholder="e.g. Quant Small Cap Fund" /></Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -483,8 +528,21 @@ export default function Investments({ data, memberId, showToast }) {
   const { update } = useData()
   const [tab, setTab] = useState('mf')
   const [showAdd, setShowAdd] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [uploadPreFill, setUploadPreFill] = useState(null)
   const [dirty, setDirty] = useState({})
   const [saving, setSaving] = useState(false)
+
+  const uploadableTabs = ['fixed', 'insurance', 'metals']
+  const canUpload = uploadableTabs.includes(tab)
+
+  const handleExtracted = (fields, driveURL) => {
+    const pre = extractedToForm(tab, fields)
+    if (driveURL) pre.notes = (pre.notes ? pre.notes + '\n' : '') + `Drive: ${driveURL}`
+    setUploadPreFill(pre)
+    setShowUpload(false)
+    setShowAdd(true)
+  }
 
   const h = holdingsFor(data, memberId)
   const all = !memberId
@@ -538,7 +596,14 @@ export default function Investments({ data, memberId, showToast }) {
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <button className="btn primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={15} /> Add</button>
+        {canUpload && (
+          <button className="btn" onClick={() => { setUploadPreFill(null); setShowUpload(true) }}>
+            <Icon name="upload" size={15} /> Upload PDF
+          </button>
+        )}
+        <button className="btn primary" onClick={() => { setUploadPreFill(null); setShowAdd(true) }}>
+          <Icon name="plus" size={15} /> Add
+        </button>
       </div>
 
       {/* Tables */}
@@ -550,7 +615,16 @@ export default function Investments({ data, memberId, showToast }) {
 
       <SaveBar dirty={hasDirty} saving={saving} onSave={save} />
 
-      {showAdd && <AddModal tab={tab} memberId={memberId} data={data} onClose={() => setShowAdd(false)} />}
+      {showAdd && (
+        <AddModal
+          tab={tab} memberId={memberId} data={data}
+          initialForm={uploadPreFill}
+          onClose={() => { setShowAdd(false); setUploadPreFill(null) }}
+        />
+      )}
+      {showUpload && (
+        <UploadZone docType={tab} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
+      )}
     </div>
   )
 }

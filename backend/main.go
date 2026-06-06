@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	drv "kosh/drive"
 	"kosh/handlers"
 	sh "kosh/sheets"
 	"log"
@@ -16,13 +17,15 @@ import (
 func main() {
 	_ = godotenv.Load() // load .env if present; ignore error if not
 
-	port          := sh.EnvOrDefault("PORT", "8080")
-	spreadsheetID := os.Getenv("SPREADSHEET_ID")
-	credPath      := sh.EnvOrDefault("CREDENTIALS_PATH", "credentials.json")
-	frontendDist  := sh.EnvOrDefault("FRONTEND_DIST", "../frontend/dist")
+	port           := sh.EnvOrDefault("PORT", "8080")
+	spreadsheetID  := os.Getenv("SPREADSHEET_ID")
+	credPath       := sh.EnvOrDefault("CREDENTIALS_PATH", "credentials.json")
+	frontendDist   := sh.EnvOrDefault("FRONTEND_DIST", "../frontend/dist")
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	sessionSecret  := os.Getenv("SESSION_SECRET")
 	allowedRaw     := os.Getenv("ALLOWED_EMAILS") // comma-separated
+	anthropicKey   := os.Getenv("ANTHROPIC_API_KEY")
+	promptsDir     := sh.EnvOrDefault("PROMPTS_DIR", "prompts")
 
 	// Tab definitions — order controls creation order in the spreadsheet.
 	koshTabs := []sh.TabDef{
@@ -60,6 +63,18 @@ func main() {
 		log.Println("⚠ SPREADSHEET_ID not set — running in dev mode (dev_data.json)")
 	}
 
+	// ── Drive client ──────────────────────────────────────────────────────────
+	var driveClient *drv.Client
+	if _, err := os.Stat(credPath); err == nil {
+		dc, err := drv.NewClient(credPath)
+		if err != nil {
+			log.Printf("⚠ Drive client error: %v", err)
+		} else {
+			driveClient = dc
+			log.Println("✓ Drive client ready")
+		}
+	}
+
 	// ── Auth ───────────────────────────────────────────────────────────────────
 	// Auth is enabled only when GOOGLE_CLIENT_ID + SESSION_SECRET are both set.
 	// Without them the app runs open (useful for local dev).
@@ -82,6 +97,8 @@ func main() {
 	}
 
 	h := handlers.NewHandler(client)
+	shareEmails := strings.Split(allowedRaw, ",")
+	upload := handlers.NewUploadHandler(driveClient, anthropicKey, promptsDir, shareEmails)
 	mux := http.NewServeMux()
 
 	// ── Auth routes (always registered, no auth required) ─────────────────────
@@ -145,6 +162,15 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(status)
+	})
+
+	// ── Document upload (protected) ───────────────────────────────────────────
+	mux.HandleFunc("/api/upload/", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		protect(upload.Handle)(w, r)
 	})
 
 	// ── Protected API routes ───────────────────────────────────────────────────
