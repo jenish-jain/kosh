@@ -372,7 +372,7 @@ func computeFixedValue(f Fixed) float64 {
 	return fdCurrentValue(f.Principal, f.Rate, f.Opened)
 }
 
-// fdCurrentValue: P × (1 + r/4)^(4t) — quarterly compounding.
+// fdCurrentValue: P × (1 + r)^t — annual compounding.
 func fdCurrentValue(principal, ratePercent float64, opened string) float64 {
 	if principal == 0 {
 		return 0
@@ -382,10 +382,10 @@ func fdCurrentValue(principal, ratePercent float64, opened string) float64 {
 		return principal
 	}
 	r := ratePercent / 100.0
-	return principal * math.Pow(1+r/4, 4*t)
+	return principal * math.Pow(1+r, t)
 }
 
-// rdCurrentValue: each monthly installment compounds from its deposit date.
+// rdCurrentValue: each monthly installment compounds annually from its deposit date.
 // Installments are capped at the tenure derived from opened→matures.
 func rdCurrentValue(monthly, ratePercent float64, opened, matures string) float64 {
 	if monthly == 0 {
@@ -403,8 +403,8 @@ func rdCurrentValue(monthly, ratePercent float64, opened, matures string) float6
 	}
 	total := 0.0
 	for i := 0; i < made; i++ {
-		months := float64(elapsed - i)
-		total += monthly * math.Pow(1+r/4, 4*months/12)
+		years := float64(elapsed-i) / 12.0
+		total += monthly * math.Pow(1+r, years)
 	}
 	return total
 }
