@@ -50,6 +50,7 @@ export function holdingsFor(data, memberId) {
     metals:    f(data.metals    || []),
     fixed:     f(data.fixed     || []),
     insurance: f(data.insurance || []),
+    loans:     f(data.loans     || []),
   }
 }
 
@@ -71,12 +72,16 @@ export function classTotals(data, memberId) {
   const inCur  = h.insurance.reduce((a, x) => a + (x.value || 0), 0)
   const inInv  = h.insurance.reduce((a, x) => a + (x.paid  || 0), 0)
 
+  const loanOutstanding = h.loans.reduce((a, x) => a + (x.outstanding || 0), 0)
+  const loanEmiMonthly  = h.loans.reduce((a, x) => a + (x.emi || 0), 0)
+
   return {
     mf:        { cur: mfCur, inv: mfInv },
     stocks:    { cur: stCur, inv: stInv },
     metals:    { cur: meCur, inv: meInv },
     fixed:     { cur: fiCur, inv: fiInv },
     insurance: { cur: inCur, inv: inInv },
+    liabilities: { cur: loanOutstanding, monthly: loanEmiMonthly },
     total:     {
       cur: mfCur + stCur + meCur + fiCur + inCur,
       inv: mfInv + stInv + meInv + fiInv + inInv,
@@ -84,8 +89,15 @@ export function classTotals(data, memberId) {
   }
 }
 
+// Gross asset total for a scope — used for allocation percentages, etc.
 export function memberTotal(data, memberId) {
   return classTotals(data, memberId).total.cur
+}
+
+// True net worth — gross assets minus outstanding loan balances.
+export function netWorth(data, memberId) {
+  const c = classTotals(data, memberId)
+  return c.total.cur - c.liabilities.cur
 }
 
 export const CLASS_META = {
@@ -136,8 +148,22 @@ export function nextPremiumDue(policy, from = TODAY) {
   return d
 }
 
-// Recurring fixed outflows (active SIP debits + insurance premiums) due
-// within the next `days` — sorted soonest-first, for an "upcoming" widget.
+// Next date a loan EMI falls due, given its `emi_day` (day-of-month it debits).
+// Null once the loan's tenure has run out (started + tenure_months in the past).
+export function nextEmiDue(loan, from = TODAY) {
+  if (!loan?.emi_day) return null
+  if (loan.started && loan.tenure_months) {
+    const end = new Date(loan.started)
+    end.setMonth(end.getMonth() + Math.round(loan.tenure_months))
+    if (end < from) return null
+  }
+  let d = new Date(from.getFullYear(), from.getMonth(), loan.emi_day)
+  if (d < from) d = new Date(from.getFullYear(), from.getMonth() + 1, loan.emi_day)
+  return d
+}
+
+// Recurring fixed outflows (active SIP debits, insurance premiums, loan EMIs)
+// due within the next `days` — sorted soonest-first, for an "upcoming" widget.
 export function upcomingOutflows(data, memberId, days = 30) {
   const horizon = new Date(TODAY.getTime() + days * 864e5)
   const items = []
@@ -153,6 +179,12 @@ export function upcomingOutflows(data, memberId, days = 30) {
     if (memberId && p.member !== memberId) continue
     const d = nextPremiumDue(p)
     if (d && d <= horizon) items.push({ id: p.id, kind: 'insurance', label: p.name, amount: p.premium, date: d })
+  }
+
+  for (const l of data.loans || []) {
+    if (memberId && l.member !== memberId) continue
+    const d = nextEmiDue(l)
+    if (d && d <= horizon) items.push({ id: l.id, kind: 'loan', label: l.lender, amount: l.emi, date: d })
   }
 
   return items.sort((a, b) => a.date - b.date)

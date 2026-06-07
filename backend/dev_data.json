@@ -32,6 +32,10 @@
     {"id":"in2","name":"HDFC Click 2 Protect","type":"Term","member":"you","premium":18000,"freq":"annual","paid":90000,"value":0,"cover":10000000,"maturity":2055,"due_date":"2025-09-22"},
     {"id":"in3","name":"ICICI Pru Signature","type":"ULIP","member":"you","premium":100000,"freq":"annual","paid":500000,"value":612000,"cover":1000000,"maturity":2040,"due_date":"2025-12-01"}
   ],
+  "loans": [
+    {"id":"ln1","lender":"HDFC Home Loan","type":"Home","member":"you","principal":1800000,"outstanding":1120000,"rate":8.5,"emi":18900,"emi_day":5,"started":"2022-04-01","tenure_months":180},
+    {"id":"ln2","lender":"Axis Car Loan","type":"Car","member":"you","principal":500000,"outstanding":150000,"rate":9.2,"emi":11500,"emi_day":10,"started":"2023-08-15","tenure_months":60}
+  ],
   "sips": [
     {"id":"sip1","fund":"PGIM India Flexi Cap","member":"you","amount":4999,"day":5,"status":"active","start_date":"2022-02-06","platform":"ET Money","kind":"MF"},
     {"id":"sip2","fund":"Quant Active Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-25","platform":"ET Money","kind":"MF"},

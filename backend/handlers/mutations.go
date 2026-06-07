@@ -14,6 +14,7 @@ var sheetColumns = map[string][]string{
 	"Metals":    {"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"},
 	"Fixed":     {"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"},
 	"Insurance": {"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date"},
+	"Loans":     {"id", "lender", "type", "member", "principal", "outstanding", "rate", "emi", "emi_day", "started", "tenure_months"},
 	"SIPs":      {"id", "fund", "member", "amount", "day", "status", "start_date", "platform", "kind"},
 	"Lumpsums":  {"id", "fund", "member", "amount", "date"},
 	"History":   {"month", "value"},
@@ -111,7 +112,7 @@ func normalizeSheet(s string) string {
 	// Map lowercase API paths to actual sheet names
 	m := map[string]string{
 		"mf": "MF", "stocks": "Stocks", "metals": "Metals",
-		"fixed": "Fixed", "insurance": "Insurance", "sips": "SIPs",
+		"fixed": "Fixed", "insurance": "Insurance", "loans": "Loans", "sips": "SIPs",
 		"lumpsums": "Lumpsums", "history": "History", "members": "Members",
 	}
 	if v, ok := m[strings.ToLower(s)]; ok {

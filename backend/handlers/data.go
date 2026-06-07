@@ -21,6 +21,7 @@ type Data struct {
 	Metals    []Metal    `json:"metals"`
 	Fixed     []Fixed    `json:"fixed"`
 	Insurance []Insurance `json:"insurance"`
+	Loans     []Loan     `json:"loans"`
 	SIPs      []SIP      `json:"sips"`
 	Lumpsums  []Lumpsum  `json:"lumpsums"`
 	History   []History  `json:"history"`
@@ -94,6 +95,20 @@ type Insurance struct {
 	Cover    float64 `json:"cover"`
 	Maturity int     `json:"maturity"`
 	DueDate  string  `json:"due_date"` // anchor date (YYYY-MM-DD); month/day reused each cycle per Freq
+}
+
+type Loan struct {
+	ID           string  `json:"id"`
+	Lender       string  `json:"lender"`
+	Type         string  `json:"type"`
+	Member       string  `json:"member"`
+	Principal    float64 `json:"principal"`
+	Outstanding  float64 `json:"outstanding"`
+	Rate         float64 `json:"rate"`
+	EMI          float64 `json:"emi"`
+	EMIDay       int     `json:"emi_day"`
+	Started      string  `json:"started"`
+	TenureMonths int     `json:"tenure_months"`
 }
 
 type SIP struct {
@@ -212,8 +227,8 @@ func (h *Handler) maybeSnapshotHistory(d *Data) {
 	d.History = append(d.History, History{Month: month, Value: total})
 }
 
-// netWorthTotal sums current values across all asset classes — mirrors
-// classTotals().total.cur in frontend/src/data/helpers.js.
+// netWorthTotal sums current asset values minus outstanding loan balances —
+// mirrors netWorth() in frontend/src/data/helpers.js (assets − liabilities).
 func netWorthTotal(d *Data) float64 {
 	var total float64
 	for _, x := range d.MF {
@@ -230,6 +245,9 @@ func netWorthTotal(d *Data) float64 {
 	}
 	for _, x := range d.Insurance {
 		total += x.Value
+	}
+	for _, x := range d.Loans {
+		total -= x.Outstanding
 	}
 	return total
 }
@@ -320,6 +338,20 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 		}
 	} else {
 		tabLog("Insurance", e)
+	}
+
+	if rows, e := h.client.ReadSheet("Loans"); e == nil {
+		for _, row := range rows[1:] {
+			d.Loans = append(d.Loans, Loan{
+				ID: sh.ColStr(row, 0), Lender: sh.ColStr(row, 1), Type: sh.ColStr(row, 2),
+				Member: sh.ColStr(row, 3), Principal: sh.ColFloat(row, 4),
+				Outstanding: sh.ColFloat(row, 5), Rate: sh.ColFloat(row, 6),
+				EMI: sh.ColFloat(row, 7), EMIDay: sh.ColInt(row, 8),
+				Started: sh.ColStr(row, 9), TenureMonths: sh.ColInt(row, 10),
+			})
+		}
+	} else {
+		tabLog("Loans", e)
 	}
 
 	if rows, e := h.client.ReadSheet("SIPs"); e == nil {

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { DataProvider, useData } from './data/context.jsx'
-import { memberTotal, fmtINR, fmtCompact } from './data/helpers.js'
+import { netWorth, fmtINR, fmtCompact } from './data/helpers.js'
 import { Icon } from './components/Icons.jsx'
 import { Avatar, Toast } from './components/Primitives.jsx'
 import Dashboard from './screens/Dashboard.jsx'
 import Investments from './screens/Investments.jsx'
 import SIPs from './screens/SIPs.jsx'
+import Expenses from './screens/Expenses.jsx'
 import Family from './screens/Family.jsx'
 import Tax from './screens/Tax.jsx'
 import Login from './screens/Login.jsx'
@@ -14,12 +15,13 @@ const NAV = [
   { id: 'dashboard',   label: 'Dashboard',      icon: 'dash' },
   { id: 'investments', label: 'Investments',     icon: 'invest' },
   { id: 'sips',        label: 'SIPs & schedule', icon: 'sip' },
+  { id: 'expenses',    label: 'Expenses',        icon: 'expense' },
   { id: 'family',      label: 'Family',          icon: 'members' },
   { id: 'tax',         label: 'Tax',             icon: 'tax' },
 ]
 
 function Sidebar({ screen, setScreen, data, user, onLogout }) {
-  const household = data ? memberTotal(data, null) : 0
+  const household = data ? netWorth(data, null) : 0
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -40,12 +42,6 @@ function Sidebar({ screen, setScreen, data, user, onLogout }) {
             <Icon name={n.icon} size={18} /> {n.label}
           </button>
         ))}
-        <div className="nav-label" style={{ marginTop: 18 }}>Soon</div>
-        <button className="nav-item" style={{ opacity: .45, cursor: 'default' }} disabled>
-          <Icon name="expense" size={18} /> Expenses
-          <span style={{ flex: 1 }} />
-          <span className="pill neutral" style={{ fontSize: 10, padding: '2px 7px' }}>soon</span>
-        </button>
       </nav>
       <div className="sidebar-foot">
         <div className="sidebar-net">
@@ -146,6 +142,7 @@ function AppShell({ user, onLogout }) {
       case 'dashboard':   return <Dashboard   {...props} setScreen={setScreen} onSelectMember={m => { setMember(m); setScreen('family') }} />
       case 'investments': return <Investments {...props} />
       case 'sips':        return <SIPs        {...props} />
+      case 'expenses':    return <Expenses    {...props} />
       case 'family':      return <Family      {...props} setScreen={setScreen} onSelect={setMember} />
       case 'tax':         return <Tax         {...props} />
       default:            return null

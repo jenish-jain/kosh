@@ -35,6 +35,7 @@ func main() {
 		{Name: "Metals",    Columns: []string{"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"}},
 		{Name: "Fixed",     Columns: []string{"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"}},
 		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date"}},
+		{Name: "Loans",     Columns: []string{"id", "lender", "type", "member", "principal", "outstanding", "rate", "emi", "emi_day", "started", "tenure_months"}},
 		{Name: "SIPs",      Columns: []string{"id", "fund", "member", "amount", "day", "status", "start_date", "platform"}},
 		{Name: "Lumpsums",  Columns: []string{"id", "fund", "member", "amount", "date"}},
 		{Name: "History",   Columns: []string{"month", "value"}},
@@ -136,7 +137,7 @@ func main() {
 		if client != nil {
 			status["mode"] = "live"
 			status["spreadsheet_id"] = spreadsheetID
-			tabs := []string{"Members", "MF", "Stocks", "Metals", "Fixed", "Insurance", "SIPs", "Lumpsums", "History", "Config"}
+			tabs := []string{"Members", "MF", "Stocks", "Metals", "Fixed", "Insurance", "Loans", "SIPs", "Lumpsums", "History", "Config"}
 			tabStatus := map[string]string{}
 			for _, tab := range tabs {
 				if _, err := client.ReadSheet(tab); err != nil {

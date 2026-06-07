@@ -5,6 +5,9 @@ import { Avatar } from '../components/Primitives.jsx'
 const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
 const SERIF = "var(--serif)"
 
+const OUTFLOW_COLOR = { sip: 'var(--accent)', insurance: '#5E7D72', loan: '#B5603E' }
+const OUTFLOW_LABEL = { sip: 'SIP debit', insurance: 'Insurance premium', loan: 'Loan EMI' }
+
 function scope(data, memberId) {
   if (!memberId) return 'Whole family'
   const m = data.members?.find(m => m.id === memberId)
@@ -14,6 +17,8 @@ function scope(data, memberId) {
 export default function Dashboard({ data, memberId, setScreen, onSelectMember }) {
   const c = classTotals(data, memberId)
   const total = c.total.cur, invested = c.total.inv, gain = total - invested
+  const debt = c.liabilities.cur
+  const netW = total - debt
   const segs = ED_ORDER
     .map(k => ({ k, label: ED_LABEL[k], value: c[k].cur, color: ED_COL[k] }))
     .filter(s => s.value > 0)
@@ -37,7 +42,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
     return da - db
   })[0]
 
-  // Recurring outflows (SIP debits + insurance premiums) due in the next 30 days
+  // Recurring outflows (SIP debits, insurance premiums, loan EMIs) due in the next 30 days
   const upcoming = upcomingOutflows(data, memberId, 30)
   const upcomingTotal = upcoming.reduce((a, x) => a + (x.amount || 0), 0)
 
@@ -54,7 +59,12 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 40, flexWrap: 'wrap' }}>
         <div>
           <div style={KICK}>Total net worth</div>
-          <div className="num hero-num" style={{ marginTop: 14 }}>{fmtINR(total)}</div>
+          <div className="num hero-num" style={{ marginTop: 14 }}>{fmtINR(netW)}</div>
+          {debt > 0 && (
+            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 8 }}>
+              {fmtCompact(total)} assets · −{fmtCompact(debt)} debt
+            </div>
+          )}
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right', paddingBottom: 6 }}>
           <div style={KICK}>Invested</div>
@@ -172,11 +182,11 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
           </div>
           {upcoming.map(x => (
             <div key={`${x.kind}-${x.id}`} className="ed-li">
-              <span className="sw" style={{ background: x.kind === 'sip' ? 'var(--accent)' : '#5E7D72', marginRight: 12 }} />
+              <span className="sw" style={{ background: OUTFLOW_COLOR[x.kind], marginRight: 12 }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{x.label}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600 }}>
-                  {x.kind === 'sip' ? 'SIP debit' : 'Insurance premium'} · {fmtDate(x.date)}
+                  {OUTFLOW_LABEL[x.kind]} · {fmtDate(x.date)}
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
