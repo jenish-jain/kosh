@@ -13,7 +13,7 @@ var sheetColumns = map[string][]string{
 	"Stocks":    {"id", "name", "ticker", "qty", "avg_price", "last_price", "member"},
 	"Metals":    {"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"},
 	"Fixed":     {"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"},
-	"Insurance": {"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity"},
+	"Insurance": {"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date"},
 	"SIPs":      {"id", "fund", "member", "amount", "day", "status", "start_date", "platform", "kind"},
 	"Lumpsums":  {"id", "fund", "member", "amount", "date"},
 	"History":   {"month", "value"},

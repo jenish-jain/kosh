@@ -1,4 +1,4 @@
-import { classTotals, memberTotal, ED_ORDER, ED_COL, ED_LABEL, fmtINR, fmtCompact, TODAY_DISPLAY, TODAY_DAY } from '../data/helpers.js'
+import { classTotals, memberTotal, ED_ORDER, ED_COL, ED_LABEL, fmtINR, fmtCompact, fmtDate, TODAY_DISPLAY, TODAY_DAY, upcomingOutflows } from '../data/helpers.js'
 import { AreaChart, EdStack, EdRule, GainPill } from '../components/Primitives.jsx'
 import { Avatar } from '../components/Primitives.jsx'
 
@@ -36,6 +36,10 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
     const db = b.day >= TODAY_DAY ? b.day - TODAY_DAY : b.day + 30 - TODAY_DAY
     return da - db
   })[0]
+
+  // Recurring outflows (SIP debits + insurance premiums) due in the next 30 days
+  const upcoming = upcomingOutflows(data, memberId, 30)
+  const upcomingTotal = upcoming.reduce((a, x) => a + (x.amount || 0), 0)
 
   return (
     <div className="fade-in">
@@ -158,6 +162,30 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
           )}
         </div>
       </div>
+
+      {upcoming.length > 0 && (
+        <>
+          <EdRule />
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={KICK}>Expected outflows · next 30 days</div>
+            <div className="num serif-num" style={{ fontSize: 17 }}>{fmtINR(upcomingTotal)}</div>
+          </div>
+          {upcoming.map(x => (
+            <div key={`${x.kind}-${x.id}`} className="ed-li">
+              <span className="sw" style={{ background: x.kind === 'sip' ? 'var(--accent)' : '#5E7D72', marginRight: 12 }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{x.label}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600 }}>
+                  {x.kind === 'sip' ? 'SIP debit' : 'Insurance premium'} · {fmtDate(x.date)}
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <span className="num serif-num" style={{ fontSize: 17 }}>{fmtINR(x.amount)}</span>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
 
       <EdRule />
       <div style={{ fontFamily: SERIF, fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink-3)' }}>

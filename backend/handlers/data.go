@@ -93,6 +93,7 @@ type Insurance struct {
 	Value    float64 `json:"value"`
 	Cover    float64 `json:"cover"`
 	Maturity int     `json:"maturity"`
+	DueDate  string  `json:"due_date"` // anchor date (YYYY-MM-DD); month/day reused each cycle per Freq
 }
 
 type SIP struct {
@@ -266,6 +267,7 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 				Member: sh.ColStr(row, 3), Premium: sh.ColFloat(row, 4), Freq: sh.ColStr(row, 5),
 				Paid: sh.ColFloat(row, 6), Value: sh.ColFloat(row, 7),
 				Cover: sh.ColFloat(row, 8), Maturity: sh.ColInt(row, 9),
+				DueDate: sh.ColStr(row, 10),
 			})
 		}
 	} else {

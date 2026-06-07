@@ -33,7 +33,7 @@ func main() {
 		{Name: "Stocks",    Columns: []string{"id", "name", "ticker", "qty", "avg_price", "last_price", "member"}},
 		{Name: "Metals",    Columns: []string{"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"}},
 		{Name: "Fixed",     Columns: []string{"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"}},
-		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity"}},
+		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date"}},
 		{Name: "SIPs",      Columns: []string{"id", "fund", "member", "amount", "day", "status", "start_date", "platform"}},
 		{Name: "Lumpsums",  Columns: []string{"id", "fund", "member", "amount", "date"}},
 		{Name: "History",   Columns: []string{"month", "value"}},

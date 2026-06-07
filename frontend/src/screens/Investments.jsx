@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useData } from '../data/context.jsx'
-import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL, TODAY_DISPLAY, TODAY_STR } from '../data/helpers.js'
+import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL, TODAY_DISPLAY, TODAY_STR, nextPremiumDue } from '../data/helpers.js'
 import { EdRule, Modal, Field, EditCell, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
 import UploadZone from '../components/UploadZone.jsx'
@@ -223,13 +223,18 @@ function InsuranceTable({ data, rows, all, dirty, setDirty }) {
           {all && <th>Owner</th>}
           <th>Type</th>
           <th className="r">Premium</th>
+          <th className="r">Next due</th>
           <th className="r">Paid so far</th>
           <th className="r">Cover</th>
           <th className="r">Value</th>
           <th className="r">Matures</th>
         </tr></thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map(r => {
+            const due = nextPremiumDue(r)
+            const dl = due ? daysLeft(due.toISOString().slice(0, 10)) : null
+            const urgent = dl !== null && dl >= 0 && dl < 14
+            return (
             <tr key={r.id}>
               <td style={{ minWidth: 180 }}><div className="cell-strong">{r.name}</div></td>
               {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
@@ -242,6 +247,14 @@ function InsuranceTable({ data, rows, all, dirty, setDirty }) {
                 </div>
               </td>
               <td className="r">
+                {due ? (
+                  <>
+                    <div className="num" style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(due)}</div>
+                    <div className="cell-sub" style={{ color: urgent ? 'var(--warn)' : undefined }}>{fmtCountdown(dl)}</div>
+                  </>
+                ) : <span className="faint">—</span>}
+              </td>
+              <td className="r">
                 <EditCell value={dirty[r.id]?.paid ?? r.paid} type="number" align="right"
                   format={v => fmtINR(v)} onChange={v => mark(r.id, 'paid', v)} />
               </td>
@@ -252,7 +265,7 @@ function InsuranceTable({ data, rows, all, dirty, setDirty }) {
               </td>
               <td className="r num faint">{r.maturity}</td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
       <TotalsBar inv={inv} cur={cur} label={`${rows.length} plan${rows.length !== 1 ? 's' : ''}`} curLabel="Total value" />
@@ -351,12 +364,13 @@ function extractedToForm(tab, fields) {
   }
   if (tab === 'insurance') {
     return {
-      insType:  fields.type    || 'Endowment',
-      name:     fields.name    || '',
+      insType:  fields.type     || 'Endowment',
+      name:     fields.name     || '',
       premium:  num('premium'),
-      freq:     fields.freq    || 'annual',
+      freq:     fields.freq     || 'annual',
       cover:    num('cover'),
       maturity: num('maturity'),
+      dueDate:  fields.due_date || '',
     }
   }
   if (tab === 'metals') {
@@ -388,7 +402,7 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
     } else if (tab === 'metals') {
       await add('Metals', { id, type: form.metalType, date_purchased: new Date().toISOString().slice(0, 10), grams: n(form.grams), buy_rate: n(form.buyRate), today_price: n(form.buyRate), place: form.place || '—', member: form.member })
     } else if (tab === 'insurance') {
-      await add('Insurance', { id, name: form.name || 'New plan', type: form.insType, member: form.member, premium: n(form.premium), freq: form.freq, paid: n(form.paid), value: n(form.value), cover: n(form.cover), maturity: n(form.maturity) || 2040 })
+      await add('Insurance', { id, name: form.name || 'New plan', type: form.insType, member: form.member, premium: n(form.premium), freq: form.freq, paid: n(form.paid), value: n(form.value), cover: n(form.cover), maturity: n(form.maturity) || 2040, due_date: form.dueDate || '' })
     } else if (tab === 'fixed') {
       const tenure = n(form.tenure)
       const monthly = form.fdKind === 'RD' ? n(form.monthly) : 0
@@ -474,6 +488,9 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
             </select>
           </Field>
         </div>
+        <Field label={form.freq === 'monthly' ? 'Next premium due (sets the day-of-month it recurs on)' : form.freq === 'single' ? 'Premium due date' : 'Next premium due (sets the month + day it recurs on)'}>
+          <input className="input" type="date" value={form.dueDate || ''} onChange={e => up('dueDate', e.target.value)} />
+        </Field>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label="Paid so far"><input className="input" type="number" value={form.paid || ''} onChange={e => up('paid', e.target.value)} /></Field>
           <Field label="Sum assured / cover"><input className="input" type="number" value={form.cover || ''} onChange={e => up('cover', e.target.value)} /></Field>
