@@ -535,6 +535,7 @@ export default function Investments({ data, memberId, showToast }) {
 
   const uploadableTabs = ['fixed', 'insurance', 'metals']
   const canUpload = uploadableTabs.includes(tab)
+  const uploadDocType = { fixed: 'fd', insurance: 'insurance', metals: 'metals' }
 
   const handleExtracted = (fields, driveURL) => {
     const pre = extractedToForm(tab, fields)
@@ -623,7 +624,7 @@ export default function Investments({ data, memberId, showToast }) {
         />
       )}
       {showUpload && (
-        <UploadZone docType={tab} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
+        <UploadZone docType={uploadDocType[tab]} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
       )}
     </div>
   )
