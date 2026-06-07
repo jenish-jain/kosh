@@ -25,6 +25,7 @@ func main() {
 	allowedRaw     := os.Getenv("ALLOWED_EMAILS") // comma-separated
 	anthropicKey   := os.Getenv("ANTHROPIC_API_KEY")
 	promptsDir     := sh.EnvOrDefault("PROMPTS_DIR", "prompts")
+	cookieSecure   := sh.EnvOrDefault("COOKIE_SECURE", "true") != "false"
 
 	// Tab definitions — order controls creation order in the spreadsheet.
 	koshTabs := []sh.TabDef{
@@ -69,7 +70,7 @@ func main() {
 	authEnabled := googleClientID != "" && sessionSecret != ""
 	if authEnabled {
 		emails := strings.Split(allowedRaw, ",")
-		auth = handlers.NewAuthHandler(emails, googleClientID, sessionSecret)
+		auth = handlers.NewAuthHandler(emails, googleClientID, sessionSecret, cookieSecure)
 		log.Printf("✓ Auth enabled — %d allowed email(s)", len(emails))
 	} else {
 		log.Println("⚠ Auth disabled (GOOGLE_CLIENT_ID / SESSION_SECRET not set)")
@@ -201,11 +202,42 @@ func main() {
 	} else {
 		fmt.Println("   Mode: live (reading/writing Google Sheets)")
 	}
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(http.ListenAndServe(addr, securityHeaders(mux)))
 }
 
 func cors(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+// content security policy — only whitelists what Kosh actually needs:
+// Google Identity Services (sign-in script + OAuth popups), Google's token/Drive
+// endpoints, and Google Fonts. Inline styles are allowed because the UI relies
+// heavily on React inline `style={{...}}` attributes.
+const contentSecurityPolicy = "default-src 'self'; " +
+	"script-src 'self' https://accounts.google.com; " +
+	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+	"font-src 'self' https://fonts.gstatic.com; " +
+	"img-src 'self' data:; " +
+	"connect-src 'self' https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com; " +
+	"frame-src https://accounts.google.com; " +
+	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+// securityHeaders adds the standard set of browser security headers to every
+// response — important since Kosh serves financial data over the open web.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		// Only advertise HSTS over HTTPS — Railway terminates TLS at its edge proxy,
+		// so r.TLS is nil and we must check the forwarded-proto header instead.
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
 }

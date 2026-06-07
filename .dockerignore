@@ -1,0 +1,8 @@
+backend/credentials.json
+backend/kosh
+backend/dev_data.json
+frontend/node_modules
+frontend/dist
+.git
+.env
+*.env.local

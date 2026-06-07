@@ -18,16 +18,17 @@ type AuthHandler struct {
 	allowedEmails map[string]bool
 	clientID      string
 	secret        string
+	cookieSecure  bool
 }
 
-func NewAuthHandler(allowedEmails []string, clientID, secret string) *AuthHandler {
+func NewAuthHandler(allowedEmails []string, clientID, secret string, cookieSecure bool) *AuthHandler {
 	m := map[string]bool{}
 	for _, e := range allowedEmails {
 		if e = strings.TrimSpace(strings.ToLower(e)); e != "" {
 			m[e] = true
 		}
 	}
-	return &AuthHandler{allowedEmails: m, clientID: clientID, secret: secret}
+	return &AuthHandler{allowedEmails: m, clientID: clientID, secret: secret, cookieSecure: cookieSecure}
 }
 
 // Config returns whether auth is enabled and the Google client ID for the frontend.
@@ -93,6 +94,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    a.signToken(email),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   a.cookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   30 * 24 * 60 * 60, // 30 days
 	})
@@ -111,7 +113,7 @@ func (a *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 // Logout clears the session cookie.
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{Name: "kosh_session", Value: "", Path: "/", MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: "kosh_session", Value: "", Path: "/", Secure: a.cookieSecure, MaxAge: -1})
 	writeJSON(w, map[string]string{"ok": "true"})
 }
 
