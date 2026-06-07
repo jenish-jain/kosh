@@ -4,7 +4,7 @@ import { getDriveAccessToken } from '../data/driveAuth.js'
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png'
 
-export default function UploadZone({ docType, clientId, onExtracted, onClose }) {
+export default function UploadZone({ docType, onExtracted, onClose }) {
   const [state, setState] = useState('idle') // idle | connecting | uploading | error
   const [error, setError] = useState(null)
   const [dragging, setDragging] = useState(false)
@@ -15,10 +15,13 @@ export default function UploadZone({ docType, clientId, onExtracted, onClose }) 
     if (!file) return
     setError(null)
     try {
+      // The Drive permission popup (if needed) was already triggered by the
+      // click that opened this modal — see Investments.jsx. Here we just
+      // wait for whatever that kicked off (cached, in-flight, or nothing).
       setState('connecting')
       let driveToken = ''
       try {
-        driveToken = await getDriveAccessToken(clientId)
+        driveToken = await getDriveAccessToken()
       } catch {
         // Drive access is optional — the document still gets parsed and
         // pre-fills the form, it just won't be saved to Drive.

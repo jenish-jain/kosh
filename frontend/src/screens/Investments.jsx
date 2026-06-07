@@ -4,6 +4,7 @@ import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, ED_COL, ED_LABEL
 import { EdRule, Modal, Field, EditCell, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
 import UploadZone from '../components/UploadZone.jsx'
+import { requestDriveAccessToken } from '../data/driveAuth.js'
 
 const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
 const SERIF = "var(--serif)"
@@ -598,7 +599,15 @@ export default function Investments({ data, memberId, showToast }) {
         </div>
         <div style={{ flex: 1 }} />
         {canUpload && (
-          <button className="btn" onClick={() => { setUploadPreFill(null); setShowUpload(true) }}>
+          <button className="btn" onClick={() => {
+            setUploadPreFill(null)
+            setShowUpload(true)
+            // Fired synchronously from this click so the browser treats the
+            // resulting Google consent popup as user-initiated — kicking it
+            // off from inside an async chain (e.g. on file drop) gets it
+            // silently blocked. UploadZone awaits whatever this resolves to.
+            requestDriveAccessToken(clientId).catch(() => {})
+          }}>
             <Icon name="upload" size={15} /> Upload PDF
           </button>
         )}
@@ -624,7 +633,7 @@ export default function Investments({ data, memberId, showToast }) {
         />
       )}
       {showUpload && (
-        <UploadZone docType={uploadDocType[tab]} clientId={clientId} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
+        <UploadZone docType={uploadDocType[tab]} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
       )}
     </div>
   )

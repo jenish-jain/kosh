@@ -3,39 +3,49 @@
 // creates, never the rest of the user's Drive — and cache the token in
 // memory until it's close to expiry. The first request per session shows a
 // one-time Google consent prompt; subsequent ones are silent.
+//
+// IMPORTANT: `requestAccessToken()` opens a popup, and browsers only allow
+// that when it's called synchronously inside a user gesture (e.g. a click
+// handler). Any `await` before it — even one microtask — can cause the
+// popup to be silently blocked, leaving the promise hanging forever. So
+// `requestDriveAccessToken` must be invoked directly from an onClick, not
+// from inside an async chain.
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
 let tokenClient = null
 let cachedToken = null
 let cachedExpiry = 0
+let inFlight = null
 
-function waitForGis() {
-  return new Promise(resolve => {
-    if (window.google?.accounts?.oauth2) { resolve(); return }
-    const iv = setInterval(() => {
-      if (window.google?.accounts?.oauth2) { clearInterval(iv); resolve() }
-    }, 80)
-  })
+function isFresh() {
+  return cachedToken && Date.now() < cachedExpiry - 60_000
 }
 
-export async function getDriveAccessToken(clientId) {
-  if (!clientId) throw new Error('Google sign-in is not configured')
+function ensureTokenClient(clientId) {
+  if (tokenClient || !window.google?.accounts?.oauth2) return tokenClient
+  tokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: SCOPE,
+    callback: () => {},
+  })
+  return tokenClient
+}
 
-  const now = Date.now()
-  if (cachedToken && now < cachedExpiry - 60_000) return cachedToken
+// Call this directly from a click handler (no awaits beforehand) so the
+// browser treats the resulting popup as user-initiated. Returns a promise
+// that resolves with the access token; safe to fire-and-forget.
+export function requestDriveAccessToken(clientId) {
+  if (!clientId) return Promise.reject(new Error('Google sign-in is not configured'))
+  if (isFresh()) return Promise.resolve(cachedToken)
+  if (inFlight) return inFlight
 
-  await waitForGis()
-  if (!tokenClient) {
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPE,
-      callback: () => {},
-    })
-  }
+  const client = ensureTokenClient(clientId)
+  if (!client) return Promise.reject(new Error('Google sign-in is not ready yet'))
 
-  return new Promise((resolve, reject) => {
-    tokenClient.callback = (resp) => {
+  inFlight = new Promise((resolve, reject) => {
+    client.callback = (resp) => {
+      inFlight = null
       if (resp.error) {
         reject(new Error(resp.error_description || resp.error))
         return
@@ -44,7 +54,16 @@ export async function getDriveAccessToken(clientId) {
       cachedExpiry = Date.now() + (resp.expires_in || 3600) * 1000
       resolve(cachedToken)
     }
-    // Silent refresh once the user has granted access at least once this session.
-    tokenClient.requestAccessToken({ prompt: cachedToken ? '' : 'consent' })
+    client.requestAccessToken({ prompt: cachedToken ? '' : 'consent' })
   })
+  return inFlight
+}
+
+// Returns the token if one is already cached or a request is already in
+// flight (started by a prior `requestDriveAccessToken` call from a click).
+// Never opens a popup, so it's safe to call from async chains.
+export function getDriveAccessToken() {
+  if (isFresh()) return Promise.resolve(cachedToken)
+  if (inFlight) return inFlight
+  return Promise.resolve('')
 }
