@@ -8,6 +8,7 @@ export default function UploadZone({ docType, clientId, onExtracted, onClose }) 
   const [state, setState] = useState('idle') // idle | connecting | uploading | error
   const [error, setError] = useState(null)
   const [dragging, setDragging] = useState(false)
+  const [password, setPassword] = useState('')
   const inputRef = useRef(null)
 
   const upload = async (file) => {
@@ -27,6 +28,7 @@ export default function UploadZone({ docType, clientId, onExtracted, onClose }) 
       const form = new FormData()
       form.append('file', file)
       if (driveToken) form.append('drive_token', driveToken)
+      if (password) form.append('password', password)
       const res = await fetch(`/api/upload/${docType}`, {
         method: 'POST',
         credentials: 'include',
@@ -123,6 +125,20 @@ export default function UploadZone({ docType, clientId, onExtracted, onClose }) 
                 style={{ display: 'none' }}
                 onChange={e => onFiles(e.target.files)}
               />
+            </div>
+
+            <div style={{ textAlign: 'left', marginBottom: 16 }}>
+              <input
+                type="password"
+                className="input"
+                placeholder="Password (only if this PDF is protected)"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="off"
+              />
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 5, lineHeight: 1.5 }}>
+                Used only to open the file for reading — never stored or sent anywhere else.
+              </div>
             </div>
 
             {state === 'error' && (
