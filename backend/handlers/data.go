@@ -183,7 +183,55 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	computeFixedValues(d)
+	h.maybeSnapshotHistory(d)
 	writeJSON(w, d)
+}
+
+// maybeSnapshotHistory appends a History row for the current month if one
+// isn't already there, so the net-worth sparkline stays current without
+// manual monthly upkeep. No-op in dev mode or if net worth is still zero
+// (e.g. sheets not yet populated).
+func (h *Handler) maybeSnapshotHistory(d *Data) {
+	if h.client == nil {
+		return
+	}
+	month := time.Now().Format("Jan 06")
+	for _, row := range d.History {
+		if row.Month == month {
+			return
+		}
+	}
+	total := netWorthTotal(d)
+	if total == 0 {
+		return
+	}
+	if _, err := h.client.AppendRow("History", []interface{}{month, fmt.Sprintf("%.0f", total)}); err != nil {
+		log.Printf("⚠ History snapshot failed: %v", err)
+		return
+	}
+	d.History = append(d.History, History{Month: month, Value: total})
+}
+
+// netWorthTotal sums current values across all asset classes — mirrors
+// classTotals().total.cur in frontend/src/data/helpers.js.
+func netWorthTotal(d *Data) float64 {
+	var total float64
+	for _, x := range d.MF {
+		total += x.Current
+	}
+	for _, x := range d.Stocks {
+		total += x.Qty * x.LastPrice
+	}
+	for _, x := range d.Metals {
+		total += x.Grams * x.TodayPrice
+	}
+	for _, x := range d.Fixed {
+		total += x.CurrentValue
+	}
+	for _, x := range d.Insurance {
+		total += x.Value
+	}
+	return total
 }
 
 func (h *Handler) fetchFromSheets() (*Data, error) {
