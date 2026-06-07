@@ -26,6 +26,9 @@ COPY --from=frontend /app/frontend/dist ./frontend/dist
 ENV FRONTEND_DIST=/app/frontend/dist
 ENV PROMPTS_DIR=/app/prompts
 ENV PORT=8080
+ENV CREDENTIALS_PATH=/app/credentials.json
 
 EXPOSE 8080
-CMD ["./kosh"]
+# Railway has no built-in "secret file" upload — GOOGLE_CREDENTIALS_B64 (the
+# service account JSON, base64-encoded) is decoded to disk at startup instead.
+CMD ["/bin/sh", "-c", "if [ -n \"$GOOGLE_CREDENTIALS_B64\" ]; then echo \"$GOOGLE_CREDENTIALS_B64\" | base64 -d > \"$CREDENTIALS_PATH\"; fi; exec ./kosh"]
