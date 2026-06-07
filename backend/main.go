@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	drv "kosh/drive"
 	"kosh/handlers"
 	sh "kosh/sheets"
 	"log"
@@ -63,18 +62,6 @@ func main() {
 		log.Println("⚠ SPREADSHEET_ID not set — running in dev mode (dev_data.json)")
 	}
 
-	// ── Drive client ──────────────────────────────────────────────────────────
-	var driveClient *drv.Client
-	if _, err := os.Stat(credPath); err == nil {
-		dc, err := drv.NewClient(credPath)
-		if err != nil {
-			log.Printf("⚠ Drive client error: %v", err)
-		} else {
-			driveClient = dc
-			log.Println("✓ Drive client ready")
-		}
-	}
-
 	// ── Auth ───────────────────────────────────────────────────────────────────
 	// Auth is enabled only when GOOGLE_CLIENT_ID + SESSION_SECRET are both set.
 	// Without them the app runs open (useful for local dev).
@@ -97,8 +84,7 @@ func main() {
 	}
 
 	h := handlers.NewHandler(client)
-	shareEmails := strings.Split(allowedRaw, ",")
-	upload := handlers.NewUploadHandler(driveClient, anthropicKey, promptsDir, shareEmails)
+	upload := handlers.NewUploadHandler(anthropicKey, promptsDir)
 	mux := http.NewServeMux()
 
 	// ── Auth routes (always registered, no auth required) ─────────────────────

@@ -1,21 +1,32 @@
 import { useState, useRef } from 'react'
 import { Icon } from './Icons.jsx'
+import { getDriveAccessToken } from '../data/driveAuth.js'
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png'
 
-export default function UploadZone({ docType, onExtracted, onClose }) {
-  const [state, setState] = useState('idle') // idle | uploading | error
+export default function UploadZone({ docType, clientId, onExtracted, onClose }) {
+  const [state, setState] = useState('idle') // idle | connecting | uploading | error
   const [error, setError] = useState(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef(null)
 
   const upload = async (file) => {
     if (!file) return
-    setState('uploading')
     setError(null)
     try {
+      setState('connecting')
+      let driveToken = ''
+      try {
+        driveToken = await getDriveAccessToken(clientId)
+      } catch {
+        // Drive access is optional — the document still gets parsed and
+        // pre-fills the form, it just won't be saved to Drive.
+      }
+
+      setState('uploading')
       const form = new FormData()
       form.append('file', file)
+      if (driveToken) form.append('drive_token', driveToken)
       const res = await fetch(`/api/upload/${docType}`, {
         method: 'POST',
         credentials: 'include',
@@ -63,7 +74,16 @@ export default function UploadZone({ docType, onExtracted, onClose }) {
         width: 440, padding: 32, textAlign: 'center',
       }} onClick={e => e.stopPropagation()}>
 
-        {state === 'uploading' ? (
+        {state === 'connecting' ? (
+          <>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>🔐</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Connecting to Google Drive…</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6 }}>
+              First time only — Kosh needs permission to save a copy of files it uploads.<br />
+              You may see a Google sign-in popup.
+            </div>
+          </>
+        ) : state === 'uploading' ? (
           <>
             <div style={{ fontSize: 36, marginBottom: 16 }}>⏳</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Reading document…</div>

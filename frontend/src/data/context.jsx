@@ -3,7 +3,7 @@ import { fetchData, addRow, updateRow, deleteRow } from './api.js'
 
 const DataContext = createContext(null)
 
-export function DataProvider({ children }) {
+export function DataProvider({ children, clientId }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,7 +38,7 @@ export function DataProvider({ children }) {
     mutate(() => deleteRow(sheet, id)), [mutate])
 
   return (
-    <DataContext.Provider value={{ data, loading, error, reload: load, add, update, remove }}>
+    <DataContext.Provider value={{ data, loading, error, reload: load, add, update, remove, clientId }}>
       {children}
     </DataContext.Provider>
   )

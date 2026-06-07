@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
@@ -17,6 +18,19 @@ type Client struct {
 func NewClient(credentialsPath string) (*Client, error) {
 	ctx := context.Background()
 	svc, err := drive.NewService(ctx, option.WithCredentialsFile(credentialsPath))
+	if err != nil {
+		return nil, fmt.Errorf("creating drive service: %w", err)
+	}
+	return &Client{svc: svc}, nil
+}
+
+// NewClientFromToken builds a Drive client acting as the user themselves,
+// using a short-lived OAuth access token obtained client-side (scope
+// drive.file). Files land directly in the user's own Drive with no storage
+// quota or sharing concerns — unlike a service account, which has neither.
+func NewClientFromToken(ctx context.Context, accessToken string) (*Client, error) {
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
+	svc, err := drive.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
 		return nil, fmt.Errorf("creating drive service: %w", err)
 	}

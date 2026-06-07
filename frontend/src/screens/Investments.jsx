@@ -525,7 +525,7 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
 
 // ── Main screen ──────────────────────────────────────────────
 export default function Investments({ data, memberId, showToast }) {
-  const { update } = useData()
+  const { update, clientId } = useData()
   const [tab, setTab] = useState('mf')
   const [showAdd, setShowAdd] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -624,7 +624,7 @@ export default function Investments({ data, memberId, showToast }) {
         />
       )}
       {showUpload && (
-        <UploadZone docType={uploadDocType[tab]} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
+        <UploadZone docType={uploadDocType[tab]} clientId={clientId} onExtracted={handleExtracted} onClose={() => setShowUpload(false)} />
       )}
     </div>
   )

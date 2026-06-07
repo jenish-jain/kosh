@@ -19,18 +19,14 @@ const maxUploadSize = 20 << 20 // 20 MB
 
 // UploadHandler parses financial documents and stores them in Google Drive.
 type UploadHandler struct {
-	drive        *drv.Client
 	anthropicKey string
 	promptsDir   string
-	shareEmails  []string
 }
 
-func NewUploadHandler(drive *drv.Client, anthropicKey, promptsDir string, shareEmails []string) *UploadHandler {
+func NewUploadHandler(anthropicKey, promptsDir string) *UploadHandler {
 	return &UploadHandler{
-		drive:        drive,
 		anthropicKey: anthropicKey,
 		promptsDir:   promptsDir,
-		shareEmails:  shareEmails,
 	}
 }
 
@@ -83,12 +79,17 @@ func (u *UploadHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── 1. Upload to Google Drive (best-effort; skipped if no drive client) ──
+	// ── 1. Upload to the user's own Drive (best-effort; needs drive_token) ───
+	// The frontend obtains a short-lived OAuth access token (scope drive.file)
+	// via Google Identity Services and sends it along with the file. This
+	// writes directly into the user's Drive — a service account has no
+	// storage quota of its own and cannot own files here.
 	driveURL := ""
-	if u.drive != nil {
-		folderID, err := u.drive.EnsureFolder(driveFolders[docType])
+	if token := r.FormValue("drive_token"); token != "" {
+		dc, err := drv.NewClientFromToken(r.Context(), token)
 		if err != nil {
-			// Log but don't fail — Drive upload is not critical
+			fmt.Printf("⚠ Drive client error: %v\n", err)
+		} else if folderID, err := dc.EnsureFolder(driveFolders[docType]); err != nil {
 			fmt.Printf("⚠ Drive folder error: %v\n", err)
 		} else {
 			stamped := fmt.Sprintf("%d-%s", time.Now().Unix(), header.Filename)
@@ -96,7 +97,7 @@ func (u *UploadHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			if mime == "" {
 				mime = mimeFromFilename(header.Filename)
 			}
-			url, err := u.drive.Upload(folderID, stamped, mime, bytes.NewReader(data), u.shareEmails)
+			url, err := dc.Upload(folderID, stamped, mime, bytes.NewReader(data), nil)
 			if err != nil {
 				fmt.Printf("⚠ Drive upload error: %v\n", err)
 			} else {

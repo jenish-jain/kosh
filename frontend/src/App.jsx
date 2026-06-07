@@ -202,7 +202,7 @@ export default function App() {
   if (authState === 'login') return <Login clientId={clientId} onLogin={handleLogin} />
 
   return (
-    <DataProvider>
+    <DataProvider clientId={clientId}>
       <AppShell user={user} onLogout={clientId ? handleLogout : null} />
     </DataProvider>
   )
