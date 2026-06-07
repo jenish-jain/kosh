@@ -104,6 +104,7 @@ type SIP struct {
 	Status    string  `json:"status"`
 	StartDate string  `json:"start_date"`
 	Platform  string  `json:"platform"`
+	Kind      string  `json:"kind"`
 }
 
 type Lumpsum struct {
@@ -277,6 +278,7 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 				ID: sh.ColStr(row, 0), Fund: sh.ColStr(row, 1), Member: sh.ColStr(row, 2),
 				Amount: sh.ColFloat(row, 3), Day: sh.ColInt(row, 4),
 				Status: sh.ColStr(row, 5), StartDate: sh.ColStr(row, 6), Platform: sh.ColStr(row, 7),
+				Kind: sh.ColStr(row, 8),
 			})
 		}
 	} else {

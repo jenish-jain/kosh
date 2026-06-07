@@ -33,13 +33,14 @@
     {"id":"in3","name":"ICICI Pru Signature","type":"ULIP","member":"you","premium":100000,"freq":"annual","paid":500000,"value":612000,"cover":1000000,"maturity":2040}
   ],
   "sips": [
-    {"id":"sip1","fund":"PGIM India Flexi Cap","member":"you","amount":4999,"day":5,"status":"active","start_date":"2022-02-06","platform":"ET Money"},
-    {"id":"sip2","fund":"Quant Active Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-25","platform":"ET Money"},
-    {"id":"sip3","fund":"Quant Multi Cap Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-26","platform":"ET Money"},
-    {"id":"sip4","fund":"Tata Pharma & Healthcare","member":"you","amount":5000,"day":18,"status":"active","start_date":"2025-06-12","platform":"Groww"},
-    {"id":"sip5","fund":"Axis Focused Fund","member":"you","amount":4000,"day":20,"status":"active","start_date":"2021-08-20","platform":"Axis MF"},
-    {"id":"sip6","fund":"HDFC NIFTY 50 Index","member":"you","amount":15000,"day":20,"status":"active","start_date":"2023-09-18","platform":"HDFC Portal"},
-    {"id":"sip7","fund":"Canara Robeco ELSS","member":"you","amount":0,"day":21,"status":"paused","start_date":"2025-10-21","platform":"Groww"}
+    {"id":"sip1","fund":"PGIM India Flexi Cap","member":"you","amount":4999,"day":5,"status":"active","start_date":"2022-02-06","platform":"ET Money","kind":"MF"},
+    {"id":"sip2","fund":"Quant Active Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-25","platform":"ET Money","kind":"MF"},
+    {"id":"sip3","fund":"Quant Multi Cap Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-26","platform":"ET Money","kind":"MF"},
+    {"id":"sip4","fund":"Tata Pharma & Healthcare","member":"you","amount":5000,"day":18,"status":"active","start_date":"2025-06-12","platform":"Groww","kind":"MF"},
+    {"id":"sip5","fund":"Axis Focused Fund","member":"you","amount":4000,"day":20,"status":"active","start_date":"2021-08-20","platform":"Axis MF","kind":"MF"},
+    {"id":"sip6","fund":"HDFC NIFTY 50 Index","member":"you","amount":15000,"day":20,"status":"active","start_date":"2023-09-18","platform":"HDFC Portal","kind":"MF"},
+    {"id":"sip7","fund":"Canara Robeco ELSS","member":"you","amount":0,"day":21,"status":"paused","start_date":"2025-10-21","platform":"Groww","kind":"MF"},
+    {"id":"sip8","fund":"HDFC Bank","member":"you","amount":10000,"day":10,"status":"active","start_date":"2024-04-10","platform":"Zerodha","kind":"Stock"}
   ],
   "lumpsums": [
     {"id":"lp1","fund":"Quant Small Cap Fund","member":"you","amount":49998,"date":"2024-12-18"},

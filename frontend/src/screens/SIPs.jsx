@@ -98,52 +98,73 @@ function EditSipModal({ sip, onClose, onSave }) {
 function AddSipModal({ memberId, data, onClose }) {
   const { add } = useData()
   const mfOptions = (data.mf || []).filter(f => !memberId || f.member === memberId)
+  const stockOptions = (data.stocks || []).filter(s => !memberId || s.member === memberId)
+
+  const [kind, setKind] = useState('MF') // 'MF' | 'Stock'
+  const options = kind === 'MF' ? mfOptions : stockOptions
   const [useExisting, setUseExisting] = useState(mfOptions.length > 0)
-  const [fundId, setFundId] = useState(mfOptions[0]?.id || '')
-  const [fundName, setFundName] = useState('')
+  const [assetId, setAssetId] = useState(mfOptions[0]?.id || '')
+  const [name, setName] = useState('')
   const [member, setMember] = useState(memberId || data.members?.[0]?.id || 'you')
   const [amount, setAmount] = useState('')
   const [day, setDay] = useState(1)
   const [platform, setPlatform] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
 
-  const resolvedFund = useExisting
-    ? (data.mf || []).find(x => x.id === fundId)
-    : null
+  const switchKind = (k) => {
+    const opts = k === 'MF' ? mfOptions : stockOptions
+    setKind(k)
+    setUseExisting(opts.length > 0)
+    setAssetId(opts[0]?.id || '')
+    setName('')
+  }
+
+  const resolved = useExisting ? options.find(x => x.id === assetId) : null
 
   const submit = async () => {
-    const name = useExisting ? (resolvedFund?.name || fundId) : fundName
-    const owner = useExisting ? (resolvedFund?.member || member) : member
-    if (!name || !amount || !day) return
+    const fund = useExisting ? (resolved?.name || assetId) : name
+    const owner = useExisting ? (resolved?.member || member) : member
+    if (!fund || !amount || !day) return
     await add('SIPs', {
       id: 'sip' + Date.now(),
-      fund: name,
+      fund,
+      kind,
       member: owner,
       amount: Number(amount),
       day: Number(day),
       status: 'active',
       start_date: startDate,
-      platform: useExisting ? (resolvedFund?.platform || platform) : platform,
+      platform: useExisting ? (resolved?.platform || platform) : platform,
     })
     onClose()
   }
 
+  const pickLabel = kind === 'MF' ? 'Pick from my MFs' : 'Pick from my stocks'
+  const namePlaceholder = kind === 'MF' ? 'e.g. Quant Small Cap Fund' : 'e.g. Reliance Industries'
+
   return (
     <Modal title="Add SIP" onClose={onClose}>
-      <Field label="Fund">
+      <Field label="Type">
         <div className="seg" style={{ display: 'flex', marginBottom: 10 }}>
-          <button className={useExisting ? 'active' : ''} onClick={() => setUseExisting(true)} style={{ flex: 1 }} disabled={mfOptions.length === 0}>Pick from my MFs</button>
+          <button className={kind === 'MF' ? 'active' : ''} onClick={() => switchKind('MF')} style={{ flex: 1 }}>Mutual fund</button>
+          <button className={kind === 'Stock' ? 'active' : ''} onClick={() => switchKind('Stock')} style={{ flex: 1 }}>Stock</button>
+        </div>
+      </Field>
+
+      <Field label={kind === 'MF' ? 'Fund' : 'Stock'}>
+        <div className="seg" style={{ display: 'flex', marginBottom: 10 }}>
+          <button className={useExisting ? 'active' : ''} onClick={() => setUseExisting(true)} style={{ flex: 1 }} disabled={options.length === 0}>{pickLabel}</button>
           <button className={!useExisting ? 'active' : ''} onClick={() => setUseExisting(false)} style={{ flex: 1 }}>Enter manually</button>
         </div>
         {useExisting ? (
-          <select className="input" value={fundId} onChange={e => setFundId(e.target.value)}>
-            {mfOptions.map(f => {
+          <select className="input" value={assetId} onChange={e => setAssetId(e.target.value)}>
+            {options.map(f => {
               const m = (data.members || []).find(m => m.id === f.member)
               return <option key={f.id} value={f.id}>{f.name}{m ? ` — ${m.name}` : ''}</option>
             })}
           </select>
         ) : (
-          <input className="input" value={fundName} onChange={e => setFundName(e.target.value)} placeholder="e.g. Quant Small Cap Fund" />
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder={namePlaceholder} />
         )}
       </Field>
 
@@ -162,7 +183,7 @@ function AddSipModal({ memberId, data, onClose }) {
         <Field label="Debit day (1–28)"><input className="input" type="number" min="1" max="28" value={day} onChange={e => setDay(e.target.value)} /></Field>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <Field label="Platform"><input className="input" value={platform} onChange={e => setPlatform(e.target.value)} placeholder={useExisting ? resolvedFund?.platform || 'e.g. Groww' : 'e.g. Groww'} /></Field>
+        <Field label="Platform"><input className="input" value={platform} onChange={e => setPlatform(e.target.value)} placeholder={useExisting ? resolved?.platform || 'e.g. Groww' : 'e.g. Groww'} /></Field>
         <Field label="Start date"><input className="input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></Field>
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
@@ -304,7 +325,12 @@ export default function SIPs({ data, memberId, showToast }) {
                 return (
                   <tr key={s.id} style={{ opacity: disp.status === 'paused' ? .55 : 1 }}>
                     <td>
-                      <div className="cell-strong" style={{ minWidth: 140 }}>{s.fund}</div>
+                      <div className="cell-strong" style={{ minWidth: 140, display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {s.fund}
+                        <span className="pill neutral" style={{ fontSize: 9.5, padding: '2px 6px' }}>
+                          {s.kind === 'Stock' ? 'Stock' : 'MF'}
+                        </span>
+                      </div>
                       <div className="cell-sub">{s.platform}</div>
                     </td>
                     {!memberId && <td><MemberTag member={m} /></td>}
