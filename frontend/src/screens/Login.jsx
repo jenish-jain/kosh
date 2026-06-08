@@ -142,6 +142,12 @@ export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
         }}>
           A quiet ledger, not a live feed.
         </div>
+        <a
+          href="https://github.com/jenish-jain/kosh" target="_blank" rel="noopener noreferrer"
+          style={{ ...KICK, display: 'inline-block', marginTop: 16, color: 'var(--ink-3)', textDecoration: 'none' }}
+        >
+          View source & self-host →
+        </a>
       </div>
     </div>
   )
