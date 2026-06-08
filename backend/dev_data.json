@@ -24,11 +24,11 @@
     {"id":"me2","type":"Silver","date_purchased":"2026-03-29","grams":11,"buy_rate":229.96,"today_price":229.96,"place":"Kalamandir","member":"you"}
   ],
   "fixed": [
-    {"id":"fd1","kind":"FD","name":"HDFC Bank FD","member":"you","principal":500000,"rate":7.1,"current_value":535000,"opened":"2025-01-12","matures":"2027-01-12","monthly":0},
+    {"id":"fd1","kind":"FD","name":"HDFC Bank FD","member":"you","principal":500000,"rate":7.1,"current_value":535000,"opened":"2025-01-12","matures":"2027-01-12","monthly":0,"doc_link":"https://drive.google.com/drive/folders/example-fd-statement"},
     {"id":"fd2","kind":"RD","name":"SBI Recurring Deposit","member":"mom","principal":60000,"rate":6.5,"current_value":38200,"opened":"2025-09-01","matures":"2026-09-01","monthly":5000}
   ],
   "insurance": [
-    {"id":"in1","name":"LIC Jeevan Anand","type":"Endowment","member":"you","premium":48000,"freq":"annual","paid":384000,"value":412000,"cover":1000000,"maturity":2038,"due_date":"2026-06-18"},
+    {"id":"in1","name":"LIC Jeevan Anand","type":"Endowment","member":"you","premium":48000,"freq":"annual","paid":384000,"value":412000,"cover":1000000,"maturity":2038,"due_date":"2026-06-18","doc_link":"https://drive.google.com/drive/folders/example-policy-doc"},
     {"id":"in2","name":"HDFC Click 2 Protect","type":"Term","member":"you","premium":18000,"freq":"annual","paid":90000,"value":0,"cover":10000000,"maturity":2055,"due_date":"2025-09-22"},
     {"id":"in3","name":"ICICI Pru Signature","type":"ULIP","member":"you","premium":100000,"freq":"annual","paid":500000,"value":612000,"cover":1000000,"maturity":2040,"due_date":"2025-12-01"}
   ],

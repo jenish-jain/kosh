@@ -19,6 +19,7 @@ const Ic = {
   refresh: "M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15",
   x:       "M6 6l12 12M18 6 6 18",
   family:  "M16 19c0-2.2-1.8-4-4-4s-4 1.8-4 4M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
+  link:    "M14 5h5v5M19 5l-9 9M9 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2",
 }
 
 export function Icon({ name, size = 18, sw = 1.8, className = '', style }) {

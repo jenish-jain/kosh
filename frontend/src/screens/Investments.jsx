@@ -236,7 +236,17 @@ function InsuranceTable({ data, rows, all, dirty, setDirty }) {
             const urgent = dl !== null && dl >= 0 && dl < 14
             return (
             <tr key={r.id}>
-              <td style={{ minWidth: 180 }}><div className="cell-strong">{r.name}</div></td>
+              <td style={{ minWidth: 180 }}>
+                <div className="cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {r.name}
+                  {r.doc_link && (
+                    <a href={r.doc_link} target="_blank" rel="noopener noreferrer" title="View document"
+                      style={{ color: 'var(--ink-3)', display: 'inline-flex' }}>
+                      <Icon name="link" size={13} />
+                    </a>
+                  )}
+                </div>
+              </td>
               {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
               <td><span className={'pill ' + (typePill[r.type] || 'neutral')}>{r.type}</span></td>
               <td className="r">
@@ -322,7 +332,15 @@ function FixedTable({ data, rows, all }) {
             return (
               <tr key={r.id}>
                 <td style={{ minWidth: 200 }}>
-                  <div className="cell-strong">{r.name}</div>
+                  <div className="cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {r.name}
+                    {r.doc_link && (
+                      <a href={r.doc_link} target="_blank" rel="noopener noreferrer" title="View document"
+                        style={{ color: 'var(--ink-3)', display: 'inline-flex' }}>
+                        <Icon name="link" size={13} />
+                      </a>
+                    )}
+                  </div>
                   <div className="cell-sub">{fmtDate(r.opened)}</div>
                 </td>
                 {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
@@ -402,13 +420,13 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
     } else if (tab === 'metals') {
       await add('Metals', { id, type: form.metalType, date_purchased: new Date().toISOString().slice(0, 10), grams: n(form.grams), buy_rate: n(form.buyRate), today_price: n(form.buyRate), place: form.place || '—', member: form.member })
     } else if (tab === 'insurance') {
-      await add('Insurance', { id, name: form.name || 'New plan', type: form.insType, member: form.member, premium: n(form.premium), freq: form.freq, paid: n(form.paid), value: n(form.value), cover: n(form.cover), maturity: n(form.maturity) || 2040, due_date: form.dueDate || '' })
+      await add('Insurance', { id, name: form.name || 'New plan', type: form.insType, member: form.member, premium: n(form.premium), freq: form.freq, paid: n(form.paid), value: n(form.value), cover: n(form.cover), maturity: n(form.maturity) || 2040, due_date: form.dueDate || '', doc_link: form.docLink || '' })
     } else if (tab === 'fixed') {
       const tenure = n(form.tenure)
       const monthly = form.fdKind === 'RD' ? n(form.monthly) : 0
       const principal = form.fdKind === 'FD' ? n(form.principal) : monthly * tenure
       const matures = computeMatures(form.opened || TODAY_STR, tenure)
-      await add('Fixed', { id, kind: form.fdKind, name: form.name || 'New deposit', member: form.member, principal, rate: n(form.rate), current_value: principal, opened: form.opened || TODAY_STR, matures, monthly })
+      await add('Fixed', { id, kind: form.fdKind, name: form.name || 'New deposit', member: form.member, principal, rate: n(form.rate), current_value: principal, opened: form.opened || TODAY_STR, matures, monthly, doc_link: form.docLink || '' })
     }
     onClose()
   }
@@ -557,7 +575,7 @@ export default function Investments({ data, memberId, showToast }) {
 
   const handleExtracted = (fields, driveURL) => {
     const pre = extractedToForm(tab, fields)
-    if (driveURL) pre.notes = (pre.notes ? pre.notes + '\n' : '') + `Drive: ${driveURL}`
+    if (driveURL) pre.docLink = driveURL
     setUploadPreFill(pre)
     setShowUpload(false)
     setShowAdd(true)

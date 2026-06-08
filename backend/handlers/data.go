@@ -81,6 +81,7 @@ type Fixed struct {
 	Opened       string  `json:"opened"`
 	Matures      string  `json:"matures"`
 	Monthly      float64 `json:"monthly"`
+	DocLink      string  `json:"doc_link"`
 }
 
 type Insurance struct {
@@ -95,6 +96,7 @@ type Insurance struct {
 	Cover    float64 `json:"cover"`
 	Maturity int     `json:"maturity"`
 	DueDate  string  `json:"due_date"` // anchor date (YYYY-MM-DD); month/day reused each cycle per Freq
+	DocLink  string  `json:"doc_link"`
 }
 
 type Loan struct {
@@ -320,6 +322,7 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 				Member: sh.ColStr(row, 3), Principal: sh.ColFloat(row, 4),
 				Rate: sh.ColFloat(row, 5),
 				Opened: sh.ColStr(row, 7), Matures: sh.ColStr(row, 8), Monthly: sh.ColFloat(row, 9),
+				DocLink: sh.ColStr(row, 10),
 			})
 		}
 	} else {
@@ -333,7 +336,7 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 				Member: sh.ColStr(row, 3), Premium: sh.ColFloat(row, 4), Freq: sh.ColStr(row, 5),
 				Paid: sh.ColFloat(row, 6), Value: sh.ColFloat(row, 7),
 				Cover: sh.ColFloat(row, 8), Maturity: sh.ColInt(row, 9),
-				DueDate: sh.ColStr(row, 10),
+				DueDate: sh.ColStr(row, 10), DocLink: sh.ColStr(row, 11),
 			})
 		}
 	} else {
