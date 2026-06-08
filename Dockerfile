@@ -21,6 +21,7 @@ WORKDIR /app
 
 COPY --from=backend /app/backend/kosh ./kosh
 COPY --from=backend /app/backend/prompts ./prompts
+COPY --from=backend /app/backend/dev_data.json ./dev_data.json
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 ENV FRONTEND_DIST=/app/frontend/dist

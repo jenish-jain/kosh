@@ -68,3 +68,9 @@ Google account — nothing passes through the project author's servers.
 The only third parties involved are Google itself (Sheets/Drive, and
 Sign-In if you enable it) and, optionally, Anthropic (for AI-assisted
 document parsing, if you turn that on).
+
+---
+
+## License
+
+[MIT](LICENSE) — use it, fork it, self-host it, make it yours.
