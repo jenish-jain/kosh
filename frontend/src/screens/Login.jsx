@@ -3,10 +3,22 @@ import { useEffect, useRef, useState } from 'react'
 const SERIF = "var(--serif)"
 const KICK  = { textTransform: 'uppercase', letterSpacing: '.18em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
 
-export default function Login({ clientId, onLogin }) {
+export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
   const btnRef  = useRef(null)
   const [error, setError] = useState(null)
   const [busy,  setBusy]  = useState(false)
+  const [demoBusy, setDemoBusy] = useState(false)
+
+  const handleDemo = async () => {
+    setDemoBusy(true)
+    setError(null)
+    try {
+      await onDemo()
+    } catch {
+      setError('Could not start the demo. Is the backend running?')
+      setDemoBusy(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -98,6 +110,29 @@ export default function Login({ clientId, onLogin }) {
           }}>
             {error}
           </div>
+        )}
+
+        {demoAvailable && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+              <div style={{ ...KICK, fontSize: 9.5 }}>or</div>
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+            </div>
+            <button
+              onClick={handleDemo} disabled={demoBusy}
+              style={{
+                display: 'block', width: '100%', padding: '11px 16px', borderRadius: 4,
+                border: '1px solid var(--line)', background: 'none', color: 'var(--ink)',
+                fontSize: 13.5, fontWeight: 600, cursor: demoBusy ? 'default' : 'pointer',
+              }}
+            >
+              {demoBusy ? 'Loading demo…' : 'Try the demo →'}
+            </button>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+              No sign-in needed — explore with sample data, read-only.
+            </div>
+          </>
         )}
 
         {/* Footer */}

@@ -155,16 +155,38 @@ type Config struct {
 
 // Handler wraps a Sheets client (may be nil in dev mode).
 type Handler struct {
-	client  *sh.Client
-	devData *Data
+	client   *sh.Client
+	devData  *Data
+	demoData *Data                    // lazily loaded; served to demo sessions in live mode
+	isDemo   func(*http.Request) bool // nil when auth (and therefore demo sessions) is disabled
 }
 
-func NewHandler(client *sh.Client) *Handler {
-	h := &Handler{client: client}
+func NewHandler(client *sh.Client, isDemo func(*http.Request) bool) *Handler {
+	h := &Handler{client: client, isDemo: isDemo}
 	if client == nil {
 		h.devData = loadDevData()
 	}
 	return h
+}
+
+// servingSampleData reports whether this request should be served sample data
+// (and have mutations no-op) — either because the whole deployment runs in
+// dev mode, or because this specific request carries a demo session.
+func (h *Handler) servingSampleData(r *http.Request) bool {
+	return h.devData != nil || (h.isDemo != nil && h.isDemo(r))
+}
+
+// sampleData returns the sample dataset to serve for this request — the
+// dev-mode dataset if the deployment itself runs in dev mode, otherwise the
+// lazily-loaded demo dataset for an individual demo session.
+func (h *Handler) sampleData() *Data {
+	if h.devData != nil {
+		return h.devData
+	}
+	if h.demoData == nil {
+		h.demoData = loadDevData()
+	}
+	return h.demoData
 }
 
 func loadDevData() *Data {
@@ -184,9 +206,11 @@ func loadDevData() *Data {
 
 func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 	var d *Data
-	if h.devData != nil {
+	sample := h.servingSampleData(r)
+	if sample {
 		// Shallow-copy so we don't mutate the cached struct across requests.
-		cp := *h.devData
+		src := h.sampleData()
+		cp := *src
 		fixed := make([]Fixed, len(cp.Fixed))
 		copy(fixed, cp.Fixed)
 		cp.Fixed = fixed
@@ -200,7 +224,9 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	computeFixedValues(d)
-	h.maybeSnapshotHistory(d)
+	if !sample {
+		h.maybeSnapshotHistory(d)
+	}
 	writeJSON(w, d)
 }
 

@@ -169,7 +169,7 @@ export default function Tax({ data, memberId }) {
 
   const memberName = memberId
     ? ((data.members || []).find(m => m.id === memberId)?.full_name || '').replace(' (You)', '')
-    : (selfMember.full_name || 'Jenish').replace(' (You)', '')
+    : (selfMember.full_name || 'You').replace(' (You)', '')
 
   return (
     <div className="fade-in">

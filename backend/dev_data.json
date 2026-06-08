@@ -1,82 +1,82 @@
 {
   "members": [
-    {"id":"you","name":"You","full_name":"Jenish (You)","relation":"Self","slab":30,"color":"#1C4A3A"},
+    {"id":"you","name":"You","full_name":"Aarav (You)","relation":"Self","slab":30,"color":"#1C4A3A"},
     {"id":"mom","name":"Mom","full_name":"Mom","relation":"Mother","slab":5,"color":"#C98A5E"},
     {"id":"dad","name":"Dad","full_name":"Dad","relation":"Father · Sr. Citizen","slab":5,"color":"#7E8AA2"}
   ],
   "mf": [
-    {"id":"mf1","name":"Quant Small Cap Fund","plan":"Direct · Growth","platform":"Groww","member":"you","invested":49998,"current":49998,"sip":0,"notes":"lumpsum only"},
-    {"id":"mf2","name":"PGIM India Flexi Cap Fund","plan":"Direct · Growth","platform":"ET Money","member":"you","invested":264947,"current":264947,"sip":4999,"notes":""},
-    {"id":"mf3","name":"Axis Focused Fund","plan":"Direct · Growth","platform":"Axis MF","member":"you","invested":237367,"current":237367,"sip":4000,"notes":""},
-    {"id":"mf4","name":"Quant Active Fund","plan":"Direct · Growth","platform":"ET Money","member":"you","invested":225000,"current":225000,"sip":5000,"notes":"5k diff"},
-    {"id":"mf5","name":"HDFC NIFTY 50 Index Fund","plan":"Direct · Growth","platform":"HDFC Portal","member":"you","invested":490000,"current":490000,"sip":15000,"notes":"1 failed txn"},
-    {"id":"mf6","name":"Tata India Pharma & Healthcare","plan":"Direct · Growth","platform":"Groww","member":"you","invested":60000,"current":60000,"sip":5000,"notes":""},
-    {"id":"mf7","name":"Quant Multi Cap Fund","plan":"Direct · Growth","platform":"ET Money","member":"you","invested":225000,"current":225000,"sip":5000,"notes":""},
-    {"id":"mf8","name":"Canara Robeco ELSS Tax Saver","plan":"Direct · Growth","platform":"Groww","member":"you","invested":5000,"current":5000,"sip":0,"notes":"paused"}
+    {"id":"mf1","name":"Bluepeak Small Cap Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":72000,"current":78500,"sip":0,"notes":"lumpsum only"},
+    {"id":"mf2","name":"Northstar Flexi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":318500,"current":342100,"sip":6000,"notes":""},
+    {"id":"mf3","name":"Solstice Focused Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":198400,"current":215600,"sip":3500,"notes":""},
+    {"id":"mf4","name":"Vantage Active Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":276000,"current":291200,"sip":6000,"notes":"6k diff"},
+    {"id":"mf5","name":"Horizon Nifty 50 Index Fund","plan":"Direct · Growth","platform":"TradeNest","member":"you","invested":545000,"current":588000,"sip":12000,"notes":"1 failed txn"},
+    {"id":"mf6","name":"Meridian Pharma & Healthcare Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":84000,"current":91500,"sip":4000,"notes":""},
+    {"id":"mf7","name":"Cobalt Multi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":192000,"current":204800,"sip":4000,"notes":""},
+    {"id":"mf8","name":"Evergreen ELSS Tax Saver","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":15000,"current":16200,"sip":0,"notes":"paused"}
   ],
   "stocks": [
-    {"id":"st1","name":"Reliance Industries","ticker":"RELIANCE","qty":40,"avg_price":2450,"last_price":2450,"member":"you"},
-    {"id":"st2","name":"HDFC Bank","ticker":"HDFCBANK","qty":60,"avg_price":1520,"last_price":1520,"member":"you"},
-    {"id":"st3","name":"Infosys","ticker":"INFY","qty":50,"avg_price":1380,"last_price":1380,"member":"you"}
+    {"id":"st1","name":"Crestpoint Industries","ticker":"CRSTPT","qty":35,"avg_price":1860,"last_price":1985,"member":"you"},
+    {"id":"st2","name":"Meridian Bank","ticker":"MRDNBK","qty":80,"avg_price":980,"last_price":1042,"member":"you"},
+    {"id":"st3","name":"Parallax Technologies","ticker":"PRLXTC","qty":60,"avg_price":1120,"last_price":1205,"member":"you"}
   ],
   "metals": [
-    {"id":"me1","type":"Gold","date_purchased":"2026-03-29","grams":11,"buy_rate":14680,"today_price":14680,"place":"Kalamandir","member":"you"},
-    {"id":"me2","type":"Silver","date_purchased":"2026-03-29","grams":11,"buy_rate":229.96,"today_price":229.96,"place":"Kalamandir","member":"you"}
+    {"id":"me1","type":"Gold","date_purchased":"2026-02-14","grams":8,"buy_rate":13950,"today_price":14820,"place":"Sundial Jewellers","member":"you"},
+    {"id":"me2","type":"Silver","date_purchased":"2026-02-14","grams":25,"buy_rate":198.5,"today_price":215.3,"place":"Sundial Jewellers","member":"you"}
   ],
   "fixed": [
-    {"id":"fd1","kind":"FD","name":"HDFC Bank FD","member":"you","principal":500000,"rate":7.1,"current_value":535000,"opened":"2025-01-12","matures":"2027-01-12","monthly":0,"doc_link":"https://drive.google.com/drive/folders/example-fd-statement"},
-    {"id":"fd2","kind":"RD","name":"SBI Recurring Deposit","member":"mom","principal":60000,"rate":6.5,"current_value":38200,"opened":"2025-09-01","matures":"2026-09-01","monthly":5000}
+    {"id":"fd1","kind":"FD","name":"Northgate Bank FD","member":"you","principal":400000,"rate":7.4,"current_value":428000,"opened":"2025-03-10","matures":"2027-03-10","monthly":0},
+    {"id":"fd2","kind":"RD","name":"Crestmark Recurring Deposit","member":"mom","principal":48000,"rate":6.25,"current_value":31000,"opened":"2025-07-01","matures":"2026-07-01","monthly":4000}
   ],
   "insurance": [
-    {"id":"in1","name":"LIC Jeevan Anand","type":"Endowment","member":"you","premium":48000,"freq":"annual","paid":384000,"value":412000,"cover":1000000,"maturity":2038,"due_date":"2026-06-18","doc_link":"https://drive.google.com/drive/folders/example-policy-doc"},
-    {"id":"in2","name":"HDFC Click 2 Protect","type":"Term","member":"you","premium":18000,"freq":"annual","paid":90000,"value":0,"cover":10000000,"maturity":2055,"due_date":"2025-09-22"},
-    {"id":"in3","name":"ICICI Pru Signature","type":"ULIP","member":"you","premium":100000,"freq":"annual","paid":500000,"value":612000,"cover":1000000,"maturity":2040,"due_date":"2025-12-01"}
+    {"id":"in1","name":"Pinnacle Endowment Assurance","type":"Endowment","member":"you","premium":36000,"freq":"annual","paid":252000,"value":298000,"cover":800000,"maturity":2037,"due_date":"2026-07-05"},
+    {"id":"in2","name":"Northshield Term Cover","type":"Term","member":"you","premium":14500,"freq":"annual","paid":72500,"value":0,"cover":8000000,"maturity":2054,"due_date":"2025-10-15"},
+    {"id":"in3","name":"Crestmark Wealth ULIP","type":"ULIP","member":"you","premium":80000,"freq":"annual","paid":400000,"value":478000,"cover":800000,"maturity":2039,"due_date":"2025-12-20"}
   ],
   "loans": [
-    {"id":"ln1","lender":"HDFC Home Loan","type":"Home","member":"you","principal":1800000,"outstanding":1120000,"rate":8.5,"emi":18900,"emi_day":5,"started":"2022-04-01","tenure_months":180},
-    {"id":"ln2","lender":"Axis Car Loan","type":"Car","member":"you","principal":500000,"outstanding":150000,"rate":9.2,"emi":11500,"emi_day":10,"started":"2023-08-15","tenure_months":60}
+    {"id":"ln1","lender":"Sundial Home Loan","type":"Home","member":"you","principal":1500000,"outstanding":980000,"rate":8.75,"emi":15800,"emi_day":7,"started":"2022-08-01","tenure_months":180},
+    {"id":"ln2","lender":"Crestpoint Auto Loan","type":"Car","member":"you","principal":420000,"outstanding":118000,"rate":9.5,"emi":9700,"emi_day":12,"started":"2023-11-20","tenure_months":60}
   ],
   "sips": [
-    {"id":"sip1","fund":"PGIM India Flexi Cap","member":"you","amount":4999,"day":5,"status":"active","start_date":"2022-02-06","platform":"ET Money","kind":"MF"},
-    {"id":"sip2","fund":"Quant Active Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-25","platform":"ET Money","kind":"MF"},
-    {"id":"sip3","fund":"Quant Multi Cap Fund","member":"you","amount":5000,"day":6,"status":"active","start_date":"2022-09-26","platform":"ET Money","kind":"MF"},
-    {"id":"sip4","fund":"Tata Pharma & Healthcare","member":"you","amount":5000,"day":18,"status":"active","start_date":"2025-06-12","platform":"Groww","kind":"MF"},
-    {"id":"sip5","fund":"Axis Focused Fund","member":"you","amount":4000,"day":20,"status":"active","start_date":"2021-08-20","platform":"Axis MF","kind":"MF"},
-    {"id":"sip6","fund":"HDFC NIFTY 50 Index","member":"you","amount":15000,"day":20,"status":"active","start_date":"2023-09-18","platform":"HDFC Portal","kind":"MF"},
-    {"id":"sip7","fund":"Canara Robeco ELSS","member":"you","amount":0,"day":21,"status":"paused","start_date":"2025-10-21","platform":"Groww","kind":"MF"},
-    {"id":"sip8","fund":"HDFC Bank","member":"you","amount":10000,"day":10,"status":"active","start_date":"2024-04-10","platform":"Zerodha","kind":"Stock"}
+    {"id":"sip1","fund":"Northstar Flexi Cap","member":"you","amount":6000,"day":5,"status":"active","start_date":"2022-03-10","platform":"Brightleaf","kind":"MF"},
+    {"id":"sip2","fund":"Vantage Active Fund","member":"you","amount":6000,"day":6,"status":"active","start_date":"2022-10-15","platform":"Brightleaf","kind":"MF"},
+    {"id":"sip3","fund":"Cobalt Multi Cap Fund","member":"you","amount":4000,"day":6,"status":"active","start_date":"2022-10-16","platform":"Brightleaf","kind":"MF"},
+    {"id":"sip4","fund":"Meridian Pharma & Healthcare","member":"you","amount":4000,"day":18,"status":"active","start_date":"2025-07-01","platform":"Lumen Invest","kind":"MF"},
+    {"id":"sip5","fund":"Solstice Focused Fund","member":"you","amount":3500,"day":20,"status":"active","start_date":"2021-09-10","platform":"Lumen Invest","kind":"MF"},
+    {"id":"sip6","fund":"Horizon Nifty 50 Index","member":"you","amount":12000,"day":20,"status":"active","start_date":"2023-10-05","platform":"TradeNest","kind":"MF"},
+    {"id":"sip7","fund":"Evergreen ELSS","member":"you","amount":0,"day":21,"status":"paused","start_date":"2025-11-05","platform":"Lumen Invest","kind":"MF"},
+    {"id":"sip8","fund":"Meridian Bank","member":"you","amount":8000,"day":10,"status":"active","start_date":"2024-05-12","platform":"TradeNest","kind":"Stock"}
   ],
   "lumpsums": [
-    {"id":"lp1","fund":"Quant Small Cap Fund","member":"you","amount":49998,"date":"2024-12-18"},
-    {"id":"lp2","fund":"Canara Robeco ELSS","member":"you","amount":5000,"date":"2025-10-21"},
-    {"id":"lp3","fund":"Axis Focused Fund","member":"you","amount":5367,"date":"2025-03-11"}
+    {"id":"lp1","fund":"Bluepeak Small Cap Fund","member":"you","amount":72000,"date":"2025-01-22"},
+    {"id":"lp2","fund":"Evergreen ELSS","member":"you","amount":15000,"date":"2025-11-05"},
+    {"id":"lp3","fund":"Solstice Focused Fund","member":"you","amount":6800,"date":"2025-04-18"}
   ],
   "history": [
-    {"month":"Jul 25","value":1800000},
-    {"month":"Aug 25","value":1850000},
-    {"month":"Sep 25","value":1820000},
-    {"month":"Oct 25","value":1910000},
-    {"month":"Nov 25","value":1960000},
-    {"month":"Dec 25","value":2010000},
-    {"month":"Jan 26","value":2080000},
-    {"month":"Feb 26","value":2020000},
-    {"month":"Mar 26","value":2150000},
-    {"month":"Apr 26","value":2240000},
-    {"month":"May 26","value":2310000},
-    {"month":"Jun 26","value":2390000}
+    {"month":"Jul 25","value":1620000},
+    {"month":"Aug 25","value":1665000},
+    {"month":"Sep 25","value":1640000},
+    {"month":"Oct 25","value":1710000},
+    {"month":"Nov 25","value":1755000},
+    {"month":"Dec 25","value":1798000},
+    {"month":"Jan 26","value":1855000},
+    {"month":"Feb 26","value":1810000},
+    {"month":"Mar 26","value":1920000},
+    {"month":"Apr 26","value":1995000},
+    {"month":"May 26","value":2055000},
+    {"month":"Jun 26","value":2125000}
   ],
   "config": {
-    "gross_income": 6200000,
+    "gross_income": 4800000,
     "regime": "New",
-    "capital_gains_this_year": 320000,
-    "shifted_to_parents": 480000,
+    "capital_gains_this_year": 245000,
+    "shifted_to_parents": 360000,
     "surcharge_from": 5000000,
     "next_surcharge_at": 10000000,
-    "parents_capacity_mom": 700000,
-    "parents_capacity_dad": 750000,
+    "parents_capacity_mom": 650000,
+    "parents_capacity_dad": 700000,
     "deduction_80c": 150000,
     "deduction_80d": 25000,
-    "other_deductions": 50000,
-    "saved_by_filing": 64350
+    "other_deductions": 40000,
+    "saved_by_filing": 51200
   }
 }

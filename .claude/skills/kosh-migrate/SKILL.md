@@ -54,8 +54,8 @@ id | name | full_name | relation | slab | color
 | Column | Type | Rules |
 |--------|------|-------|
 | id | string | Short, stable, lowercase. Suggest: `you` for self, `mom`, `dad`, etc. Never spaces. |
-| name | string | Short display name (e.g. `Jenish`, `Mom`). Used in chips and tags. |
-| full_name | string | Full display name (e.g. `Jenish (You)`, `Mom`). Used in headers. |
+| name | string | Short display name (e.g. `Aarav`, `Mom`). Used in chips and tags. |
+| full_name | string | Full display name (e.g. `Aarav (You)`, `Mom`). Used in headers. |
 | relation | string | `Self` / `Mother` / `Father` / `Spouse` / `Child` |
 | slab | number | Income tax slab % as integer: `5`, `20`, or `30` |
 | color | hex string | Assign a distinct hex color per member. Suggestions: `#1C4A3A`, `#C98A5E`, `#7E8AA2`, `#A87C2A` |
@@ -68,7 +68,7 @@ id | name | full_name | relation | slab | color
 **Example output:**
 ```
 id	name	full_name	relation	slab	color
-you	Jenish	Jenish (You)	Self	30	#1C4A3A
+you	Aarav	Aarav (You)	Self	30	#1C4A3A
 mom	Mom	Mom	Mother	5	#C98A5E
 dad	Dad	Dad	Father	5	#7E8AA2
 ```

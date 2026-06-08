@@ -48,8 +48,8 @@ The `member` column references a `Members.id` value.
 | Column | Type | Example |
 |--------|------|---------|
 | id | string | `you` |
-| name | string | `Jenish` — short display name |
-| full_name | string | `Jenish (You)` — used in headers |
+| name | string | `Aarav` — short display name |
+| full_name | string | `Aarav (You)` — used in headers |
 | relation | string | `Self` / `Mother` / `Father` |
 | slab | number | `30` — income tax slab % |
 | color | hex string | `#1C4A3A` — avatar/chart color |

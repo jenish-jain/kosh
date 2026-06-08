@@ -63,7 +63,7 @@ function Sidebar({ screen, setScreen, data, user, onLogout }) {
           }}>
             <Icon name="x" size={14} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.email}
+              {user.demo ? 'Exit demo' : user.email}
             </span>
           </button>
         )}
@@ -172,11 +172,13 @@ export default function App() {
   const [authState, setAuthState] = useState('checking') // 'checking' | 'login' | 'authed'
   const [user, setUser] = useState(null)
   const [clientId, setClientId] = useState(null)
+  const [demoAvailable, setDemoAvailable] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/config')
       .then(r => r.json())
       .then(cfg => {
+        setDemoAvailable(!!cfg.demo)
         if (!cfg.enabled) { setAuthState('authed'); return }
         setClientId(cfg.client_id)
         return fetch('/api/auth/me', { credentials: 'include' })
@@ -189,6 +191,11 @@ export default function App() {
 
   const handleLogin = u => { setUser(u); setAuthState('authed') }
 
+  const handleDemo = async () => {
+    const res = await fetch('/api/auth/demo-login', { method: 'POST', credentials: 'include' })
+    if (res.ok) handleLogin(await res.json())
+  }
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
     setUser(null)
@@ -196,7 +203,7 @@ export default function App() {
   }
 
   if (authState === 'checking') return <LoadingScreen />
-  if (authState === 'login') return <Login clientId={clientId} onLogin={handleLogin} />
+  if (authState === 'login') return <Login clientId={clientId} demoAvailable={demoAvailable} onDemo={handleDemo} onLogin={handleLogin} />
 
   return (
     <DataProvider clientId={clientId}>

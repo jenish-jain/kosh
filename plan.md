@@ -43,7 +43,7 @@ index.html (React app, editorial design)
 
 ## Stage 1 — Project Structure
 
-Files to create in `/Users/jenishjain/Desktop/workspace/kosh/`:
+Files to create in the project root:
 
 ```
 kosh/

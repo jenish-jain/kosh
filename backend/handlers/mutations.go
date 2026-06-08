@@ -23,8 +23,8 @@ var sheetColumns = map[string][]string{
 
 func (h *Handler) AddRow(w http.ResponseWriter, r *http.Request) {
 	sheetName := sheetFromPath(r.URL.Path, "/api/")
-	if h.devData != nil {
-		writeJSON(w, map[string]string{"status": "ok", "note": "dev mode — not persisted"})
+	if h.servingSampleData(r) {
+		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
 	cols, ok := sheetColumns[sheetName]
@@ -57,8 +57,8 @@ func (h *Handler) UpdateRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sheetName, id := parts[0], parts[1]
-	if h.devData != nil {
-		writeJSON(w, map[string]string{"status": "ok", "note": "dev mode — not persisted"})
+	if h.servingSampleData(r) {
+		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
 	cols, ok := sheetColumns[sheetName]
@@ -91,8 +91,8 @@ func (h *Handler) DeleteRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sheetName, id := parts[0], parts[1]
-	if h.devData != nil {
-		writeJSON(w, map[string]string{"status": "ok", "note": "dev mode — not persisted"})
+	if h.servingSampleData(r) {
+		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
 	if err := h.client.DeleteRow(sheetName, id); err != nil {

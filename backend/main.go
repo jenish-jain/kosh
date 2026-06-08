@@ -85,7 +85,10 @@ func main() {
 		return next
 	}
 
-	h := handlers.NewHandler(client)
+	isDemo := func(r *http.Request) bool {
+		return auth != nil && auth.IsDemoSession(r)
+	}
+	h := handlers.NewHandler(client, isDemo)
 	upload := handlers.NewUploadHandler(anthropicKey, promptsDir)
 	mux := http.NewServeMux()
 
@@ -93,11 +96,21 @@ func main() {
 	mux.HandleFunc("/api/auth/config", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		if r.Method == http.MethodOptions { return }
+		cfg := map[string]interface{}{"enabled": authEnabled}
 		if authEnabled {
-			auth.Config(w, r)
+			cfg["client_id"] = googleClientID
+			cfg["demo"] = true // a "Try the demo" option is always offered alongside Google sign-in
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cfg)
+	})
+	mux.HandleFunc("/api/auth/demo-login", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions { return }
+		if auth != nil {
+			auth.DemoLogin(w, r)
 		} else {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
+			http.Error(w, "auth not configured", http.StatusNotFound)
 		}
 	})
 	mux.HandleFunc("/api/auth/login", func(w http.ResponseWriter, r *http.Request) {

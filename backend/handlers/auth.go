@@ -21,6 +21,10 @@ type AuthHandler struct {
 	cookieSecure  bool
 }
 
+// demoEmail is the sentinel "identity" used for try-the-demo sessions — never
+// a real Google account, so it can never collide with the allow-list.
+const demoEmail = "demo@kosh.local"
+
 func NewAuthHandler(allowedEmails []string, clientID, secret string, cookieSecure bool) *AuthHandler {
 	m := map[string]bool{}
 	for _, e := range allowedEmails {
@@ -29,14 +33,6 @@ func NewAuthHandler(allowedEmails []string, clientID, secret string, cookieSecur
 		}
 	}
 	return &AuthHandler{allowedEmails: m, clientID: clientID, secret: secret, cookieSecure: cookieSecure}
-}
-
-// Config returns whether auth is enabled and the Google client ID for the frontend.
-func (a *AuthHandler) Config(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]interface{}{
-		"enabled":   true,
-		"client_id": a.clientID,
-	})
 }
 
 // Login verifies a Google ID token, checks the email against the allow-list,
@@ -101,6 +97,22 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"email": info.Email, "name": info.Name, "picture": info.Picture})
 }
 
+// DemoLogin sets a session cookie for the sentinel demo identity, letting
+// visitors explore the app with sample data — no Google account required.
+// Kept short-lived since it's meant for a quick look, not ongoing use.
+func (a *AuthHandler) DemoLogin(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "kosh_session",
+		Value:    a.signToken(demoEmail),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   a.cookieSecure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   24 * 60 * 60, // 1 day
+	})
+	writeJSON(w, map[string]interface{}{"email": demoEmail, "name": "Demo", "demo": true})
+}
+
 // Me returns the current user's email from the session cookie, or 401.
 func (a *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	email, ok := a.emailFromCookie(r)
@@ -108,7 +120,18 @@ func (a *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	if email == demoEmail {
+		writeJSON(w, map[string]interface{}{"email": email, "name": "Demo", "demo": true})
+		return
+	}
 	writeJSON(w, map[string]string{"email": email})
+}
+
+// IsDemoSession reports whether the request carries a valid demo session —
+// used by data handlers to serve sample data instead of the live spreadsheet.
+func (a *AuthHandler) IsDemoSession(r *http.Request) bool {
+	email, ok := a.emailFromCookie(r)
+	return ok && email == demoEmail
 }
 
 // Logout clears the session cookie.
