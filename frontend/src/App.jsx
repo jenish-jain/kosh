@@ -133,7 +133,7 @@ function AppShell({ user, onLogout }) {
 
   const showToast = (message, type = 'success') => setToast({ message, type })
 
-  if (loading) return <LoadingScreen />
+  if (loading && !data) return <LoadingScreen />
   if (error) return <ErrorScreen message={error} />
 
   const screenEl = (() => {
