@@ -36,6 +36,11 @@
     {"id":"ln1","lender":"Sundial Home Loan","type":"Home","member":"you","principal":1500000,"outstanding":980000,"rate":8.75,"emi":15800,"emi_day":7,"started":"2022-08-01","tenure_months":180},
     {"id":"ln2","lender":"Crestpoint Auto Loan","type":"Car","member":"you","principal":420000,"outstanding":118000,"rate":9.5,"emi":9700,"emi_day":12,"started":"2023-11-20","tenure_months":60}
   ],
+  "nps": [
+    {"id":"nps1","pran":"110024567890","member":"you","tier":"T1","asset_class":"E","scheme":"NPS TRUST - A/C NORTHCREST PENSION MGMT - SCHEME E - TIER I","fund_manager":"Northcrest Pension","units":1248.6532,"nav":54.38,"invested":58000},
+    {"id":"nps2","pran":"110024567890","member":"you","tier":"T1","asset_class":"C","scheme":"NPS TRUST - A/C NORTHCREST PENSION MGMT - SCHEME C - TIER I","fund_manager":"Northcrest Pension","units":812.4100,"nav":31.72,"invested":24000},
+    {"id":"nps3","pran":"110024567890","member":"you","tier":"T1","asset_class":"G","scheme":"NPS TRUST - A/C NORTHCREST PENSION MGMT - SCHEME G - TIER I","fund_manager":"Northcrest Pension","units":594.2200,"nav":26.15,"invested":14000}
+  ],
   "sips": [
     {"id":"sip1","fund":"Northstar Flexi Cap","member":"you","amount":6000,"day":5,"status":"active","start_date":"2022-03-10","platform":"Brightleaf","kind":"MF"},
     {"id":"sip2","fund":"Vantage Active Fund","member":"you","amount":6000,"day":6,"status":"active","start_date":"2022-10-15","platform":"Brightleaf","kind":"MF"},
@@ -52,18 +57,18 @@
     {"id":"lp3","fund":"Solstice Focused Fund","member":"you","amount":6800,"date":"2025-04-18"}
   ],
   "history": [
-    {"month":"Jul 25","value":1620000},
-    {"month":"Aug 25","value":1665000},
-    {"month":"Sep 25","value":1640000},
-    {"month":"Oct 25","value":1710000},
-    {"month":"Nov 25","value":1755000},
-    {"month":"Dec 25","value":1798000},
-    {"month":"Jan 26","value":1855000},
-    {"month":"Feb 26","value":1810000},
-    {"month":"Mar 26","value":1920000},
-    {"month":"Apr 26","value":1995000},
-    {"month":"May 26","value":2055000},
-    {"month":"Jun 26","value":2125000}
+    {"month":"Jul 25","value":1718000},
+    {"month":"Aug 25","value":1763000},
+    {"month":"Sep 25","value":1738000},
+    {"month":"Oct 25","value":1808000},
+    {"month":"Nov 25","value":1853000},
+    {"month":"Dec 25","value":1896000},
+    {"month":"Jan 26","value":1953000},
+    {"month":"Feb 26","value":1908000},
+    {"month":"Mar 26","value":2018000},
+    {"month":"Apr 26","value":2093000},
+    {"month":"May 26","value":2153000},
+    {"month":"Jun 26","value":2233000}
   ],
   "config": {
     "gross_income": 4800000,

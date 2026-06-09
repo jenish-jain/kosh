@@ -43,12 +43,14 @@ var driveFolders = map[string]string{
 	"fd":        "Kosh/FD",
 	"insurance": "Kosh/Insurance",
 	"metals":    "Kosh/Gold & Silver",
+	"nps":       "Kosh/NPS",
 }
 
 var promptFiles = map[string]string{
 	"fd":        "fd.md",
 	"insurance": "insurance.md",
 	"metals":    "metals.md",
+	"nps":       "nps.md",
 }
 
 func (u *UploadHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +61,7 @@ func (u *UploadHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	docType := strings.TrimPrefix(r.URL.Path, "/api/upload/")
 	if _, ok := driveFolders[docType]; !ok {
-		http.Error(w, fmt.Sprintf("unknown document type %q — use fd, insurance, or metals", docType), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unknown document type %q — use fd, insurance, metals, or nps", docType), http.StatusBadRequest)
 		return
 	}
 

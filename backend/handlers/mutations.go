@@ -15,6 +15,7 @@ var sheetColumns = map[string][]string{
 	"Fixed":     {"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly", "doc_link"},
 	"Insurance": {"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date", "doc_link"},
 	"Loans":     {"id", "lender", "type", "member", "principal", "outstanding", "rate", "emi", "emi_day", "started", "tenure_months"},
+	"NPS":       {"id", "pran", "member", "tier", "asset_class", "scheme", "fund_manager", "units", "nav", "invested"},
 	"SIPs":      {"id", "fund", "member", "amount", "day", "status", "start_date", "platform", "kind"},
 	"Lumpsums":  {"id", "fund", "member", "amount", "date"},
 	"History":   {"month", "value"},

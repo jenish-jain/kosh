@@ -65,6 +65,7 @@ export default function UploadZone({ docType, onExtracted, onClose }) {
     fd:        'FD certificate',
     insurance: 'insurance policy / schedule',
     metals:    'gold or silver invoice',
+    nps:       'KFintech NPS account statement',
   }
 
   return (

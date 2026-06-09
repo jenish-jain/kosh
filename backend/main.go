@@ -36,6 +36,7 @@ func main() {
 		{Name: "Fixed",     Columns: []string{"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly", "doc_link"}},
 		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date", "doc_link"}},
 		{Name: "Loans",     Columns: []string{"id", "lender", "type", "member", "principal", "outstanding", "rate", "emi", "emi_day", "started", "tenure_months"}},
+		{Name: "NPS",       Columns: []string{"id", "pran", "member", "tier", "asset_class", "scheme", "fund_manager", "units", "nav", "invested"}},
 		{Name: "SIPs",      Columns: []string{"id", "fund", "member", "amount", "day", "status", "start_date", "platform", "kind"}},
 		{Name: "Lumpsums",  Columns: []string{"id", "fund", "member", "amount", "date"}},
 		{Name: "History",   Columns: []string{"month", "value"}},

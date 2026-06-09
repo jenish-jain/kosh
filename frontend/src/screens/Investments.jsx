@@ -25,6 +25,7 @@ function SummaryTiles({ data, memberId, activeTab, setTab }) {
   const tiles = [
     { k: 'mf',        label: 'Mutual funds',   inv: c.mf.inv,        cur: c.mf.cur },
     { k: 'stocks',    label: 'Stocks',          inv: c.stocks.inv,    cur: c.stocks.cur },
+    { k: 'nps',       label: 'NPS',             inv: c.nps.inv,       cur: c.nps.cur },
     { k: 'fixed',     label: 'FD / RD',         inv: c.fixed.inv,     cur: c.fixed.cur },
     { k: 'metals',    label: 'Gold & silver',   inv: c.metals.inv,    cur: c.metals.cur },
     { k: 'insurance', label: 'Insurance',       inv: c.insurance.inv, cur: c.insurance.cur },
@@ -368,6 +369,76 @@ function FixedTable({ data, rows, all }) {
   )
 }
 
+// ── NPS Table ────────────────────────────────────────────────
+const AC_LABEL = { E: 'Equity', C: 'Corp Bond', G: 'Govt Sec', A: 'Alternative' }
+const AC_COLOR = { E: 'var(--accent)', C: '#6B7A99', G: '#9AA79E', A: '#B0822C' }
+
+function NPSTable({ data, rows, all, dirty, setDirty }) {
+  const inv = rows.reduce((a, x) => a + (x.invested || 0), 0)
+  const cur = rows.reduce((a, x) => a + (x.units || 0) * (x.nav || 0), 0)
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tbl">
+        <thead><tr>
+          <th>Scheme</th>
+          {all && <th>Owner</th>}
+          <th>Tier</th>
+          <th>Class</th>
+          <th className="r">Units</th>
+          <th className="r">NAV</th>
+          <th className="r">Invested</th>
+          <th className="r">Value</th>
+        </tr></thead>
+        <tbody>
+          {rows.map(r => {
+            const cur = (r.units || 0) * (r.nav || 0)
+            const gain = cur - (r.invested || 0)
+            const k = r.id
+            return (
+              <tr key={k}>
+                <td style={{ minWidth: 220 }}>
+                  <div className="cell-strong">{r.scheme || r.fund_manager}</div>
+                  {r.scheme && r.fund_manager && <div className="cell-sub">{r.fund_manager}</div>}
+                  {r.pran && <div className="cell-sub">PRAN {r.pran}</div>}
+                </td>
+                {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
+                <td><span className="pill neutral">{r.tier || '—'}</span></td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 700 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: AC_COLOR[r.asset_class] || 'var(--line)', flexShrink: 0 }} />
+                    {r.asset_class} · {AC_LABEL[r.asset_class] || r.asset_class}
+                  </span>
+                </td>
+                <td className="r">
+                  <EditCell value={dirty[k]?.units ?? r.units} type="number"
+                    onChange={v => setDirty(d => ({ ...d, [k]: { ...r, ...(d[k] || {}), units: Number(v) } }))} />
+                </td>
+                <td className="r">
+                  <EditCell value={dirty[k]?.nav ?? r.nav} type="number"
+                    onChange={v => setDirty(d => ({ ...d, [k]: { ...r, ...(d[k] || {}), nav: Number(v) } }))} />
+                </td>
+                <td className="r">
+                  <EditCell value={dirty[k]?.invested ?? r.invested} type="number"
+                    onChange={v => setDirty(d => ({ ...d, [k]: { ...r, ...(d[k] || {}), invested: Number(v) } }))} />
+                </td>
+                <td className="r">
+                  <div className="num cell-strong">{fmtINR(cur)}</div>
+                  {Math.abs(gain) > 0 && (
+                    <div className="cell-sub" style={{ color: gain >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                      {gain >= 0 ? '+' : '−'}{fmtCompact(Math.abs(gain))}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <TotalsBar inv={inv} cur={cur} label={`${rows.length} scheme${rows.length !== 1 ? 's' : ''}`} curLabel="Current value" />
+    </div>
+  )
+}
+
 // ── Map AI-extracted fields → AddModal form state ────────────
 function extractedToForm(tab, fields) {
   if (!fields) return {}
@@ -405,7 +476,7 @@ function extractedToForm(tab, fields) {
 // ── Add Modal ────────────────────────────────────────────────
 function AddModal({ tab, memberId, data, onClose, initialForm }) {
   const { add } = useData()
-  const defaults = { member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment', fdKind: 'FD' }
+  const defaults = { member: memberId || (data.members?.[0]?.id || 'you'), freq: 'annual', metalType: 'Gold', insType: 'Endowment', fdKind: 'FD', npsTier: 'T1', npsAC: 'E' }
   const [form, setForm] = useState(initialForm ? { ...defaults, ...initialForm } : defaults)
   const fromUpload = !!initialForm
   const up = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -427,6 +498,8 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
       const principal = form.fdKind === 'FD' ? n(form.principal) : monthly * tenure
       const matures = computeMatures(form.opened || TODAY_STR, tenure)
       await add('Fixed', { id, kind: form.fdKind, name: form.name || 'New deposit', member: form.member, principal, rate: n(form.rate), current_value: principal, opened: form.opened || TODAY_STR, matures, monthly, doc_link: form.docLink || '' })
+    } else if (tab === 'nps') {
+      await add('NPS', { id, pran: form.pran || '', member: form.member, tier: form.npsTier || 'T1', asset_class: form.npsAC || 'E', scheme: form.scheme || '', fund_manager: form.fundManager || '', units: n(form.units), nav: n(form.nav), invested: n(form.invested) })
     }
     onClose()
   }
@@ -441,7 +514,7 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
     </Field>
   )
 
-  const titles = { mf: 'Add mutual fund', stocks: 'Add stock', metals: 'Add metal', insurance: 'Add insurance / plan', fixed: 'Add deposit (FD / RD)' }
+  const titles = { mf: 'Add mutual fund', stocks: 'Add stock', metals: 'Add metal', insurance: 'Add insurance / plan', fixed: 'Add deposit (FD / RD)', nps: 'Add NPS holding' }
 
   return (
     <Modal title={titles[tab]} onClose={onClose}>
@@ -550,10 +623,104 @@ function AddModal({ tab, memberId, data, onClose, initialForm }) {
         )}
       </>}
 
+      {tab === 'nps' && <>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Tier">
+            <div className="seg" style={{ display: 'flex' }}>
+              {['T1', 'T2'].map(x => <button key={x} className={form.npsTier === x ? 'active' : ''} onClick={() => up('npsTier', x)} style={{ flex: 1 }}>{x === 'T1' ? 'Tier I' : 'Tier II'}</button>)}
+            </div>
+          </Field>
+          <Field label="Asset class">
+            <div className="seg" style={{ display: 'flex' }}>
+              {['E', 'C', 'G', 'A'].map(x => <button key={x} className={form.npsAC === x ? 'active' : ''} onClick={() => up('npsAC', x)} style={{ flex: 1 }}>{x}</button>)}
+            </div>
+          </Field>
+        </div>
+        <Field label="Scheme name"><input className="input" value={form.scheme || ''} onChange={e => up('scheme', e.target.value)} placeholder="e.g. NPS TRUST - A/C SBI Pension Fund Scheme E" /></Field>
+        <Field label="Fund manager"><input className="input" value={form.fundManager || ''} onChange={e => up('fundManager', e.target.value)} placeholder="e.g. SBI, HDFC, UTI, LIC, Kotak" /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <Field label="Units"><input className="input" type="number" step="0.0001" value={form.units || ''} onChange={e => up('units', e.target.value)} /></Field>
+          <Field label="NAV (₹)"><input className="input" type="number" step="0.01" value={form.nav || ''} onChange={e => up('nav', e.target.value)} /></Field>
+          <Field label="Invested (₹)"><input className="input" type="number" value={form.invested || ''} onChange={e => up('invested', e.target.value)} /></Field>
+        </div>
+        {n(form.units) > 0 && n(form.nav) > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '8px 12px', background: 'var(--bg-2,#f7f5f0)', borderRadius: 4 }}>
+            Current value: <strong>{fmtINR(n(form.units) * n(form.nav))}</strong>
+            {n(form.invested) > 0 && <> · Gain: <strong style={{ color: n(form.units) * n(form.nav) >= n(form.invested) ? 'var(--pos)' : 'var(--neg)' }}>{n(form.units) * n(form.nav) >= n(form.invested) ? '+' : '−'}{fmtINR(Math.abs(n(form.units) * n(form.nav) - n(form.invested)))}</strong></>}
+          </div>
+        )}
+        <Field label="PRAN (optional)"><input className="input" value={form.pran || ''} onChange={e => up('pran', e.target.value)} placeholder="e.g. 110012345678" /></Field>
+      </>}
+
       {memberPicker}
       <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn primary" onClick={submit}>Add holding</button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── NPS bulk-import modal (from KFintech statement upload) ───
+function NPSImportModal({ batch, data, onDone, onClose }) {
+  const { add } = useData()
+  const [member, setMember] = useState(batch.member)
+  const [selected, setSelected] = useState(() => batch.holdings.map((_, i) => i))
+  const [busy, setBusy] = useState(false)
+  const toggle = (i) => setSelected(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
+  const n = Number
+
+  const submit = async () => {
+    setBusy(true)
+    const toImport = batch.holdings.filter((_, i) => selected.includes(i))
+    for (const h of toImport) {
+      await add('NPS', {
+        id: 'nps' + Date.now() + Math.random().toString(36).slice(2),
+        pran: batch.pran || '', member,
+        tier: h.tier || 'T1', asset_class: h.asset_class || 'E',
+        scheme: h.scheme || '', fund_manager: h.fund_manager || '',
+        units: n(h.units) || 0, nav: n(h.nav) || 0, invested: n(h.invested) || 0,
+      })
+    }
+    onDone(toImport.length)
+  }
+
+  return (
+    <Modal title="Import NPS holdings" onClose={onClose}>
+      <div style={{ margin: '0 0 16px', padding: '9px 14px', borderRadius: 4, background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600 }}>
+        ✦ Claude extracted {batch.holdings.length} scheme{batch.holdings.length !== 1 ? 's' : ''} from your statement{batch.pran ? ` · PRAN ${batch.pran}` : ''} — deselect any to skip.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {batch.holdings.map((h, i) => {
+          const cur = (n(h.units) || 0) * (n(h.nav) || 0)
+          const on = selected.includes(i)
+          return (
+            <div key={i} onClick={() => toggle(i)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 6, border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent-soft)' : 'transparent', cursor: 'pointer' }}>
+              <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{h.tier || 'T1'} · Class {h.asset_class || '?'} · {h.fund_manager || h.scheme}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.scheme}</div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div className="num" style={{ fontSize: 13.5, fontWeight: 700 }}>{cur > 0 ? fmtINR(cur) : '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{h.units} u × ₹{h.nav}</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <Field label="Assign to member">
+        <div className="seg" style={{ display: 'flex' }}>
+          {(data.members || []).map(m => (
+            <button key={m.id} className={member === m.id ? 'active' : ''} onClick={() => setMember(m.id)} style={{ flex: 1 }}>{m.name}</button>
+          ))}
+        </div>
+      </Field>
+      <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
+        <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+        <button className="btn primary" onClick={submit} disabled={busy || selected.length === 0}>
+          {busy ? 'Importing…' : `Import ${selected.length} holding${selected.length !== 1 ? 's' : ''}`}
+        </button>
       </div>
     </Modal>
   )
@@ -569,11 +736,23 @@ export default function Investments({ data, memberId, showToast }) {
   const [dirty, setDirty] = useState({})
   const [saving, setSaving] = useState(false)
 
-  const uploadableTabs = ['fixed', 'insurance', 'metals']
+  const uploadableTabs = ['fixed', 'insurance', 'metals', 'nps']
   const canUpload = uploadableTabs.includes(tab)
-  const uploadDocType = { fixed: 'fd', insurance: 'insurance', metals: 'metals' }
+  const uploadDocType = { fixed: 'fd', insurance: 'insurance', metals: 'metals', nps: 'nps' }
+
+  const [npsImportBatch, setNpsImportBatch] = useState(null) // {pran, member, holdings[]}
 
   const handleExtracted = (fields, driveURL) => {
+    // NPS statements yield a batch — show a confirm-and-bulk-import modal
+    if (tab === 'nps' && Array.isArray(fields.holdings)) {
+      setNpsImportBatch({
+        pran: fields.pran || '',
+        member: memberId || (data.members?.[0]?.id || 'you'),
+        holdings: fields.holdings,
+      })
+      setShowUpload(false)
+      return
+    }
     const pre = extractedToForm(tab, fields)
     if (driveURL) pre.docLink = driveURL
     setUploadPreFill(pre)
@@ -587,12 +766,13 @@ export default function Investments({ data, memberId, showToast }) {
     ['mf',        'Mutual Funds',       h.mf.length],
     ['stocks',    'Stocks',             h.stocks.length],
     ['fixed',     'Deposits',           h.fixed.length],
+    ['nps',       'NPS',                h.nps.length],
     ['metals',    'Gold & Silver',      h.metals.length],
     ['insurance', 'Insurance & Plans',  h.insurance.length],
   ]
 
   // sheet name map
-  const sheetMap = { mf: 'MF', stocks: 'Stocks', metals: 'Metals', insurance: 'Insurance', fixed: 'Fixed' }
+  const sheetMap = { mf: 'MF', stocks: 'Stocks', metals: 'Metals', insurance: 'Insurance', fixed: 'Fixed', nps: 'NPS' }
 
   const hasDirty = Object.keys(dirty).length > 0
 
@@ -655,6 +835,7 @@ export default function Investments({ data, memberId, showToast }) {
       {tab === 'mf'        && <MFTable        data={data} rows={h.mf}        all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'stocks'    && <StockTable     data={data} rows={h.stocks}    all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} />}
+      {tab === 'nps'       && <NPSTable       data={data} rows={h.nps}       all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'metals'    && <MetalTable     data={data} rows={h.metals}    all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'insurance' && <InsuranceTable data={data} rows={h.insurance} all={all} dirty={dirty} setDirty={setDirty} />}
 
@@ -665,6 +846,14 @@ export default function Investments({ data, memberId, showToast }) {
           tab={tab} memberId={memberId} data={data}
           initialForm={uploadPreFill}
           onClose={() => { setShowAdd(false); setUploadPreFill(null) }}
+        />
+      )}
+      {npsImportBatch && (
+        <NPSImportModal
+          batch={npsImportBatch}
+          data={data}
+          onDone={(count) => { setNpsImportBatch(null); showToast(`Imported ${count} NPS holding${count !== 1 ? 's' : ''} ✓`) }}
+          onClose={() => setNpsImportBatch(null)}
         />
       )}
       {showUpload && (

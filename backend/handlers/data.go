@@ -22,6 +22,7 @@ type Data struct {
 	Fixed     []Fixed    `json:"fixed"`
 	Insurance []Insurance `json:"insurance"`
 	Loans     []Loan     `json:"loans"`
+	NPS       []NPS      `json:"nps"`
 	SIPs      []SIP      `json:"sips"`
 	Lumpsums  []Lumpsum  `json:"lumpsums"`
 	History   []History  `json:"history"`
@@ -123,6 +124,19 @@ type SIP struct {
 	StartDate string  `json:"start_date"`
 	Platform  string  `json:"platform"`
 	Kind      string  `json:"kind"`
+}
+
+type NPS struct {
+	ID          string  `json:"id"`
+	PRAN        string  `json:"pran"`
+	Member      string  `json:"member"`
+	Tier        string  `json:"tier"`
+	AssetClass  string  `json:"asset_class"`
+	Scheme      string  `json:"scheme"`
+	FundManager string  `json:"fund_manager"`
+	Units       float64 `json:"units"`
+	NAV         float64 `json:"nav"`
+	Invested    float64 `json:"invested"`
 }
 
 type Lumpsum struct {
@@ -274,6 +288,9 @@ func netWorthTotal(d *Data) float64 {
 	for _, x := range d.Insurance {
 		total += x.Value
 	}
+	for _, x := range d.NPS {
+		total += x.Units * x.NAV
+	}
 	for _, x := range d.Loans {
 		total -= x.Outstanding
 	}
@@ -381,6 +398,19 @@ func (h *Handler) fetchFromSheets() (*Data, error) {
 		}
 	} else {
 		tabLog("Loans", e)
+	}
+
+	if rows, e := h.client.ReadSheet("NPS"); e == nil {
+		for _, row := range rows[1:] {
+			d.NPS = append(d.NPS, NPS{
+				ID: sh.ColStr(row, 0), PRAN: sh.ColStr(row, 1), Member: sh.ColStr(row, 2),
+				Tier: sh.ColStr(row, 3), AssetClass: sh.ColStr(row, 4), Scheme: sh.ColStr(row, 5),
+				FundManager: sh.ColStr(row, 6), Units: sh.ColFloat(row, 7), NAV: sh.ColFloat(row, 8),
+				Invested: sh.ColFloat(row, 9),
+			})
+		}
+	} else {
+		tabLog("NPS", e)
 	}
 
 	if rows, e := h.client.ReadSheet("SIPs"); e == nil {

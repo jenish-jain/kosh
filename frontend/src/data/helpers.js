@@ -51,6 +51,7 @@ export function holdingsFor(data, memberId) {
     fixed:     f(data.fixed     || []),
     insurance: f(data.insurance || []),
     loans:     f(data.loans     || []),
+    nps:       f(data.nps       || []),
   }
 }
 
@@ -72,6 +73,9 @@ export function classTotals(data, memberId) {
   const inCur  = h.insurance.reduce((a, x) => a + (x.value || 0), 0)
   const inInv  = h.insurance.reduce((a, x) => a + (x.paid  || 0), 0)
 
+  const npsCur = h.nps.reduce((a, x) => a + (x.units || 0) * (x.nav || 0), 0)
+  const npsInv = h.nps.reduce((a, x) => a + (x.invested || 0), 0)
+
   const loanOutstanding = h.loans.reduce((a, x) => a + (x.outstanding || 0), 0)
   const loanEmiMonthly  = h.loans.reduce((a, x) => a + (x.emi || 0), 0)
 
@@ -81,10 +85,11 @@ export function classTotals(data, memberId) {
     metals:    { cur: meCur, inv: meInv },
     fixed:     { cur: fiCur, inv: fiInv },
     insurance: { cur: inCur, inv: inInv },
+    nps:       { cur: npsCur, inv: npsInv },
     liabilities: { cur: loanOutstanding, monthly: loanEmiMonthly },
     total:     {
-      cur: mfCur + stCur + meCur + fiCur + inCur,
-      inv: mfInv + stInv + meInv + fiInv + inInv,
+      cur: mfCur + stCur + meCur + fiCur + inCur + npsCur,
+      inv: mfInv + stInv + meInv + fiInv + inInv + npsInv,
     },
   }
 }
@@ -106,14 +111,15 @@ export const CLASS_META = {
   metals:    { label: 'Gold & Silver',      color: '#B0822C' },
   fixed:     { label: 'FD / RD',            color: '#9AA79E' },
   insurance: { label: 'Insurance & Plans',  color: '#5E7D72' },
+  nps:       { label: 'NPS',               color: '#6B7A99' },
 }
 
-export const ED_ORDER = ['mf', 'stocks', 'fixed', 'insurance', 'metals']
+export const ED_ORDER = ['mf', 'stocks', 'fixed', 'nps', 'insurance', 'metals']
 export const ED_COL = {
-  mf: 'var(--accent)', stocks: '#B5603E', fixed: '#9AA79E', insurance: '#5E7D72', metals: '#B0822C'
+  mf: 'var(--accent)', stocks: '#B5603E', fixed: '#9AA79E', nps: '#6B7A99', insurance: '#5E7D72', metals: '#B0822C'
 }
 export const ED_LABEL = {
-  mf: 'Mutual funds', stocks: 'Stocks', fixed: 'FD / RD', insurance: 'Insurance', metals: 'Gold & silver'
+  mf: 'Mutual funds', stocks: 'Stocks', fixed: 'FD / RD', nps: 'NPS', insurance: 'Insurance', metals: 'Gold & silver'
 }
 
 // Today's date (static — refresh app to update)
