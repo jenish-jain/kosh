@@ -71,6 +71,54 @@ document parsing, if you turn that on).
 
 ---
 
+## Tests & Coverage
+
+### Run tests
+
+```bash
+# Backend (Go)
+cd backend && go test ./...
+
+# Backend with coverage report
+cd backend && go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
+
+# Frontend (Node)
+cd frontend && npm test
+
+# Frontend with coverage report
+cd frontend && npm run test:coverage
+```
+
+### Current coverage
+
+**Backend**
+
+| Package | Coverage |
+|---|---|
+| `kosh/handlers` | 23.4% |
+| `kosh/sheets` | 11.8% |
+| `kosh/drive` | 0% |
+
+Low coverage in `handlers` and `sheets` reflects that the Google Sheets and Drive API clients require live credentials and are not yet wrapped in interfaces for injection. See [`test-generation-report.md`](test-generation-report.md) for the refactoring plan.
+
+**Frontend**
+
+| File | Stmts | Branch | Funcs |
+|---|---|---|---|
+| `data/api.js` | 100% | 100% | 100% |
+| `data/context.jsx` | 100% | 100% | 100% |
+| `data/helpers.js` | 100% | 72% | 100% |
+| `components/Icons.jsx` | 100% | 100% | 100% |
+| `components/Primitives.jsx` | 47% | 95% | 62% |
+| `data/driveAuth.js` | 0% | 0% | 0% |
+| `components/UploadZone.jsx` | 0% | 0% | 0% |
+| `screens/*` | 0% | 0% | 0% |
+| `App.jsx` | 0% | 0% | 0% |
+
+Zero coverage in screens and `App.jsx` is expected — they depend on the full context + Google Sign-In integration. The data and pure-logic layer is fully covered. See [`test-generation-report.md`](test-generation-report.md) for the screen-testing plan.
+
+---
+
 ## License
 
 [MIT](LICENSE) — use it, fork it, self-host it, make it yours.
