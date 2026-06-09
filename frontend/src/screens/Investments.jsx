@@ -31,12 +31,12 @@ function SummaryTiles({ data, memberId, activeTab, setTab }) {
     { k: 'insurance', label: 'Insurance',       inv: c.insurance.inv, cur: c.insurance.cur },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 18, marginBottom: 26 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tiles.length},1fr)`, gap: 12, marginBottom: 26 }}>
       {tiles.map((t, i) => (
         <div key={t.k} onClick={() => setTab(t.k)}
-          style={{ paddingLeft: i ? 24 : 0, borderLeft: i ? '1px solid var(--line)' : 'none', cursor: 'pointer' }}>
+          style={{ paddingLeft: i ? 16 : 0, borderLeft: i ? '1px solid var(--line)' : 'none', cursor: 'pointer' }}>
           <div style={KICK}>{t.label}</div>
-          <div className="num serif-num" style={{ fontSize: 28, marginTop: 8, color: activeTab === t.k ? 'var(--ink)' : 'var(--ink-2)' }}>
+          <div className="num serif-num" style={{ fontSize: 22, marginTop: 8, color: activeTab === t.k ? 'var(--ink)' : 'var(--ink-2)' }}>
             {t.cur > 0 ? fmtCompact(t.cur) : t.inv > 0 ? fmtCompact(t.inv) : '—'}
           </div>
           {t.inv > 0 && (
