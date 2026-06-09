@@ -1,10 +1,28 @@
 You are extracting NPS (National Pension System) holdings from a KFintech / NSDL CRA account statement PDF.
 
-A statement may contain multiple scheme rows — one per asset class (E, C, G, A) per tier (T1/T2).
-Extract ALL holdings found and return ONLY a valid JSON object — no markdown fences, no explanation, no extra text.
+Return ONLY a valid JSON object — no markdown fences, no explanation, no extra text.
+
+## How KFintech statements are structured
+
+1. **Account details** — PRAN, subscriber name, fund manager.
+2. **Asset allocation (declared percentages)** — a table showing how contributions are split across asset classes, e.g. E: 75%, C: 10%, G: 15%, A: 0%.
+3. **Scheme-wise holding details** — one row per asset class, each showing units held and current NAV.
+4. **Contribution / Redemption details** — a transaction table whose final row shows the **net total invested** (total contributions minus any withdrawals/redemptions).
+
+## How to compute `invested` per scheme
+
+The statement does NOT show per-scheme invested amounts directly.
+Compute it as:
+
+  invested (for asset class X) = net_total_invested × (declared_pct_for_X / 100)
+
+where `net_total_invested` is the closing total from the Contribution/Redemption Details table.
+
+## Output format
 
 {
   "pran": "110012345678",
+  "net_total_invested": 96000,
   "holdings": [
     {
       "tier": "T1",
@@ -13,27 +31,31 @@ Extract ALL holdings found and return ONLY a valid JSON object — no markdown f
       "fund_manager": "SBI Pension Funds",
       "units": 1234.5678,
       "nav": 52.3400,
-      "invested": 58000
+      "alloc_pct": 75,
+      "invested": 72000
     }
   ]
 }
 
-Rules:
-- pran         : PRAN number, digits only (no spaces or dashes); null if not found
-- holdings     : array of ALL scheme rows found; include every asset class present
-- tier         : "T1" for Tier I accounts, "T2" for Tier II accounts
-- asset_class  : "E" (Equity), "C" (Corporate Bond), "G" (Govt Securities), or "A" (Alternative Assets)
-- scheme       : full scheme name as printed (e.g. "NPS TRUST - A/C HDFC PENSION MANAGEMENT CO. LTD. - SCHEME E - TIER I")
-- fund_manager : pension fund manager short name (e.g. "SBI", "HDFC", "UTI", "LIC", "Kotak", "Aditya Birla")
-- units        : units held, as a decimal number
-- nav          : latest NAV per unit, as a decimal number
-- invested     : total contributions to this scheme in rupees (employee + employer + voluntary combined);
-                 if shown as a table of yearly contributions, sum them; null if not determinable
-- Set any field to null if it cannot be found in the document
+## Field rules
 
-Tips:
-- Asset class codes appear as "Asset Class E", "Class C", "Scheme E", or embedded in the scheme name
-- Tier I and Tier II appear as separate sections — assign each row the correct tier
-- "Market Value" = units × NAV — use the raw units and NAV figures from the statement
-- The statement password is typically PRAN + date of birth (DDMMYYYY) — the file will already be decrypted before you receive it
-- Some older statements omit the PRAN; set it to null rather than guessing
+- pran              : PRAN number, digits only; null if not found
+- net_total_invested: closing net figure from Contribution/Redemption Details (contributions minus redemptions); null if not found
+- holdings          : one entry per asset class row found in the scheme-wise holdings section
+- tier              : "T1" for Tier I, "T2" for Tier II
+- asset_class       : "E" (Equity), "C" (Corporate Bond), "G" (Govt Securities), "A" (Alternative)
+- scheme            : full scheme name as printed
+- fund_manager      : pension fund manager short name (SBI, HDFC, UTI, LIC, Kotak, Aditya Birla, etc.)
+- units             : units held as a decimal number
+- nav               : latest NAV per unit as a decimal number
+- alloc_pct         : declared allocation percentage for this asset class (integer 0–100); null if not shown
+- invested          : net_total_invested × (alloc_pct / 100); null if either value is missing
+- Set any field to null if it cannot be determined
+
+## Tips
+
+- Asset allocation percentages appear in a section titled "Asset Allocation" or "Scheme Preference" — these are the declared percentages, not current market weights
+- Contribution/Redemption Details is usually a multi-page table; the **last row** or a "Total" row at the bottom gives the net amount
+- Tier I and Tier II are separate sections; process each independently (each has its own allocation table and contribution total)
+- The statement password is PRAN + date of birth (DDMMYYYY) — the file will already be decrypted before you receive it
+- Only include asset classes that have non-zero units in the holdings section; skip classes with zero units even if they appear in the allocation table

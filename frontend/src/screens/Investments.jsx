@@ -688,7 +688,8 @@ function NPSImportModal({ batch, data, onDone, onClose }) {
   return (
     <Modal title="Import NPS holdings" onClose={onClose}>
       <div style={{ margin: '0 0 16px', padding: '9px 14px', borderRadius: 4, background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600 }}>
-        ✦ Claude extracted {batch.holdings.length} scheme{batch.holdings.length !== 1 ? 's' : ''} from your statement{batch.pran ? ` · PRAN ${batch.pran}` : ''} — deselect any to skip.
+        ✦ Claude extracted {batch.holdings.length} scheme{batch.holdings.length !== 1 ? 's' : ''} from your statement{batch.pran ? ` · PRAN ${batch.pran}` : ''}.
+        {batch.net_total_invested > 0 && <> Total contributions: <span className="num">{fmtINR(batch.net_total_invested)}</span> — invested per scheme is prorated by declared allocation %.</>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         {batch.holdings.map((h, i) => {
@@ -698,12 +699,16 @@ function NPSImportModal({ batch, data, onDone, onClose }) {
             <div key={i} onClick={() => toggle(i)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 6, border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent-soft)' : 'transparent', cursor: 'pointer' }}>
               <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{h.tier || 'T1'} · Class {h.asset_class || '?'} · {h.fund_manager || h.scheme}</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>
+                  {h.tier || 'T1'} · Class {h.asset_class || '?'}{h.alloc_pct != null ? ` · ${h.alloc_pct}%` : ''} · {h.fund_manager || h.scheme}
+                </div>
                 <div style={{ fontSize: 11.5, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.scheme}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div className="num" style={{ fontSize: 13.5, fontWeight: 700 }}>{cur > 0 ? fmtINR(cur) : '—'}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{h.units} u × ₹{h.nav}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                  {h.invested > 0 ? `invested ${fmtINR(n(h.invested))} · ` : ''}{h.units} u × ₹{h.nav}
+                </div>
               </div>
             </div>
           )
@@ -747,6 +752,7 @@ export default function Investments({ data, memberId, showToast }) {
     if (tab === 'nps' && Array.isArray(fields.holdings)) {
       setNpsImportBatch({
         pran: fields.pran || '',
+        net_total_invested: Number(fields.net_total_invested) || 0,
         member: memberId || (data.members?.[0]?.id || 'you'),
         holdings: fields.holdings,
       })
