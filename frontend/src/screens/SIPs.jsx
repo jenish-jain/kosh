@@ -1,26 +1,20 @@
 import { useState } from 'react'
 import { useData } from '../data/context.jsx'
-import { fmtINR, fmtCompact, fmtDate, TODAY_DISPLAY, TODAY_DAY, TODAY_MONTH, TODAY_YEAR } from '../data/helpers.js'
+import { fmtINR, fmtCompact, fmtDate } from '../data/format.js'
+import { scope, memberOf } from '../data/aggregate.js'
+import { todayDisplay, todayDay, todayStr } from '../data/schedule.js'
+import { KICK, SERIF } from '../data/tokens.js'
 import { EdRule, Modal, Field, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
 
-const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
-const SERIF = "var(--serif)"
-
-function scope(data, memberId) {
-  if (!memberId) return 'Whole family'
-  const m = data.members?.find(m => m.id === memberId)
-  return m ? (m.full_name || m.name).replace(' (You)', '') : '—'
-}
-
-function memberOf(data, id) {
-  return (data.members || []).find(m => m.id === id)
-}
-
 // ── Monthly calendar ─────────────────────────────────────────
 function SipCalendar({ sips }) {
-  const first = new Date(TODAY_YEAR, TODAY_MONTH, 1).getDay()
-  const days = new Date(TODAY_YEAR, TODAY_MONTH + 1, 0).getDate()
+  const _now = new Date()
+  const _year = _now.getFullYear()
+  const _month = _now.getMonth()
+  const first = new Date(_year, _month, 1).getDay()
+  const days = new Date(_year, _month + 1, 0).getDate()
+  const _todayDay = todayDay()
   const byDay = {}
   sips.forEach(s => { (byDay[s.day] = byDay[s.day] || []).push(s) })
   const dows = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -38,7 +32,7 @@ function SipCalendar({ sips }) {
           const d = i + 1
           const hits = byDay[d] || []
           const sum = hits.reduce((a, s) => a + (s.amount || 0), 0)
-          const isToday = d === TODAY_DAY
+          const isToday = d === _todayDay
           return (
             <div key={d} style={{
               minHeight: 60, padding: '6px 7px',
@@ -246,6 +240,9 @@ export default function SIPs({ data, memberId, showToast }) {
   const [saving, setSaving] = useState(false)
 
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const _now = new Date()
+  const _year = _now.getFullYear()
+  const _month = _now.getMonth()
   const sips = (data.sips || []).filter(s => !memberId || s.member === memberId)
   const active = sips.filter(s => s.status === 'active')
   const monthly = active.reduce((a, s) => a + (s.amount || 0), 0)
@@ -285,7 +282,7 @@ export default function SIPs({ data, memberId, showToast }) {
     <div className="fade-in">
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>SIP schedule &amp; commitments</div>
-        <div className="stmt-meta">{scope(data, memberId)} · As on {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{scope(data, memberId)} · As on {todayDisplay()}</div>
       </div>
       <EdRule thick />
 
@@ -358,7 +355,7 @@ export default function SIPs({ data, memberId, showToast }) {
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            <div style={KICK}>{monthNames[TODAY_MONTH]} {TODAY_YEAR}</div>
+            <div style={KICK}>{monthNames[_month]} {_year}</div>
             <span className="tag" style={{ marginLeft: 'auto' }}>
               <span className="dot" style={{ background: 'var(--accent)' }} /> SIP debit
             </span>

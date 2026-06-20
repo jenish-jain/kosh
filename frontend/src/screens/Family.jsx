@@ -1,9 +1,10 @@
-import { classTotals, memberTotal, holdingsFor, fmtINR, fmtCompact, ED_ORDER, ED_COL, ED_LABEL, TODAY_DISPLAY } from '../data/helpers.js'
+import { classTotals, memberTotal, holdingsFor } from '../data/aggregate.js'
+import { fmtINR, fmtCompact } from '../data/format.js'
+import { ED_ORDER, ED_COL, ED_LABEL } from '../data/constants.js'
+import { todayDisplay } from '../data/schedule.js'
+import { KICK, SERIF } from '../data/tokens.js'
 import { EdStack, EdRule, Avatar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
-
-const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
-const SERIF = "var(--serif)"
 
 // ── Family overview ──────────────────────────────────────────
 function FamilyOverview({ data, onSelect }) {
@@ -16,7 +17,7 @@ function FamilyOverview({ data, onSelect }) {
     <div className="fade-in">
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>Family portfolios</div>
-        <div className="stmt-meta">{(data.members || []).length} members · As on {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{(data.members || []).length} members · As on {todayDisplay()}</div>
       </div>
       <EdRule thick />
 
@@ -109,7 +110,7 @@ function MemberProfile({ data, memberId, setScreen }) {
     <div className="fade-in">
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>Member statement</div>
-        <div className="stmt-meta">{m.relation} · slab {m.slab}% · As on {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{m.relation} · slab {m.slab}% · As on {todayDisplay()}</div>
       </div>
       <EdRule thick />
 

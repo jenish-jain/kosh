@@ -1,4 +1,4 @@
-package handlers_test
+package api_test
 
 import (
 	"encoding/json"
@@ -7,15 +7,18 @@ import (
 	"strings"
 	"testing"
 
-	"kosh/handlers"
-	sh "kosh/sheets"
+	"kosh/internal/api"
+	"kosh/internal/store"
 )
 
-// newDemoHandler returns a Handler in demo mode: client is non-nil (so
-// loadDevData is not called), and isDemo always returns true — satisfying
-// servingSampleData without touching the Sheets API.
-func newDemoHandler() *handlers.Handler {
-	return handlers.NewHandler(new(sh.Client), func(_ *http.Request) bool { return true })
+// newDemoHandler returns a Handler in demo mode: repositories are backed by a
+// FakeSheetsAPI (so no real Sheets calls), configAPI is nil (dev mode), and
+// isDemo always returns true — satisfying servingSampleData without touching
+// the Sheets API.
+func newDemoHandler() *api.Handler {
+	fakeAPI := store.NewFakeSheetsAPI()
+	repos := store.NewRepositories(fakeAPI)
+	return api.NewHandler(repos, nil, func(_ *http.Request) bool { return true })
 }
 
 func TestAddRow_DemoMode_ReturnsOKForKnownSheet(t *testing.T) {

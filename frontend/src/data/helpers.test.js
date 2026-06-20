@@ -4,14 +4,18 @@ import {
   fmtCompact,
   fmtPct,
   fmtDate,
+} from './format.js'
+import {
   holdingsFor,
   classTotals,
   memberTotal,
   netWorth,
+} from './aggregate.js'
+import {
   nextPremiumDue,
   nextEmiDue,
   upcomingOutflows,
-} from './helpers.js'
+} from './schedule.js'
 
 // ── Shared fixture ───────────────────────────────────────────
 
@@ -328,20 +332,20 @@ describe('nextEmiDue', () => {
 
 describe('upcomingOutflows', () => {
   it('should only include active SIPs, not paused ones', () => {
-    const results = upcomingOutflows(sampleData, 'you', 60)
+    const results = upcomingOutflows(sampleData, 'you', 60, fixedDate)
     const sipItems = results.filter(i => i.kind === 'sip')
     expect(sipItems.every(i => i.id !== 'sip2')).toBe(true)
   })
 
   it('should return items sorted soonest-first', () => {
-    const results = upcomingOutflows(sampleData, 'you', 60)
+    const results = upcomingOutflows(sampleData, 'you', 60, fixedDate)
     for (let i = 1; i < results.length; i++) {
       expect(results[i].date.getTime()).toBeGreaterThanOrEqual(results[i - 1].date.getTime())
     }
   })
 
   it('should include kind, label, amount, date, and id on each item', () => {
-    const results = upcomingOutflows(sampleData, 'you', 60)
+    const results = upcomingOutflows(sampleData, 'you', 60, fixedDate)
     for (const item of results) {
       expect(item).toHaveProperty('id')
       expect(item).toHaveProperty('kind')
@@ -351,13 +355,13 @@ describe('upcomingOutflows', () => {
   })
 
   it('should filter by memberId — "mom" should not see "you" SIPs', () => {
-    const results = upcomingOutflows(sampleData, 'mom', 60)
+    const results = upcomingOutflows(sampleData, 'mom', 60, fixedDate)
     const sipItems = results.filter(i => i.kind === 'sip')
     expect(sipItems.every(i => i.id !== 'sip1')).toBe(true)
   })
 
   it('should return an empty array when data has no sips, insurance, or loans', () => {
     const emptyData = { sips: [], insurance: [], loans: [] }
-    expect(upcomingOutflows(emptyData, null, 30)).toEqual([])
+    expect(upcomingOutflows(emptyData, null, 30, fixedDate)).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fmtPct } from '../data/helpers.js'
+import { fmtPct } from '../data/format.js'
 import { Icon } from './Icons.jsx'
 
 // ── Avatar ──────────────────────────────────────────────────

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-const SERIF = "var(--serif)"
-const KICK  = { textTransform: 'uppercase', letterSpacing: '.18em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
+import { KICK, SERIF } from '../data/tokens.js'
 
 export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
   const btnRef  = useRef(null)

@@ -1,18 +1,10 @@
-import { classTotals, memberTotal, ED_ORDER, ED_COL, ED_LABEL, fmtINR, fmtCompact, fmtDate, TODAY_DISPLAY, TODAY_DAY, upcomingOutflows } from '../data/helpers.js'
+import { classTotals, memberTotal, scope } from '../data/aggregate.js'
+import { fmtINR, fmtCompact, fmtDate } from '../data/format.js'
+import { ED_ORDER, ED_COL, ED_LABEL, OUTFLOW_COLOR, OUTFLOW_LABEL } from '../data/constants.js'
+import { todayDisplay, todayDay, upcomingOutflows } from '../data/schedule.js'
+import { KICK, SERIF } from '../data/tokens.js'
 import { AreaChart, EdStack, EdRule, GainPill } from '../components/Primitives.jsx'
 import { Avatar } from '../components/Primitives.jsx'
-
-const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
-const SERIF = "var(--serif)"
-
-const OUTFLOW_COLOR = { sip: 'var(--accent)', insurance: '#5E7D72', loan: '#B5603E' }
-const OUTFLOW_LABEL = { sip: 'SIP debit', insurance: 'Insurance premium', loan: 'Loan EMI' }
-
-function scope(data, memberId) {
-  if (!memberId) return 'Whole family'
-  const m = data.members?.find(m => m.id === memberId)
-  return m ? (m.full_name || m.name).replace(' (You)', '') : '—'
-}
 
 export default function Dashboard({ data, memberId, setScreen, onSelectMember }) {
   const c = classTotals(data, memberId)
@@ -36,9 +28,10 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
   const planCount = (data.insurance || []).filter(x => !memberId || x.member === memberId).length
 
   // Find next SIP day
+  const _todayDay = todayDay()
   const nextSip = [...activeSips].sort((a, b) => {
-    const da = a.day >= TODAY_DAY ? a.day - TODAY_DAY : a.day + 30 - TODAY_DAY
-    const db = b.day >= TODAY_DAY ? b.day - TODAY_DAY : b.day + 30 - TODAY_DAY
+    const da = a.day >= _todayDay ? a.day - _todayDay : a.day + 30 - _todayDay
+    const db = b.day >= _todayDay ? b.day - _todayDay : b.day + 30 - _todayDay
     return da - db
   })[0]
 
@@ -51,7 +44,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
       {/* Statement header */}
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em', whiteSpace: 'nowrap' }}>Statement of net worth</div>
-        <div className="stmt-meta">{scope(data, memberId)} · As on {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{scope(data, memberId)} · As on {todayDisplay()}</div>
       </div>
       <EdRule thick />
 

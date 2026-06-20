@@ -1,16 +1,21 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"kosh/handlers"
-	sh "kosh/sheets"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/joho/godotenv"
+
+	"kosh/drive"
+	"kosh/internal/api"
+	"kosh/internal/auth"
+	"kosh/internal/documents"
+	"kosh/internal/store"
+	sh "kosh/sheets"
 )
 
 func main() {
@@ -27,34 +32,47 @@ func main() {
 	promptsDir     := sh.EnvOrDefault("PROMPTS_DIR", "prompts")
 	cookieSecure   := sh.EnvOrDefault("COOKIE_SECURE", "true") != "false"
 
-	// Tab definitions — order controls creation order in the spreadsheet.
-	koshTabs := []sh.TabDef{
-		{Name: "Members",   Columns: []string{"id", "name", "full_name", "relation", "slab", "color"}},
-		{Name: "MF",        Columns: []string{"id", "name", "plan", "platform", "member", "invested", "current", "sip", "notes"}},
-		{Name: "Stocks",    Columns: []string{"id", "name", "ticker", "qty", "avg_price", "last_price", "member"}},
-		{Name: "Metals",    Columns: []string{"id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"}},
-		{Name: "Fixed",     Columns: []string{"id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly", "doc_link"}},
-		{Name: "Insurance", Columns: []string{"id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date", "doc_link"}},
-		{Name: "Loans",     Columns: []string{"id", "lender", "type", "member", "principal", "outstanding", "rate", "emi", "emi_day", "started", "tenure_months"}},
-		{Name: "NPS",       Columns: []string{"id", "pran", "member", "tier", "asset_class", "scheme", "fund_manager", "units", "nav", "invested"}},
-		{Name: "SIPs",      Columns: []string{"id", "fund", "member", "amount", "day", "status", "start_date", "platform", "kind"}},
-		{Name: "Lumpsums",  Columns: []string{"id", "fund", "member", "amount", "date"}},
-		{Name: "History",   Columns: []string{"month", "value"}},
-		{Name: "Config",    Columns: []string{"key", "value"}},
+	// ── Auth ───────────────────────────────────────────────────────────────────
+	// Auth is always constructed — NewServer will use authH for /api/auth/* routes.
+	// The handler is aware of its own configuration (clientID, allowedEmails).
+	allowedEmails := strings.Split(allowedRaw, ",")
+	verifier := auth.NewGoogleTokenVerifier(http.DefaultClient)
+	authH := auth.NewHandler(sessionSecret, googleClientID, allowedEmails, cookieSecure, verifier)
+	if googleClientID != "" && sessionSecret != "" {
+		log.Printf("✓ Auth enabled — %d allowed email(s)", len(allowedEmails))
+	} else {
+		log.Println("⚠ Auth disabled (GOOGLE_CLIENT_ID / SESSION_SECRET not set)")
 	}
 
 	// ── Sheets client ──────────────────────────────────────────────────────────
-	var client *sh.Client
+	var sheetClient *sh.Client
+	var repos *store.Repositories
 	if spreadsheetID != "" {
 		if _, err := os.Stat(credPath); err == nil {
 			c, err := sh.NewClient(credPath, spreadsheetID)
 			if err != nil {
 				log.Printf("⚠ Sheets client error: %v — running in dev mode", err)
 			} else {
-				client = c
+				sheetClient = c
+				repos = store.NewRepositories(c)
 				log.Printf("✓ Connected to Google Sheets (%s)", spreadsheetID)
 				fmt.Println("  Verifying tabs…")
-				if err := client.EnsureTabs(koshTabs); err != nil {
+				// Build tab definitions from repositories (single source of truth).
+				tabs := []sh.TabDef{
+					{Name: repos.Members.Sheet(), Columns: repos.Members.Columns()},
+					{Name: repos.MF.Sheet(), Columns: repos.MF.Columns()},
+					{Name: repos.Stocks.Sheet(), Columns: repos.Stocks.Columns()},
+					{Name: repos.Metals.Sheet(), Columns: repos.Metals.Columns()},
+					{Name: repos.Fixed.Sheet(), Columns: repos.Fixed.Columns()},
+					{Name: repos.Insurance.Sheet(), Columns: repos.Insurance.Columns()},
+					{Name: repos.Loans.Sheet(), Columns: repos.Loans.Columns()},
+					{Name: repos.NPS.Sheet(), Columns: repos.NPS.Columns()},
+					{Name: repos.SIPs.Sheet(), Columns: repos.SIPs.Columns()},
+					{Name: repos.Lumpsums.Sheet(), Columns: repos.Lumpsums.Columns()},
+					{Name: repos.History.Sheet(), Columns: repos.History.Columns()},
+					{Name: "Config", Columns: []string{"key", "value"}},
+				}
+				if err := sheetClient.EnsureTabs(tabs); err != nil {
 					log.Printf("⚠ EnsureTabs: %v", err)
 				}
 			}
@@ -65,194 +83,41 @@ func main() {
 		log.Println("⚠ SPREADSHEET_ID not set — running in dev mode (dev_data.json)")
 	}
 
-	// ── Auth ───────────────────────────────────────────────────────────────────
-	// Auth is enabled only when GOOGLE_CLIENT_ID + SESSION_SECRET are both set.
-	// Without them the app runs open (useful for local dev).
-	var auth *handlers.AuthHandler
-	authEnabled := googleClientID != "" && sessionSecret != ""
-	if authEnabled {
-		emails := strings.Split(allowedRaw, ",")
-		auth = handlers.NewAuthHandler(emails, googleClientID, sessionSecret, cookieSecure)
-		log.Printf("✓ Auth enabled — %d allowed email(s)", len(emails))
-	} else {
-		log.Println("⚠ Auth disabled (GOOGLE_CLIENT_ID / SESSION_SECRET not set)")
+	// In dev mode (sheetClient == nil), repos is nil — NewHandler handles this
+	// by loading dev data. Use a fake API so repos is always non-nil.
+	if repos == nil {
+		repos = store.NewRepositories(store.NewFakeSheetsAPI())
 	}
 
-	// protect wraps a handler with auth if auth is enabled.
-	protect := func(next http.HandlerFunc) http.HandlerFunc {
-		if auth != nil {
-			return auth.Require(next)
-		}
-		return next
-	}
-
+	// ── API handler ────────────────────────────────────────────────────────────
 	isDemo := func(r *http.Request) bool {
-		return auth != nil && auth.IsDemoSession(r)
+		return authH.IsDemoSession(r)
 	}
-	h := handlers.NewHandler(client, isDemo)
-	upload := handlers.NewUploadHandler(anthropicKey, promptsDir)
-	mux := http.NewServeMux()
+	// Pass sheetClient as configAPI (nil in dev mode is fine — Handler handles it).
+	apiH := api.NewHandler(repos, sheetClient, isDemo)
 
-	// ── Auth routes (always registered, no auth required) ─────────────────────
-	mux.HandleFunc("/api/auth/config", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		cfg := map[string]interface{}{"enabled": authEnabled}
-		if authEnabled {
-			cfg["client_id"] = googleClientID
-			cfg["demo"] = true // a "Try the demo" option is always offered alongside Google sign-in
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cfg)
-	})
-	mux.HandleFunc("/api/auth/demo-login", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		if auth != nil {
-			auth.DemoLogin(w, r)
-		} else {
-			http.Error(w, "auth not configured", http.StatusNotFound)
-		}
-	})
-	mux.HandleFunc("/api/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		if auth != nil {
-			auth.Login(w, r)
-		} else {
-			http.Error(w, "auth not configured", http.StatusNotFound)
-		}
-	})
-	mux.HandleFunc("/api/auth/me", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		if auth != nil {
-			auth.Me(w, r)
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
-		}
-	})
-	mux.HandleFunc("/api/auth/logout", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		if auth != nil {
-			auth.Logout(w, r)
-		} else {
-			http.Error(w, "auth not configured", http.StatusNotFound)
-		}
-	})
+	// ── Document upload handler ────────────────────────────────────────────────
+	// Drive uploads use a per-request OAuth token from the frontend (drive.file
+	// scope). The factory creates a new Drive client from that token each call.
+	var driveFactory documents.DriveClientFactory
+	driveFactory = func(ctx context.Context, accessToken string) (drive.API, error) {
+		return drive.NewClientFromToken(ctx, accessToken)
+	}
+	var parser documents.Parser
+	if anthropicKey != "" {
+		parser = documents.NewClaudeParser(anthropicKey, promptsDir, http.DefaultClient)
+	}
+	docH := documents.NewUploadHandler(driveFactory, parser)
 
-	// ── Health check (no auth required — useful for diagnostics) ──────────────
-	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		status := map[string]interface{}{"mode": "dev", "auth": authEnabled}
-		if client != nil {
-			status["mode"] = "live"
-			status["spreadsheet_id"] = spreadsheetID
-			tabs := []string{"Members", "MF", "Stocks", "Metals", "Fixed", "Insurance", "Loans", "SIPs", "Lumpsums", "History", "Config"}
-			tabStatus := map[string]string{}
-			for _, tab := range tabs {
-				if _, err := client.ReadSheet(tab); err != nil {
-					tabStatus[tab] = err.Error()
-				} else {
-					tabStatus[tab] = "ok"
-				}
-			}
-			status["tabs"] = tabStatus
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(status)
-	})
-
-	// ── Document upload (protected) ───────────────────────────────────────────
-	mux.HandleFunc("/api/upload/", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		protect(upload.Handle)(w, r)
-	})
-
-	// ── Protected API routes ───────────────────────────────────────────────────
-	mux.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		protect(h.GetData)(w, r)
-	})
-
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions { return }
-		path := strings.TrimPrefix(r.URL.Path, "/api/")
-		parts := strings.Split(path, "/")
-		switch {
-		case r.Method == http.MethodPost && len(parts) == 1:
-			protect(h.AddRow)(w, r)
-		case r.Method == http.MethodPut && len(parts) == 2:
-			protect(h.UpdateRow)(w, r)
-		case r.Method == http.MethodDelete && len(parts) == 2:
-			protect(h.DeleteRow)(w, r)
-		default:
-			http.Error(w, "not found", http.StatusNotFound)
-		}
-	})
-
-	// ── Frontend static files ──────────────────────────────────────────────────
-	fs := http.FileServer(http.Dir(frontendDist))
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		path := frontendDist + r.URL.Path
-		if _, err := os.Stat(path); os.IsNotExist(err) && !strings.HasPrefix(r.URL.Path, "/assets/") {
-			http.ServeFile(w, r, frontendDist+"/index.html")
-			return
-		}
-		fs.ServeHTTP(w, r)
-	})
+	// ── HTTP server ────────────────────────────────────────────────────────────
+	handler := api.NewServer(authH, apiH, docH, frontendDist)
 
 	addr := ":" + port
 	fmt.Printf("🪙  Kosh running at http://localhost%s\n", addr)
-	if client == nil {
+	if sheetClient == nil {
 		fmt.Println("   Mode: dev (serving dev_data.json — mutations are no-ops)")
 	} else {
 		fmt.Println("   Mode: live (reading/writing Google Sheets)")
 	}
-	log.Fatal(http.ListenAndServe(addr, securityHeaders(mux)))
-}
-
-func cors(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-}
-
-// content security policy — only whitelists what Kosh actually needs:
-// Google Identity Services (sign-in script + OAuth popups), Google's token/Drive
-// endpoints, and Google Fonts. Inline styles are allowed because the UI relies
-// heavily on React inline `style={{...}}` attributes.
-const contentSecurityPolicy = "default-src 'self'; " +
-	"script-src 'self' https://accounts.google.com; " +
-	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-	"font-src 'self' https://fonts.gstatic.com; " +
-	"img-src 'self' data:; " +
-	"connect-src 'self' https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com; " +
-	"frame-src https://accounts.google.com; " +
-	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-
-// securityHeaders adds the standard set of browser security headers to every
-// response — important since Kosh serves financial data over the open web.
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
-		// Only advertise HSTS over HTTPS — Railway terminates TLS at its edge proxy,
-		// so r.TLS is nil and we must check the forwarded-proto header instead.
-		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		}
-		next.ServeHTTP(w, r)
-	})
+	log.Fatal(http.ListenAndServe(addr, handler))
 }
