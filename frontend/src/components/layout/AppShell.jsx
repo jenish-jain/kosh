@@ -11,12 +11,17 @@ import SIPs from '../../screens/SIPs.jsx'
 import Expenses from '../../screens/Expenses.jsx'
 import Family from '../../screens/Family.jsx'
 import Tax from '../../screens/Tax.jsx'
+import { usePinLock } from '../../auth/usePinLock.js'
+import PinLock from '../PinLock.jsx'
+import PinSettings from '../PinSettings.jsx'
 
 export default function AppShell({ user, onLogout }) {
   const { data, loading, error } = useData()
   const [screen, setScreenRaw] = useState(() => localStorage.getItem('kosh.screen') || 'dashboard')
   const [member, setMemberRaw] = useState(() => { const v = localStorage.getItem('kosh.member'); return v === 'null' || !v ? null : v })
   const [toast, setToast] = useState(null)
+  const [showPinSettings, setShowPinSettings] = useState(false)
+  const pinLock = usePinLock()
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
   const setMember = m => { setMemberRaw(m); localStorage.setItem('kosh.member', m ?? 'null') }
@@ -41,7 +46,11 @@ export default function AppShell({ user, onLogout }) {
 
   return (
     <div className="app">
-      <Sidebar screen={screen} setScreen={setScreen} data={data} user={user} onLogout={onLogout} />
+      <Sidebar
+        screen={screen} setScreen={setScreen} data={data} user={user} onLogout={onLogout}
+        onOpenPinSettings={() => setShowPinSettings(true)}
+        onLockNow={pinLock.pinConfigured ? pinLock.lockNow : null}
+      />
       <div className="main">
         <header className="topbar">
           <div style={{ flex: 1 }} />
@@ -54,6 +63,8 @@ export default function AppShell({ user, onLogout }) {
       {toast && (
         <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
       )}
+      {pinLock.locked && <PinLock onVerify={pinLock.verify} />}
+      {showPinSettings && <PinSettings pinLock={pinLock} onClose={() => setShowPinSettings(false)} />}
     </div>
   )
 }
