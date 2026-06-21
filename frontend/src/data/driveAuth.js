@@ -13,57 +13,74 @@
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
-let tokenClient = null
-let cachedToken = null
-let cachedExpiry = 0
-let inFlight = null
+// Factory that creates an isolated drive-auth client.
+// In production: createDriveAuth() — uses window.google.accounts.oauth2
+// In tests: createDriveAuth(fakeGoogleAccounts) — injectable dependency
+export function createDriveAuth(googleAccounts = null) {
+  let tokenClient = null
+  let cachedToken = null
+  let cachedExpiry = 0
+  let inFlight = null
 
-function isFresh() {
-  return cachedToken && Date.now() < cachedExpiry - 60_000
-}
+  function getGA() {
+    return googleAccounts ?? window.google?.accounts?.oauth2
+  }
 
-function ensureTokenClient(clientId) {
-  if (tokenClient || !window.google?.accounts?.oauth2) return tokenClient
-  tokenClient = window.google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: SCOPE,
-    callback: () => {},
-  })
-  return tokenClient
-}
+  function isFresh() {
+    return cachedToken && Date.now() < cachedExpiry - 60_000
+  }
 
-// Call this directly from a click handler (no awaits beforehand) so the
-// browser treats the resulting popup as user-initiated. Returns a promise
-// that resolves with the access token; safe to fire-and-forget.
-export function requestDriveAccessToken(clientId) {
-  if (!clientId) return Promise.reject(new Error('Google sign-in is not configured'))
-  if (isFresh()) return Promise.resolve(cachedToken)
-  if (inFlight) return inFlight
+  function ensureTokenClient(clientId) {
+    if (tokenClient || !getGA()) return tokenClient
+    tokenClient = getGA().initTokenClient({
+      client_id: clientId,
+      scope: SCOPE,
+      callback: () => {},
+    })
+    return tokenClient
+  }
 
-  const client = ensureTokenClient(clientId)
-  if (!client) return Promise.reject(new Error('Google sign-in is not ready yet'))
+  // Call this directly from a click handler (no awaits beforehand) so the
+  // browser treats the resulting popup as user-initiated. Returns a promise
+  // that resolves with the access token; safe to fire-and-forget.
+  function requestDriveAccessToken(clientId) {
+    if (!clientId) return Promise.reject(new Error('Google sign-in is not configured'))
+    if (isFresh()) return Promise.resolve(cachedToken)
+    if (inFlight) return inFlight
 
-  inFlight = new Promise((resolve, reject) => {
-    client.callback = (resp) => {
-      inFlight = null
-      if (resp.error) {
-        reject(new Error(resp.error_description || resp.error))
-        return
+    const client = ensureTokenClient(clientId)
+    if (!client) return Promise.reject(new Error('Google sign-in is not ready yet'))
+
+    inFlight = new Promise((resolve, reject) => {
+      client.callback = (resp) => {
+        inFlight = null
+        if (resp.error) {
+          reject(new Error(resp.error_description || resp.error))
+          return
+        }
+        cachedToken = resp.access_token
+        cachedExpiry = Date.now() + (resp.expires_in || 3600) * 1000
+        resolve(cachedToken)
       }
-      cachedToken = resp.access_token
-      cachedExpiry = Date.now() + (resp.expires_in || 3600) * 1000
-      resolve(cachedToken)
-    }
-    client.requestAccessToken({ prompt: cachedToken ? '' : 'consent' })
-  })
-  return inFlight
+      client.requestAccessToken({ prompt: cachedToken ? '' : 'consent' })
+    })
+    return inFlight
+  }
+
+  // Returns the token if one is already cached or a request is already in
+  // flight (started by a prior `requestDriveAccessToken` call from a click).
+  // Never opens a popup, so it's safe to call from async chains.
+  function getDriveAccessToken() {
+    if (isFresh()) return Promise.resolve(cachedToken)
+    if (inFlight) return inFlight
+    return Promise.resolve('')
+  }
+
+  return { requestDriveAccessToken, getDriveAccessToken }
 }
 
-// Returns the token if one is already cached or a request is already in
-// flight (started by a prior `requestDriveAccessToken` call from a click).
-// Never opens a popup, so it's safe to call from async chains.
-export function getDriveAccessToken() {
-  if (isFresh()) return Promise.resolve(cachedToken)
-  if (inFlight) return inFlight
-  return Promise.resolve('')
-}
+// Default singleton for production use
+export const driveAuth = createDriveAuth()
+
+// Named exports from singleton for backwards-compatible imports
+export const { requestDriveAccessToken, getDriveAccessToken } = driveAuth

@@ -1,21 +1,11 @@
 import { useState } from 'react'
 import { useData } from '../data/context.jsx'
-import { holdingsFor, classTotals, fmtINR, fmtCompact, fmtDate, TODAY_STR, TODAY_DISPLAY, nextEmiDue } from '../data/helpers.js'
+import { holdingsFor, classTotals, scope, memberOf } from '../data/aggregate.js'
+import { fmtINR, fmtCompact, fmtDate } from '../data/format.js'
+import { todayStr, todayDisplay, nextEmiDue } from '../data/schedule.js'
+import { KICK, SERIF } from '../data/tokens.js'
 import { EdRule, Modal, Field, EditCell, MemberTag, SaveBar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
-
-const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
-const SERIF = "var(--serif)"
-
-function scope(data, memberId) {
-  if (!memberId) return 'Whole family'
-  const m = data.members?.find(m => m.id === memberId)
-  return m ? (m.full_name || m.name).replace(' (You)', '') : '—'
-}
-
-function memberOf(data, id) {
-  return (data.members || []).find(m => m.id === id)
-}
 
 function daysLeft(dateStr) {
   if (!dateStr) return null
@@ -35,7 +25,7 @@ function fmtCountdown(days) {
 
 function computeEnds(startedStr, tenureMonths) {
   if (!tenureMonths) return ''
-  const d = new Date(startedStr || TODAY_STR)
+  const d = new Date(startedStr || todayStr())
   d.setMonth(d.getMonth() + Math.round(tenureMonths))
   return d.toISOString().slice(0, 10)
 }
@@ -122,7 +112,7 @@ function LoanTable({ data, rows, all, dirty, setDirty }) {
 // ── Add Modal ────────────────────────────────────────────────
 function AddLoanModal({ memberId, data, onClose }) {
   const { add } = useData()
-  const defaults = { member: memberId || (data.members?.[0]?.id || 'you'), type: 'Home', started: TODAY_STR }
+  const defaults = { member: memberId || (data.members?.[0]?.id || 'you'), type: 'Home', started: todayStr() }
   const [form, setForm] = useState(defaults)
   const up = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const n = v => Number(v) || 0
@@ -139,7 +129,7 @@ function AddLoanModal({ memberId, data, onClose }) {
       rate: n(form.rate),
       emi: n(form.emi),
       emi_day: n(form.emiDay) || 1,
-      started: form.started || TODAY_STR,
+      started: form.started || todayStr(),
       tenure_months: n(form.tenure),
     })
     onClose()
@@ -167,10 +157,10 @@ function AddLoanModal({ memberId, data, onClose }) {
         <Field label="EMI day of month"><input className="input" type="number" min="1" max="31" value={form.emiDay || ''} onChange={e => up('emiDay', e.target.value)} placeholder="e.g. 5" /></Field>
         <Field label="Tenure (months)"><input className="input" type="number" value={form.tenure || ''} onChange={e => up('tenure', e.target.value)} placeholder="e.g. 240" /></Field>
       </div>
-      <Field label="Started"><input className="input" type="date" value={form.started || TODAY_STR} onChange={e => up('started', e.target.value)} /></Field>
+      <Field label="Started"><input className="input" type="date" value={form.started || todayStr()} onChange={e => up('started', e.target.value)} /></Field>
       {(form.tenure > 0) && (
         <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '8px 12px', background: 'var(--bg-2,#f7f5f0)', borderRadius: 4, lineHeight: 1.6 }}>
-          Ends: <strong>{computeEnds(form.started || TODAY_STR, n(form.tenure))}</strong>
+          Ends: <strong>{computeEnds(form.started || todayStr(), n(form.tenure))}</strong>
         </div>
       )}
       <Field label="Owner">
@@ -218,7 +208,7 @@ export default function Expenses({ data, memberId, showToast }) {
       {/* Header */}
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>Schedule of liabilities</div>
-        <div className="stmt-meta">{scope(data, memberId)} · As on {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{scope(data, memberId)} · As on {todayDisplay()}</div>
       </div>
       <EdRule thick />
 

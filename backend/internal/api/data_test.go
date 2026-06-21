@@ -1,4 +1,4 @@
-package handlers_test
+package api_test
 
 import (
 	"encoding/json"
@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"kosh/handlers"
-	sh "kosh/sheets"
+	"kosh/internal/api"
+	"kosh/internal/store"
 )
 
 // newDemoHandlerForData returns a Handler in demo mode suitable for GetData
@@ -15,8 +15,12 @@ import (
 // Declared separately to keep each test file self-contained when read in
 // isolation; the compiler will complain about the duplicate if they are ever
 // merged into one file.
-func newDemoHandlerForData() *handlers.Handler {
-	return handlers.NewHandler(new(sh.Client), func(_ *http.Request) bool { return true })
+func newDemoHandlerForData() *api.Handler {
+	fakeAPI := store.NewFakeSheetsAPI()
+	repos := store.NewRepositories(fakeAPI)
+	// Pass nil configAPI so the handler enters dev mode (loads devData from file
+	// or returns empty Data). isDemo returning true ensures demo-mode short-circuit.
+	return api.NewHandler(repos, nil, func(_ *http.Request) bool { return true })
 }
 
 func TestGetData_DemoMode_Returns200(t *testing.T) {
@@ -65,7 +69,7 @@ func TestGetData_DemoMode_ResponseHasExpectedTopLevelFields(t *testing.T) {
 }
 
 func TestGetData_DemoMode_EmptyDataHasNullSlicesOrEmptyArrays(t *testing.T) {
-	// With no dev_data.json in the test's working directory (backend/handlers/),
+	// With no dev_data.json in the test's working directory (backend/internal/api/),
 	// loadDevData returns &Data{} with nil slices. JSON-encoding a nil Go slice
 	// produces "null", so each array field is either null or an empty array [].
 	h := newDemoHandlerForData()

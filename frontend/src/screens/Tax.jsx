@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { fmtINR, fmtCompact, TODAY_DISPLAY } from '../data/helpers.js'
+import { fmtINR, fmtCompact } from '../data/format.js'
+import { todayDisplay } from '../data/schedule.js'
+import { KICK, SERIF } from '../data/tokens.js'
 import { EdRule } from '../components/Primitives.jsx'
-
-const KICK = { textTransform: 'uppercase', letterSpacing: '.16em', fontWeight: 700, fontSize: 10.5, color: 'var(--ink-3)' }
-const SERIF = "var(--serif)"
 
 // ── Tax math (old regime) ────────────────────────────────────
 function taxOldRegime(income) {
@@ -175,7 +174,7 @@ export default function Tax({ data, memberId }) {
     <div className="fade-in">
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
-        <div className="stmt-meta">{memberName} · FY 2025-26 · {TODAY_DISPLAY}</div>
+        <div className="stmt-meta">{memberName} · FY 2025-26 · {todayDisplay()}</div>
       </div>
       <EdRule thick />
 

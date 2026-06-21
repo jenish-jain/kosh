@@ -1,35 +1,48 @@
-package handlers_test
+package auth_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"kosh/handlers"
+	"kosh/internal/auth"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+// stubVerifier is a TokenVerifier that always returns the configured result.
+type stubVerifier struct {
+	info auth.TokenInfo
+	err  error
+}
+
+func (s *stubVerifier) Verify(_ context.Context, _ string) (auth.TokenInfo, error) {
+	return s.info, s.err
+}
+
 // newTestAuth returns an AuthHandler configured for tests:
 // secret = "test-secret", one allowed email, no Google clientID, non-secure cookies.
-func newTestAuth() *handlers.AuthHandler {
-	return handlers.NewAuthHandler(
-		[]string{"test@example.com"},
-		"",    // no clientID — skips audience check in Login
+func newTestAuth() *auth.AuthHandler {
+	verifier := &stubVerifier{} // not used by demo login tests
+	return auth.NewHandler(
 		"test-secret",
+		"", // no clientID — skips audience check in Login
+		[]string{"test@example.com"},
 		false, // cookieSecure=false so cookies work over plain HTTP in tests
+		verifier,
 	)
 }
 
 // performDemoLogin calls DemoLogin and returns the kosh_session cookie set by
 // the response. The test is failed immediately if no cookie is present.
-func performDemoLogin(t *testing.T, auth *handlers.AuthHandler) *http.Cookie {
+func performDemoLogin(t *testing.T, a *auth.AuthHandler) *http.Cookie {
 	t.Helper()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/auth/demo", nil)
-	auth.DemoLogin(w, r)
+	a.DemoLogin(w, r)
 	for _, c := range w.Result().Cookies() {
 		if c.Name == "kosh_session" {
 			return c
@@ -42,11 +55,11 @@ func performDemoLogin(t *testing.T, auth *handlers.AuthHandler) *http.Cookie {
 // ── DemoLogin ─────────────────────────────────────────────────────────────────
 
 func TestDemoLogin_Returns200AndSetsCookie(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/auth/demo", nil)
 
-	auth.DemoLogin(w, r)
+	a.DemoLogin(w, r)
 
 	res := w.Result()
 	if res.StatusCode != http.StatusOK {
@@ -68,11 +81,11 @@ func TestDemoLogin_Returns200AndSetsCookie(t *testing.T) {
 }
 
 func TestDemoLogin_ResponseBodyHasDemoFlag(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/auth/demo", nil)
 
-	auth.DemoLogin(w, r)
+	a.DemoLogin(w, r)
 
 	var body map[string]interface{}
 	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
@@ -93,11 +106,11 @@ func TestDemoLogin_ResponseBodyHasDemoFlag(t *testing.T) {
 // ── Me ────────────────────────────────────────────────────────────────────────
 
 func TestMe_Returns401WithNoCookie(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 
-	auth.Me(w, r)
+	a.Me(w, r)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", w.Code)
@@ -105,14 +118,14 @@ func TestMe_Returns401WithNoCookie(t *testing.T) {
 }
 
 func TestMe_ReturnsDemoUserAfterDemoLogin(t *testing.T) {
-	auth := newTestAuth()
-	cookie := performDemoLogin(t, auth)
+	a := newTestAuth()
+	cookie := performDemoLogin(t, a)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	r.AddCookie(cookie)
 
-	auth.Me(w, r)
+	a.Me(w, r)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -131,8 +144,8 @@ func TestMe_ReturnsDemoUserAfterDemoLogin(t *testing.T) {
 }
 
 func TestMe_Returns401ForTamperedToken(t *testing.T) {
-	auth := newTestAuth()
-	cookie := performDemoLogin(t, auth)
+	a := newTestAuth()
+	cookie := performDemoLogin(t, a)
 
 	// Tamper: flip the last character of the cookie value to invalidate the HMAC.
 	original := cookie.Value
@@ -147,7 +160,7 @@ func TestMe_Returns401ForTamperedToken(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	r.AddCookie(cookie)
 
-	auth.Me(w, r)
+	a.Me(w, r)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401 for tampered token", w.Code)
@@ -157,11 +170,11 @@ func TestMe_Returns401ForTamperedToken(t *testing.T) {
 // ── Logout ────────────────────────────────────────────────────────────────────
 
 func TestLogout_SetsExpiredCookie(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 
-	auth.Logout(w, r)
+	a.Logout(w, r)
 
 	var found bool
 	for _, c := range w.Result().Cookies() {
@@ -178,11 +191,11 @@ func TestLogout_SetsExpiredCookie(t *testing.T) {
 }
 
 func TestLogout_ReturnsOK(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 
-	auth.Logout(w, r)
+	a.Logout(w, r)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -200,22 +213,22 @@ func TestLogout_ReturnsOK(t *testing.T) {
 // ── IsDemoSession ─────────────────────────────────────────────────────────────
 
 func TestIsDemoSession_TrueForDemoSession(t *testing.T) {
-	auth := newTestAuth()
-	cookie := performDemoLogin(t, auth)
+	a := newTestAuth()
+	cookie := performDemoLogin(t, a)
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(cookie)
 
-	if !auth.IsDemoSession(r) {
+	if !a.IsDemoSession(r) {
 		t.Error("IsDemoSession = false, want true after DemoLogin")
 	}
 }
 
 func TestIsDemoSession_FalseForNoCookie(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	if auth.IsDemoSession(r) {
+	if a.IsDemoSession(r) {
 		t.Error("IsDemoSession = true, want false when no cookie present")
 	}
 }
@@ -223,8 +236,8 @@ func TestIsDemoSession_FalseForNoCookie(t *testing.T) {
 // ── Require middleware ────────────────────────────────────────────────────────
 
 func TestRequire_AllowsValidSession(t *testing.T) {
-	auth := newTestAuth()
-	cookie := performDemoLogin(t, auth)
+	a := newTestAuth()
+	cookie := performDemoLogin(t, a)
 
 	reached := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -236,7 +249,7 @@ func TestRequire_AllowsValidSession(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	r.AddCookie(cookie)
 
-	auth.Require(next)(w, r)
+	a.Require(next)(w, r)
 
 	if !reached {
 		t.Error("next handler was not called for valid session")
@@ -247,7 +260,7 @@ func TestRequire_AllowsValidSession(t *testing.T) {
 }
 
 func TestRequire_Blocks401ForNoSession(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("next handler should not be called with no session")
@@ -256,7 +269,7 @@ func TestRequire_Blocks401ForNoSession(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/protected", nil)
 
-	auth.Require(next)(w, r)
+	a.Require(next)(w, r)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", w.Code)
@@ -264,7 +277,7 @@ func TestRequire_Blocks401ForNoSession(t *testing.T) {
 }
 
 func TestRequire_Blocks401ForInvalidToken(t *testing.T) {
-	auth := newTestAuth()
+	a := newTestAuth()
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("next handler should not be called with invalid token")
@@ -278,7 +291,7 @@ func TestRequire_Blocks401ForInvalidToken(t *testing.T) {
 		Value: strings.Repeat("a", 20) + "|" + strings.Repeat("b", 10) + "|" + strings.Repeat("c", 43),
 	})
 
-	auth.Require(next)(w, r)
+	a.Require(next)(w, r)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", w.Code)
