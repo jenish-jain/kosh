@@ -287,14 +287,14 @@ export default function SIPs({ data, memberId, showToast }) {
       <EdRule thick />
 
       {/* Headline figures */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr) auto', gap: 18, alignItems: 'center' }}>
+      <div className="sips-figs" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr) auto', gap: 18, alignItems: 'center' }}>
         {figs.map((f, i) => (
           <div key={i} style={{ paddingLeft: i ? 24 : 0, borderLeft: i ? '1px solid var(--line)' : 'none' }}>
             <div style={KICK}>{f.label}</div>
             <div className="num serif-num" style={{ fontSize: 30, marginTop: 8 }}>{f.value}</div>
           </div>
         ))}
-        <div style={{ paddingLeft: 24, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="sips-figs-actions" style={{ paddingLeft: 24, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button className="btn primary" onClick={() => setShowAdd(true)}><Icon name="plus" size={15} /> Add SIP</button>
           <button className="btn" onClick={() => setShowLump(true)}><Icon name="plus" size={15} /> Lumpsum top-up</button>
         </div>
@@ -303,10 +303,10 @@ export default function SIPs({ data, memberId, showToast }) {
       <EdRule />
 
       {/* Two-column: manage + calendar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1px 0.95fr', gap: 36, alignItems: 'start' }}>
+      <div className="sips-layout" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1px 0.95fr', gap: 36, alignItems: 'start' }}>
         <div>
           <div style={{ ...KICK, marginBottom: 4 }}>Manage SIPs</div>
-          <table className="tbl">
+          <div style={{ overflowX: 'auto' }}><table className="tbl">
             <thead><tr>
               <th>Fund</th>
               {!memberId && <th>Owner</th>}
@@ -347,11 +347,11 @@ export default function SIPs({ data, memberId, showToast }) {
                 )
               })}
             </tbody>
-          </table>
+          </table></div>
           <SaveBar dirty={hasDirty} saving={saving} onSave={save} />
         </div>
 
-        <div style={{ background: 'var(--line)', alignSelf: 'stretch' }} />
+        <div className="sips-divider" style={{ background: 'var(--line)', alignSelf: 'stretch' }} />
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>

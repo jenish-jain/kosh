@@ -53,7 +53,7 @@ export default function AppShell({ user, onLogout }) {
       />
       <div className="main">
         <header className="topbar">
-          <div style={{ flex: 1 }} />
+          <div className="topbar-spacer" style={{ flex: 1 }} />
           <MemberSwitcher member={member} setMember={setMember} members={data?.members} />
         </header>
         <main className="content fade-in" key={screen}>

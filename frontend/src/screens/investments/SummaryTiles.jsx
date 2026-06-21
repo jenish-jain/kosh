@@ -13,7 +13,7 @@ export default function SummaryTiles({ data, memberId, tab, setTab }) {
     { k: 'insurance', label: 'Insurance',       inv: c.insurance.inv, cur: c.insurance.cur },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tiles.length},1fr)`, gap: 12, marginBottom: 26 }}>
+    <div className="summary-tiles" style={{ display: 'grid', gridTemplateColumns: `repeat(${tiles.length},1fr)`, gap: 12, marginBottom: 26 }}>
       {tiles.map((t, i) => (
         <div key={t.k} onClick={() => setTab(t.k)}
           style={{ paddingLeft: i ? 16 : 0, borderLeft: i ? '1px solid var(--line)' : 'none', cursor: 'pointer' }}>

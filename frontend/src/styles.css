@@ -407,6 +407,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 /* ── Mobile ── */
 @media (max-width: 768px) {
+  /* ─ Sidebar → bottom tab bar ─ */
   .sidebar {
     position: fixed; bottom: 0; top: auto;
     width: 100%; height: auto;
@@ -426,6 +427,57 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   }
   .nav-item.active { box-shadow: none !important; border-top: 2px solid var(--accent); }
   .main { padding-bottom: 64px; }
-  .topbar { padding: 12px 18px; }
-  .content { padding: 20px 18px 80px; }
+
+  /* ─ Topbar ─ */
+  .topbar { padding: 0 18px; flex-wrap: wrap; gap: 0; }
+  .topbar-spacer { display: none; }
+
+  /* ─ Member bar: single scrollable row ─ */
+  .memberbar {
+    width: 100%; flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: none;
+    padding: 10px 0;
+    gap: 7px;
+  }
+  .memberbar::-webkit-scrollbar { display: none; }
+
+  /* ─ Content ─ */
+  .content { padding: 20px 18px 80px; overflow-x: clip; }
+
+  /* ─ Hero number: scale for narrow screens ─ */
+  .hero-num { font-size: clamp(34px, 9vw, 72px); }
+
+  /* ─ Tables: fixed min-width forces the wrapper's overflow-x:auto to scroll ─ */
+  .tbl { min-width: 480px; }
+  /* Add a right-fade hint and touch-scroll on every tbl overflow wrapper */
+  [style*="overflowX"],[style*="overflow-x"] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ─ Segmented tabs: full-width horizontal scroll ─ */
+  .seg {
+    overflow-x: auto; scrollbar-width: none;
+    width: 100%; flex-shrink: 0;
+    border-radius: 4px;
+  }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { white-space: nowrap; }
+
+  /* ─ Dashboard: allocation grid → 3 columns ─ */
+  .alloc-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 14px 10px !important; }
+
+  /* ─ Dashboard: lower two-col section → stack ─ */
+  .dash-lower { grid-template-columns: 1fr !important; gap: 0 !important; }
+  .dash-divider { display: none !important; }
+
+  /* ─ Investments summary tiles → 3 columns ─ */
+  .summary-tiles { grid-template-columns: repeat(3, 1fr) !important; }
+
+  /* ─ SIPs headline → 2×2 grid ─ */
+  .sips-figs { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+  .sips-figs-actions { grid-column: 1 / -1; border-left: none !important; padding-left: 0 !important; flex-direction: row !important; }
+
+  /* ─ SIPs two-col layout → stack ─ */
+  .sips-layout { grid-template-columns: 1fr !important; gap: 0 !important; }
+  .sips-divider { display: none !important; }
 }

@@ -83,7 +83,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
       {/* Allocation */}
       <div style={{ ...KICK, marginBottom: 14 }}>Allocation · {segs.length} asset class{segs.length !== 1 ? 'es' : ''}</div>
       <EdStack segs={segs} h={13} />
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(segs.length, 1)}, 1fr)`, gap: 18, marginTop: 18 }}>
+      <div className="alloc-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(segs.length, 1)}, 1fr)`, gap: 18, marginTop: 18 }}>
         {segs.map(s => (
           <div key={s.k}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -101,7 +101,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
       <EdRule />
 
       {/* Two-column lower */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1px 1fr', gap: 38 }}>
+      <div className="dash-lower" style={{ display: 'grid', gridTemplateColumns: '1.25fr 1px 1fr', gap: 38 }}>
         {/* Left: members or asset classes */}
         <div>
           <div style={{ ...KICK, marginBottom: 4 }}>
@@ -142,7 +142,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
         </div>
 
         {/* Divider */}
-        <div style={{ background: 'var(--line)' }} />
+        <div className="dash-divider" style={{ background: 'var(--line)' }} />
 
         {/* Right: SIP + protection */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
