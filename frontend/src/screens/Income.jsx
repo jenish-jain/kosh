@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useData } from '../data/context.jsx'
 import { fmtINR } from '../data/format.js'
-import { KICK } from '../data/tokens.js'
+import { KICK, SERIF } from '../data/tokens.js'
+import { todayDisplay } from '../data/schedule.js'
+import { scope } from '../data/aggregate.js'
 import { Modal, Field, EdRule } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
 import UploadZone from '../components/UploadZone.jsx'
@@ -150,7 +152,7 @@ function IncomeModal({ initial, onClose, onSave, title }) {
 }
 
 // ── Main screen ────────────────────────────────────────────────
-export default function Income({ data, showToast }) {
+export default function Income({ data, memberId, showToast }) {
   const { add, update, remove } = useData()
   const [modal, setModal] = useState(null) // null | { mode: 'add' } | { mode: 'edit', row }
   const [deleting, setDeleting] = useState(null)
@@ -181,16 +183,16 @@ export default function Income({ data, showToast }) {
   }
 
   return (
-    <div>
+    <div className="fade-in">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-        <div>
-          <div style={KICK}>Income & Payslips</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, margin: '6px 0 4px' }}>Income sources</h1>
-          <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-            Upload payslips or add entries manually — used by the AI advisor for savings analysis.
-          </div>
-        </div>
+      <div className="stmt-band">
+        <div style={{ ...KICK, letterSpacing: '.18em' }}>Schedule of income</div>
+        <div className="stmt-meta">{scope(data, memberId)} · As on {todayDisplay()}</div>
+      </div>
+      <EdRule thick />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div />
         <button className="btn primary" onClick={() => setModal({ mode: 'add' })}>
           <Icon name="plus" size={15} /> Add income
         </button>
