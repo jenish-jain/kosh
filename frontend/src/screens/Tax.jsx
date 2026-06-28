@@ -154,7 +154,7 @@ function SplitPlanner({ data, grossIncome, taxFn }) {
             onChange={e => setShifted(Number(e.target.value))}
             style={{ width: '100%', marginTop: 12, accentColor: 'var(--accent)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', fontWeight: 700 }}>
-            <span>₹0</span><span>₹{fmtCompact(sliderMax)}</span>
+            <span>₹0</span><span>{fmtCompact(sliderMax)}</span>
           </div>
         </div>
         <div style={{ width: 1, background: 'var(--line)', alignSelf: 'stretch' }} />
@@ -350,8 +350,8 @@ export default function Tax({ data, memberId }) {
 
                 {totalOldDeductions > 0 && taxAfterOldDeductions < taxPayable && (
                   <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 6, background: 'var(--accent-soft)', fontSize: 12.5, lineHeight: 1.6 }}>
-                    <span style={{ fontWeight: 700 }}>Old regime saves ₹{fmtCompact(taxPayable - taxAfterOldDeductions)} more</span>
-                    {' '}with your ₹{fmtCompact(totalOldDeductions)} in deductions —{' '}
+                    <span style={{ fontWeight: 700 }}>Old regime saves {fmtCompact(taxPayable - taxAfterOldDeductions)} more</span>
+                    {' '}with your {fmtCompact(totalOldDeductions)} in deductions —{' '}
                     <button onClick={() => setRegime('old')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontWeight: 700, fontSize: 12.5, padding: 0 }}>
                       switch to compare
                     </button>
@@ -379,7 +379,7 @@ export default function Tax({ data, memberId }) {
                         <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--pos)' : 'var(--accent)', borderRadius: 2 }} />
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>
-                        {pct >= 100 ? 'Maxed out' : `₹${fmtCompact(d.cap - d.used)} room remaining`}
+                        {pct >= 100 ? 'Maxed out' : `${fmtCompact(d.cap - d.used)} room remaining`}
                       </div>
                     </div>
                   )
