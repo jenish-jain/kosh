@@ -406,6 +406,12 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 
 /* ── Ask Kosh ── */
+/* ── Tax screen responsive grids ── */
+.tax-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 0; }
+.tax-tile  { padding-left: 0; border-left: none; }
+.tax-tile + .tax-tile { padding-left: 28px; border-left: 1px solid var(--line); }
+.tax-cols  { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 36px; align-items: start; }
+
 .ask-nav-item { display: none; } /* shown only in mobile tab bar via media query below */
 
 .ask-kosh-btn {
@@ -527,6 +533,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   /* ─ Income tiles → 2 columns ─ */
   .income-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+  .tax-tiles { grid-template-columns: repeat(2, 1fr); gap: 20px 0; }
+  .tax-tile + .tax-tile { padding-left: 0; border-left: none; }
+  .tax-tile:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--line); }
+  .tax-cols { grid-template-columns: 1fr; gap: 28px; }
+  .tax-cols > div:nth-child(2) { display: none; } /* hide the 1px divider on mobile */
 
   /* ─ SIPs headline → 2×2 grid ─ */
   .sips-figs { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }

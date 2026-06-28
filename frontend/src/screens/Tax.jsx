@@ -265,14 +265,14 @@ export default function Tax({ data, memberId }) {
       <EdRule thick />
 
       {/* 4 headline figures */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0 }}>
+      <div className="tax-tiles">
         {[
           { label: 'Gross income', value: fmtINR(grossIncome), sub: latestPeriod ? `${latestPeriod} × 12 (from Income tab)` : 'before deductions' },
           { label: 'Current slab', value: slab, sub: `${effRate}% effective rate` },
           { label: 'Capital gains', value: fmtCompact(capitalGains), sub: 'unrealised this FY' },
           { label: 'Saved by splitting', value: savedByFiling > 0 ? '+' + fmtINR(savedByFiling) : '—', sub: 'vs. no family routing', color: savedByFiling > 0 ? 'var(--pos)' : 'var(--ink)' },
         ].map((f, i) => (
-          <div key={i} style={{ paddingLeft: i ? 28 : 0, borderLeft: i ? '1px solid var(--line)' : 'none' }}>
+          <div key={i} className="tax-tile">
             <div style={KICK}>{f.label}</div>
             <div className="num serif-num" style={{ fontSize: 36, marginTop: 10, color: f.color || 'var(--ink)' }}>{f.value}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>{f.sub}</div>
@@ -289,7 +289,7 @@ export default function Tax({ data, memberId }) {
       <EdRule />
 
       {/* Two columns: tax payable + deductions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 36, alignItems: 'start' }}>
+      <div className="tax-cols">
         <div>
           <div style={KICK}>Tax payable ({isNew ? 'new' : 'old'} regime)</div>
           <div className="num serif-num" style={{ fontSize: 48, marginTop: 10 }}>{fmtINR(taxPayable)}</div>
