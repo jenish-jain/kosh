@@ -97,24 +97,13 @@ function SurchargeBar({ income }) {
 
 // ── Regime switcher ───────────────────────────────────────────
 function RegimeSwitcher({ value, onChange }) {
-  const btn = (label, v) => (
-    <button
-      onClick={() => onChange(v)}
-      style={{
-        padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-        border: '1px solid var(--line)', borderRadius: 4,
-        background: value === v ? 'var(--ink)' : 'transparent',
-        color: value === v ? 'var(--surface)' : 'var(--ink-3)',
-        transition: 'all .15s',
-      }}
-    >
-      {label}
-    </button>
-  )
   return (
-    <div style={{ display: 'flex', gap: 4 }}>
-      {btn('Old regime', 'old')}
-      {btn('New regime', 'new')}
+    <div className="seg" style={{ display: 'inline-flex' }}>
+      {[['old', 'Old regime'], ['new', 'New regime']].map(([v, label]) => (
+        <button key={v} className={value === v ? 'active' : ''} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
