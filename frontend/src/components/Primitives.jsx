@@ -113,8 +113,8 @@ export function Modal({ title, onClose, children, width = 460 }) {
       <div className="modal-card fade-in" style={{ width }} onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
-          <button className="btn ghost sm" onClick={onClose} style={{ padding: 6 }}>
-            <Icon name="x" size={16} />
+          <button className="btn ghost sm modal-close-btn" onClick={onClose} style={{ padding: 8 }}>
+            <Icon name="x" size={18} />
           </button>
         </div>
         <div className="modal-body">{children}</div>

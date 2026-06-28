@@ -358,6 +358,7 @@ td.r .edit-cell { text-align: right; }
   flex-shrink: 0;
 }
 .modal-head h3 { font-size: 16px; font-weight: 700; flex: 1; }
+.modal-close-btn { min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
 .modal-body { padding: 22px; overflow-y: auto; }
 
 /* ── Form fields ── */
