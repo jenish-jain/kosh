@@ -155,8 +155,9 @@ export default function Tax({ data, memberId }) {
   // Derive annual gross from Income tab (latest period × 12), fall back to Config
   const incomeRows = data.income || []
   let grossIncome = cfg.gross_income || 0
+  let latestPeriod = null
   if (incomeRows.length > 0) {
-    let latestPeriod = null, latestDate = null
+    let latestDate = null
     incomeRows.forEach(r => {
       const t = new Date(r.period + ' 01')
       if (!latestDate || t > latestDate) { latestDate = t; latestPeriod = r.period }
