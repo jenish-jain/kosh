@@ -28,9 +28,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Block demo sessions — the self-hoster's LLM shouldn't serve anonymous visitors.
+	// Return a friendly message for demo sessions instead of hitting the real provider.
 	if h.isDemo != nil && h.isDemo(r) {
-		http.Error(w, `{"error":"AI advisor is not available in demo mode"}`, http.StatusForbidden)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"reply": "Ask Kosh is not available in demo mode. To enable it, deploy your own instance with AI_ENABLED=true and your preferred AI provider configured (Ollama for free local inference, or an Anthropic API key for cloud). Your questions will then be answered using your actual financial data.",
+		})
 		return
 	}
 
