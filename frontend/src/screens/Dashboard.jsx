@@ -74,7 +74,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
       {/* Sparkline */}
       {history.length > 1 && (
         <div style={{ marginTop: 22, opacity: .9 }}>
-          <AreaChart data={history} height={100} />
+          <AreaChart data={history} height={140} />
         </div>
       )}
 
