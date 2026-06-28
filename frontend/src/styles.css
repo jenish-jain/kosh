@@ -547,7 +547,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   /* ─ SIPs headline → 2×2 grid ─ */
   .sips-figs { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
-  .sips-figs-actions { grid-column: 1 / -1; border-left: none !important; padding-left: 0 !important; flex-direction: row !important; }
+  .sips-figs-actions { grid-column: 1 / -1; border-left: none !important; padding-left: 0 !important; flex-direction: row !important; justify-content: flex-start; }
 
   /* ─ SIPs two-col layout → stack ─ */
   .sips-layout { grid-template-columns: 1fr !important; gap: 0 !important; }
