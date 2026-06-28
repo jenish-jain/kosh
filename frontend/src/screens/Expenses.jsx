@@ -57,55 +57,57 @@ function LoanTable({ data, rows, all, dirty, setDirty }) {
   const typePill = { Home: 'accent', Car: 'gold', Personal: 'neutral', Education: 'silver', Other: 'neutral' }
 
   return (
-    <div className="tbl-scroll">
-      <table className="tbl" style={{ minWidth: 640 }}>
-        <thead><tr>
-          <th>Loan</th>
-          {all && <th>Owner</th>}
-          <th>Type</th>
-          <th className="r">Rate</th>
-          <th className="r">EMI</th>
-          <th className="r">Outstanding</th>
-          <th className="r">Ends</th>
-        </tr></thead>
-        <tbody>
-          {rows.map(r => {
-            const ends = computeEnds(r.started, r.tenure_months)
-            const dl = daysLeft(ends)
-            const urgent = dl !== null && dl >= 0 && dl < 90
-            const due = nextEmiDue(r)
-            return (
-              <tr key={r.id}>
-                <td style={{ minWidth: 200 }}>
-                  <div className="cell-strong">{r.lender}</div>
-                  <div className="cell-sub">{r.started ? fmtDate(r.started) : ''}</div>
-                </td>
-                {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
-                <td><span className={'pill ' + (typePill[r.type] || 'neutral')}>{r.type}</span></td>
-                <td className="r num">{r.rate ? `${r.rate}%` : '—'}</td>
-                <td className="r">
-                  <div className="num cell-strong">{r.emi ? fmtINR(r.emi) : '—'}</div>
-                  {due && <div className="cell-sub">next {fmtDate(due)}</div>}
-                </td>
-                <td className="r">
-                  <EditCell value={dirty[r.id]?.outstanding ?? r.outstanding} type="number" align="right"
-                    format={v => fmtINR(v)} onChange={v => mark(r.id, 'outstanding', v)} />
-                </td>
-                <td className="r">
-                  {ends ? (
-                    <>
-                      <div className="num" style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(ends)}</div>
-                      <div className="cell-sub" style={{ color: urgent ? 'var(--warn)' : undefined }}>{fmtCountdown(dl)}</div>
-                    </>
-                  ) : <span className="faint">—</span>}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <>
+      <div className="tbl-scroll">
+        <table className="tbl" style={{ minWidth: 640 }}>
+          <thead><tr>
+            <th>Loan</th>
+            {all && <th>Owner</th>}
+            <th>Type</th>
+            <th className="r">Rate</th>
+            <th className="r">EMI</th>
+            <th className="r">Outstanding</th>
+            <th className="r">Ends</th>
+          </tr></thead>
+          <tbody>
+            {rows.map(r => {
+              const ends = computeEnds(r.started, r.tenure_months)
+              const dl = daysLeft(ends)
+              const urgent = dl !== null && dl >= 0 && dl < 90
+              const due = nextEmiDue(r)
+              return (
+                <tr key={r.id}>
+                  <td style={{ minWidth: 200 }}>
+                    <div className="cell-strong">{r.lender}</div>
+                    <div className="cell-sub">{r.started ? fmtDate(r.started) : ''}</div>
+                  </td>
+                  {all && <td><MemberTag member={memberOf(data, r.member)} /></td>}
+                  <td><span className={'pill ' + (typePill[r.type] || 'neutral')}>{r.type}</span></td>
+                  <td className="r num">{r.rate ? `${r.rate}%` : '—'}</td>
+                  <td className="r">
+                    <div className="num cell-strong">{r.emi ? fmtINR(r.emi) : '—'}</div>
+                    {due && <div className="cell-sub">next {fmtDate(due)}</div>}
+                  </td>
+                  <td className="r">
+                    <EditCell value={dirty[r.id]?.outstanding ?? r.outstanding} type="number" align="right"
+                      format={v => fmtINR(v)} onChange={v => mark(r.id, 'outstanding', v)} />
+                  </td>
+                  <td className="r">
+                    {ends ? (
+                      <>
+                        <div className="num" style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(ends)}</div>
+                        <div className="cell-sub" style={{ color: urgent ? 'var(--warn)' : undefined }}>{fmtCountdown(dl)}</div>
+                      </>
+                    ) : <span className="faint">—</span>}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
       <TotalsBar principal={principal} outstanding={outstanding} label={`${rows.length} loan${rows.length !== 1 ? 's' : ''}`} />
-    </div>
+    </>
   )
 }
 
