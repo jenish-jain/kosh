@@ -71,14 +71,17 @@ export default function UploadZone({ docType, onExtracted, onClose }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
+      position: 'fixed', inset: 0, zIndex: 500,
       background: 'rgba(34,31,26,.35)', backdropFilter: 'blur(3px)',
-      display: 'grid', placeItems: 'center', padding: 20,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: 20, overflowY: 'auto',
     }} onClick={onClose}>
       <div style={{
         background: 'var(--surface)', border: '1px solid var(--line)',
         borderRadius: 'var(--r)', boxShadow: 'var(--shadow-lg)',
-        width: 440, padding: 32, textAlign: 'center',
+        width: 440, maxWidth: 'calc(100vw - 40px)', padding: 32, textAlign: 'center',
+        flexShrink: 0,
       }} onClick={e => e.stopPropagation()}>
 
         {state === 'connecting' ? (

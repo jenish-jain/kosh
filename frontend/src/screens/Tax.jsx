@@ -153,13 +153,15 @@ export default function Tax({ data, memberId }) {
   const selfMember = (data.members || []).find(m => m.id === 'you') || {}
 
   // Derive annual gross from Income tab (latest period × 12), fall back to Config
+  const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11}
+  const parsePeriod = p => { const [m, y] = (p || '').split(' '); return new Date(+y, MONTHS[m] ?? 0) }
   const incomeRows = data.income || []
   let grossIncome = cfg.gross_income || 0
   let latestPeriod = null
   if (incomeRows.length > 0) {
     let latestDate = null
     incomeRows.forEach(r => {
-      const t = new Date(r.period + ' 01')
+      const t = parsePeriod(r.period)
       if (!latestDate || t > latestDate) { latestDate = t; latestPeriod = r.period }
     })
     if (latestPeriod) {
