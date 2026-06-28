@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"kosh/internal/ai"
 	"kosh/internal/auth"
 	"kosh/internal/documents"
 )
@@ -50,10 +51,12 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 // NewServer builds and returns the HTTP mux with all routes registered.
+// Pass aiH=nil when AI is disabled — the /api/chat route is simply not registered.
 func NewServer(
 	authH        *auth.AuthHandler,
 	apiH         *Handler,
 	docH         *documents.UploadHandler,
+	aiH          *ai.Handler,
 	frontendDist string,
 ) http.Handler {
 	mux := http.NewServeMux()
@@ -81,6 +84,9 @@ func NewServer(
 	// ── Protected routes ─────────────────────────────────────────────────────
 	mux.HandleFunc("/api/upload/", protect(docH.Handle))
 	mux.HandleFunc("/api/data", protect(apiH.GetData))
+	if aiH != nil {
+		mux.HandleFunc("/api/chat", protect(aiH.Handle))
+	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
 	// ── Frontend static files ────────────────────────────────────────────────

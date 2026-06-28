@@ -5,12 +5,14 @@ export function useAuth() {
   const [user, setUser] = useState(null)
   const [clientId, setClientId] = useState(null)
   const [demoAvailable, setDemoAvailable] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/config')
       .then(r => r.json())
       .then(cfg => {
         setDemoAvailable(!!cfg.demo)
+        setAiEnabled(!!cfg.ai_enabled)
         if (!cfg.enabled) { setAuthState('authed'); return }
         setClientId(cfg.client_id)
         return fetch('/api/auth/me', { credentials: 'include' })
@@ -34,5 +36,5 @@ export function useAuth() {
     setAuthState('login')
   }
 
-  return { authState, user, clientId, demoAvailable, handleLogin, handleDemo, handleLogout }
+  return { authState, user, clientId, demoAvailable, aiEnabled, handleLogin, handleDemo, handleLogout }
 }

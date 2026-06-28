@@ -19,6 +19,7 @@ type AuthHandler struct {
 	clientID      string
 	allowedEmails map[string]bool
 	cookieSecure  bool
+	aiEnabled     bool
 }
 
 // NewHandler constructs an AuthHandler.
@@ -38,11 +39,16 @@ func NewHandler(secret, clientID string, allowedEmails []string, cookieSecure bo
 	}
 }
 
+// SetAIEnabled marks whether the AI advisor feature is available.
+func (h *AuthHandler) SetAIEnabled(enabled bool) {
+	h.aiEnabled = enabled
+}
+
 // Config returns the auth configuration (client ID, whether auth is enabled).
 // This is served without authentication so the frontend knows how to render the
 // login page.
 func (h *AuthHandler) Config(w http.ResponseWriter, r *http.Request) {
-	cfg := map[string]interface{}{"enabled": true}
+	cfg := map[string]interface{}{"enabled": true, "ai_enabled": h.aiEnabled}
 	if h.clientID != "" {
 		cfg["client_id"] = h.clientID
 		cfg["demo"] = true

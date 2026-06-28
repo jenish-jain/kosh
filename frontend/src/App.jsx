@@ -5,7 +5,7 @@ import LoadingScreen from './components/layout/LoadingScreen.jsx'
 import Login from './screens/Login.jsx'
 
 export default function App() {
-  const { authState, user, clientId, demoAvailable, handleLogin, handleDemo, handleLogout } = useAuth()
+  const { authState, user, clientId, demoAvailable, aiEnabled, handleLogin, handleDemo, handleLogout } = useAuth()
 
   if (authState === 'checking') return <LoadingScreen />
   if (authState === 'login') return (
@@ -13,7 +13,7 @@ export default function App() {
   )
   return (
     <DataProvider clientId={clientId}>
-      <AppShell user={user} onLogout={clientId ? handleLogout : null} />
+      <AppShell user={user} onLogout={clientId ? handleLogout : null} aiEnabled={aiEnabled} />
     </DataProvider>
   )
 }

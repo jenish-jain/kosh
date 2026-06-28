@@ -19,7 +19,7 @@ const ICON_BTN = {
   transition: 'color .15s, background .15s',
 }
 
-export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpenPinSettings, onLockNow }) {
+export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpenPinSettings, onLockNow, aiEnabled, onOpenAsk }) {
   const household = data ? netWorth(data, null) : 0
   return (
     <aside className="sidebar">
@@ -42,6 +42,14 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
           </button>
         ))}
       </nav>
+      {aiEnabled && (
+        <button className="ask-kosh-btn" onClick={onOpenAsk}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Ask Kosh
+        </button>
+      )}
       <div className="sidebar-foot">
         <div className="sidebar-net">
           <div className="stat-label">Household net worth</div>

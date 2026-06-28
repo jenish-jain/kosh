@@ -14,13 +14,15 @@ import Tax from '../../screens/Tax.jsx'
 import { usePinLock } from '../../auth/usePinLock.js'
 import PinLock from '../PinLock.jsx'
 import PinSettings from '../PinSettings.jsx'
+import AskModal from '../AskModal.jsx'
 
-export default function AppShell({ user, onLogout }) {
+export default function AppShell({ user, onLogout, aiEnabled }) {
   const { data, loading, error } = useData()
   const [screen, setScreenRaw] = useState(() => localStorage.getItem('kosh.screen') || 'dashboard')
   const [member, setMemberRaw] = useState(() => { const v = localStorage.getItem('kosh.member'); return v === 'null' || !v ? null : v })
   const [toast, setToast] = useState(null)
   const [showPinSettings, setShowPinSettings] = useState(false)
+  const [showAsk, setShowAsk] = useState(false)
   const pinLock = usePinLock()
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
@@ -50,6 +52,7 @@ export default function AppShell({ user, onLogout }) {
         screen={screen} setScreen={setScreen} data={data} user={user} onLogout={onLogout}
         onOpenPinSettings={() => setShowPinSettings(true)}
         onLockNow={pinLock.pinConfigured ? pinLock.lockNow : null}
+        aiEnabled={aiEnabled} onOpenAsk={() => setShowAsk(true)}
       />
       <div className="main">
         <header className="topbar">
@@ -65,6 +68,7 @@ export default function AppShell({ user, onLogout }) {
       )}
       {pinLock.locked && <PinLock onVerify={pinLock.verify} />}
       {showPinSettings && <PinSettings pinLock={pinLock} onClose={() => setShowPinSettings(false)} />}
+      {showAsk && <AskModal onClose={() => setShowAsk(false)} />}
     </div>
   )
 }

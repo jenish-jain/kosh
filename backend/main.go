@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"kosh/drive"
+	"kosh/internal/ai"
 	"kosh/internal/api"
 	"kosh/internal/auth"
 	"kosh/internal/documents"
@@ -109,8 +110,34 @@ func main() {
 	}
 	docH := documents.NewUploadHandler(driveFactory, parser)
 
+	// ── AI Financial Advisor ───────────────────────────────────────────────────
+	var aiH *ai.Handler
+	if sh.EnvOrDefault("AI_ENABLED", "false") == "true" {
+		aiProvider := sh.EnvOrDefault("AI_PROVIDER", "ollama")
+		var provider ai.Provider
+		switch aiProvider {
+		case "anthropic":
+			key := os.Getenv("ANTHROPIC_API_KEY")
+			if key == "" {
+				log.Println("⚠ AI_PROVIDER=anthropic but ANTHROPIC_API_KEY not set — AI disabled")
+			} else {
+				provider = ai.NewAnthropicProvider(key, "", nil)
+				log.Println("✓ AI advisor enabled — provider: Anthropic")
+			}
+		default: // ollama
+			ollamaURL := sh.EnvOrDefault("OLLAMA_URL", "http://localhost:11434")
+			ollamaModel := sh.EnvOrDefault("OLLAMA_MODEL", "llama3.1")
+			provider = ai.NewOllamaProvider(ollamaURL, ollamaModel, nil)
+			log.Printf("✓ AI advisor enabled — provider: Ollama (%s @ %s)", ollamaModel, ollamaURL)
+		}
+		if provider != nil {
+			aiH = ai.NewHandler(provider, apiH.LoadData, isDemo)
+			authH.SetAIEnabled(true)
+		}
+	}
+
 	// ── HTTP server ────────────────────────────────────────────────────────────
-	handler := api.NewServer(authH, apiH, docH, frontendDist)
+	handler := api.NewServer(authH, apiH, docH, aiH, frontendDist)
 
 	addr := ":" + port
 	fmt.Printf("🪙  Kosh running at http://localhost%s\n", addr)

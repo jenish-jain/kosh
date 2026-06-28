@@ -70,6 +70,16 @@ func loadDevData() *models.Data {
 	return &d
 }
 
+// LoadData returns the appropriate dataset for the request — used by the AI handler.
+func (h *Handler) LoadData(r *http.Request) *models.Data {
+	if h.servingSampleData(r) {
+		return h.sampleData()
+	}
+	d := h.fetchFromRepos()
+	models.ComputeFixedValues(d.Fixed)
+	return d
+}
+
 func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 	var d *models.Data
 	sample := h.servingSampleData(r)
