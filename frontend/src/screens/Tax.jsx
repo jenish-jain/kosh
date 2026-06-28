@@ -152,7 +152,22 @@ export default function Tax({ data, memberId }) {
   const cfg = data.config || {}
   const selfMember = (data.members || []).find(m => m.id === 'you') || {}
 
-  const grossIncome = cfg.gross_income || 0
+  // Derive annual gross from Income tab (latest period × 12), fall back to Config
+  const incomeRows = data.income || []
+  let grossIncome = cfg.gross_income || 0
+  if (incomeRows.length > 0) {
+    let latestPeriod = null, latestDate = null
+    incomeRows.forEach(r => {
+      const t = new Date(r.period + ' 01')
+      if (!latestDate || t > latestDate) { latestDate = t; latestPeriod = r.period }
+    })
+    if (latestPeriod) {
+      const monthlyGross = incomeRows
+        .filter(r => r.period === latestPeriod)
+        .reduce((sum, r) => sum + (r.gross || 0), 0)
+      if (monthlyGross > 0) grossIncome = monthlyGross * 12
+    }
+  }
   const taxPayable = taxOldRegime(grossIncome)
   const slab = slabLabel(grossIncome)
   const effRate = effectiveRate(grossIncome)
@@ -181,7 +196,7 @@ export default function Tax({ data, memberId }) {
       {/* 4 headline figures */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0 }}>
         {[
-          { label: 'Gross income', value: fmtINR(grossIncome), sub: 'before deductions' },
+          { label: 'Gross income', value: fmtINR(grossIncome), sub: latestPeriod ? `${latestPeriod} × 12 (from Income tab)` : 'before deductions' },
           { label: 'Current slab', value: slab, sub: `${effRate}% effective rate` },
           { label: 'Capital gains', value: fmtCompact(capitalGains), sub: 'unrealised this FY' },
           { label: 'Saved by splitting', value: savedByFiling > 0 ? '+' + fmtINR(savedByFiling) : '—', sub: 'vs. no family routing', color: savedByFiling > 0 ? 'var(--pos)' : 'var(--ink)' },
