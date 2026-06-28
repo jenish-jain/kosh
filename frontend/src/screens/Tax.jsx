@@ -86,10 +86,10 @@ function SurchargeBar({ income }) {
       </div>
       <div style={{ fontSize: 12, marginTop: 7, color: 'var(--ink-3)', fontWeight: 600 }}>
         {below
-          ? `₹${fmtCompact(lo - income)} below the 10% surcharge threshold — no surcharge`
+          ? `${fmtCompact(lo - income)} below the 10% surcharge threshold — no surcharge`
           : past
           ? `Income above ₹1Cr — 15% surcharge applies`
-          : `₹${fmtCompact(income - lo)} into the 10% surcharge zone`}
+          : `${fmtCompact(income - lo)} into the 10% surcharge zone`}
       </div>
     </div>
   )
