@@ -306,7 +306,7 @@ export default function SIPs({ data, memberId, showToast }) {
       <div className="sips-layout" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1px 0.95fr', gap: 36, alignItems: 'start' }}>
         <div>
           <div style={{ ...KICK, marginBottom: 4 }}>Manage SIPs</div>
-          <div style={{ overflowX: 'auto' }}><table className="tbl">
+          <div className="tbl-scroll"><table className="tbl" style={{ minWidth: 480 }}>
             <thead><tr>
               <th>Fund</th>
               {!memberId && <th>Owner</th>}
