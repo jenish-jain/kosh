@@ -345,11 +345,11 @@ td.r .edit-cell { text-align: right; }
   border-radius: var(--r);
   box-shadow: var(--shadow-lg);
   max-width: 100%;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  margin: auto;    /* centers vertically when modal fits; collapses to 0 when backdrop scrolls */
-  flex-shrink: 0; /* card grows to fit content, backdrop scrolls if needed */
+  margin: auto;
+  flex-shrink: 0;
+  max-height: min(92vh, 860px); /* cap height so body scrolls, header stays visible */
 }
 .modal-head {
   display: flex; align-items: center;
@@ -358,7 +358,7 @@ td.r .edit-cell { text-align: right; }
   flex-shrink: 0;
 }
 .modal-head h3 { font-size: 16px; font-weight: 700; flex: 1; }
-.modal-body { padding: 22px; }
+.modal-body { padding: 22px; overflow-y: auto; }
 
 /* ── Form fields ── */
 .field { display: block; margin-bottom: 14px; }
@@ -501,6 +501,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   /* ─ Content ─ */
   .content { padding: 20px 18px 80px; overflow-x: clip; }
+
+  /* ─ Modals: cap height accounting for bottom tab bar (≈60px) ─ */
+  .modal-backdrop { padding: 16px 12px 70px; }
+  .modal-card { max-height: min(88vh, 800px); width: 100% !important; border-radius: 12px 12px 8px 8px; }
 
   /* ─ Hero number: scale for narrow screens ─ */
   .hero-num { font-size: clamp(34px, 9vw, 72px); }
