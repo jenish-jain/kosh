@@ -105,6 +105,28 @@ function MemberProfile({ data, memberId, setScreen }) {
   const sips = (data.sips || []).filter(s => s.member === memberId && s.status === 'active')
   const sipMonthly = sips.reduce((a, s) => a + (s.amount || 0), 0)
   const segs = ED_ORDER.map(k => ({ k, color: ED_COL[k], label: ED_LABEL[k], value: c[k].cur })).filter(s => s.value > 0)
+  const hasHoldings = c.total.cur > 0 || c.total.inv > 0
+
+  if (!hasHoldings) return (
+    <div className="fade-in">
+      <div className="stmt-band">
+        <div style={{ ...KICK, letterSpacing: '.18em' }}>Member statement</div>
+        <div className="stmt-meta">{m.relation} · slab {m.slab}% · As on {todayDisplay()}</div>
+      </div>
+      <EdRule thick />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+        <Avatar member={m} size={52} />
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{m.name}</div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ink-3)' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink-2)', marginBottom: 6 }}>No holdings yet</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+          Add investments, SIPs, or loans to {m.name.split(' ')[0]} to see a portfolio summary here.
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="fade-in">
