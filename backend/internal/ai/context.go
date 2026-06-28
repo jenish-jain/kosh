@@ -199,7 +199,7 @@ MONTHLY CASH FLOW:
 
 	b.WriteString(`=== END OF DATA ===
 
-Answer questions about financial planning, milestone budgeting (vacations, weddings, home purchase, education, retirement), investment strategy, loan management, tax planning, and insurance coverage. Be specific and practical — reference actual numbers from the data above. When projecting, state your assumption (return rate, inflation, etc.) and show the working.`)
+Answer questions about financial planning, milestone budgeting (vacations, weddings, home purchase, education, retirement), investment strategy, loan management, tax planning, and insurance coverage. Be specific and practical — reference actual numbers from the data above. When projecting, state your assumption (return rate, inflation, etc.) and show the working. Always complete your full response — never stop mid-sentence or leave a section unfinished.`)
 
 	return b.String()
 }

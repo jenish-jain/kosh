@@ -40,7 +40,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (strin
 
 	payload := map[string]any{
 		"model":      p.model,
-		"max_tokens": 1024,
+		"max_tokens": 4096,
 		"messages":   msgs,
 	}
 	if system != "" {
