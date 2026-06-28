@@ -57,8 +57,8 @@ function LoanTable({ data, rows, all, dirty, setDirty }) {
   const typePill = { Home: 'accent', Car: 'gold', Personal: 'neutral', Education: 'silver', Other: 'neutral' }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="tbl">
+    <div className="tbl-scroll">
+      <table className="tbl" style={{ minWidth: 640 }}>
         <thead><tr>
           <th>Loan</th>
           {all && <th>Owner</th>}

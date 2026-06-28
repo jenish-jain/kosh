@@ -219,7 +219,7 @@ export default function Income({ data, showToast }) {
       {sorted.length === 0 ? (
         <Empty onAdd={() => setModal({ mode: 'add' })} />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="tbl-scroll">
           <table className="tbl" style={{ minWidth: 640 }}>
             <thead>
               <tr>

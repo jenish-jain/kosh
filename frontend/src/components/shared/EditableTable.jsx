@@ -49,8 +49,8 @@ export default function EditableTable({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="tbl">
+    <div className="tbl-scroll">
+      <table className="tbl" style={{ minWidth: 560 }}>
         <thead>
           <tr>
             {visibleCols.map(col => (
