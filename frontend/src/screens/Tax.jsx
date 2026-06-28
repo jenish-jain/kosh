@@ -299,7 +299,7 @@ export default function Tax({ data, memberId }) {
               {[
                 { label: 'Effective rate', value: `${effRate}%` },
                 { label: 'Std deduction', value: fmtCompact(NEW_STD_DEDUCTION) },
-                { label: '87A rebate', value: rebateEligible ? 'Eligible' : 'Not eligible', color: rebateEligible ? 'var(--pos)' : 'var(--ink-3)' },
+                { label: '87A rebate', value: rebateEligible ? 'Eligible' : 'Not eligible', color: rebateEligible ? 'var(--pos)' : 'var(--warn)' },
                 { label: 'Net take-home', value: fmtCompact(grossIncome - taxPayable) },
               ].map((r, i) => (
                 <div key={i}>
