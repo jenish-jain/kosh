@@ -181,7 +181,11 @@ func (h *Handler) fetchFromRepos() *models.Data {
 			cfg := map[string]string{}
 			for _, row := range rows[1:] {
 				if len(row) >= 2 {
-					cfg[strings.TrimSpace(sh.ColStr(row, 0))] = sh.ColStr(row, 1)
+					k := strings.ToLower(strings.TrimSpace(sh.ColStr(row, 0)))
+					v := strings.TrimSpace(sh.ColStr(row, 1))
+					if k != "" {
+						cfg[k] = v
+					}
 				}
 			}
 			d.Config = parseConfig(cfg)

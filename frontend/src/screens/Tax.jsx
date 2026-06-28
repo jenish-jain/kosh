@@ -4,7 +4,7 @@ import { todayDisplay } from '../data/schedule.js'
 import { KICK, SERIF } from '../data/tokens.js'
 import { EdRule } from '../components/Primitives.jsx'
 
-// ── Tax math (old regime) ────────────────────────────────────
+// ── Tax math ────────────────────────────────────────────────
 function taxOldRegime(income) {
   if (income <= 250000) return 0
   let t = 0
@@ -18,7 +18,26 @@ function taxOldRegime(income) {
   return Math.round(t + surcharge + cess)
 }
 
-function slabLabel(income) {
+// New regime FY 2025-26: std deduction ₹75K, 87A rebate if taxable ≤ ₹12L
+const NEW_STD_DEDUCTION = 75000
+function taxNewRegime(gross) {
+  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
+  let t = 0
+  if (taxable > 2400000) t += (taxable - 2400000) * 0.30
+  if (taxable > 2000000) t += (Math.min(taxable, 2400000) - 2000000) * 0.25
+  if (taxable > 1600000) t += (Math.min(taxable, 2000000) - 1600000) * 0.20
+  if (taxable > 1200000) t += (Math.min(taxable, 1600000) - 1200000) * 0.15
+  if (taxable >  800000) t += (Math.min(taxable, 1200000) -  800000) * 0.10
+  if (taxable >  400000) t += (Math.min(taxable,  800000) -  400000) * 0.05
+  if (taxable <= 1200000) t = 0  // Section 87A rebate
+  let surcharge = 0
+  if (gross > 10000000) surcharge = t * 0.15
+  else if (gross > 5000000) surcharge = t * 0.10
+  const cess = (t + surcharge) * 0.04
+  return Math.round(t + surcharge + cess)
+}
+
+function slabLabelOld(income) {
   if (income <= 250000) return '0%'
   if (income <= 500000) return '5%'
   if (income <= 1000000) return '20%'
@@ -26,8 +45,19 @@ function slabLabel(income) {
   return '30% + surcharge'
 }
 
-function effectiveRate(income) {
-  const t = taxOldRegime(income)
+function slabLabelNew(gross) {
+  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
+  if (taxable <= 400000)  return '0%'
+  if (taxable <= 800000)  return '5%'
+  if (taxable <= 1200000) return '10% · 0 via 87A'
+  if (taxable <= 1600000) return '15%'
+  if (taxable <= 2000000) return '20%'
+  if (taxable <= 2400000) return '25%'
+  return '30%'
+}
+
+function effectiveRate(income, taxFn) {
+  const t = taxFn(income)
   return income > 0 ? (t / income * 100).toFixed(1) : '0.0'
 }
 
@@ -65,8 +95,32 @@ function SurchargeBar({ income }) {
   )
 }
 
+// ── Regime switcher ───────────────────────────────────────────
+function RegimeSwitcher({ value, onChange }) {
+  const btn = (label, v) => (
+    <button
+      onClick={() => onChange(v)}
+      style={{
+        padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        border: '1px solid var(--line)', borderRadius: 4,
+        background: value === v ? 'var(--ink)' : 'transparent',
+        color: value === v ? 'var(--surface)' : 'var(--ink-3)',
+        transition: 'all .15s',
+      }}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {btn('Old regime', 'old')}
+      {btn('New regime', 'new')}
+    </div>
+  )
+}
+
 // ── Income split planner ──────────────────────────────────────
-function SplitPlanner({ data, grossIncome }) {
+function SplitPlanner({ data, grossIncome, taxFn }) {
   const parents = (data.members || []).filter(m =>
     (m.relation === 'Father' || m.relation?.startsWith('Father') || m.relation === 'Mother') && m.id !== 'you'
   )
@@ -77,9 +131,9 @@ function SplitPlanner({ data, grossIncome }) {
   const myIncome = grossIncome - shifted
   const perParent = shifted / parentCount
 
-  const baseMyTax = taxOldRegime(grossIncome)
-  const myTax = taxOldRegime(myIncome)
-  const parentTax = parents.length > 0 ? parents.reduce((a, m) => a + taxOldRegime(perParent), 0) : taxOldRegime(perParent)
+  const baseMyTax = taxFn(grossIncome)
+  const myTax = taxFn(myIncome)
+  const parentTax = parents.length > 0 ? parents.reduce((a, m) => a + taxFn(perParent), 0) : taxFn(perParent)
   const saved = baseMyTax - myTax - parentTax
 
   const sliderMax = Math.min(grossIncome * 0.5, 4000000)
@@ -152,6 +206,11 @@ export default function Tax({ data, memberId }) {
   const cfg = data.config || {}
   const selfMember = (data.members || []).find(m => m.id === 'you') || {}
 
+  // Default regime from Config sheet (regime=new/old); falls back to old
+  const [regime, setRegime] = useState(() => (cfg.regime || '').toLowerCase() === 'new' ? 'new' : 'old')
+  const isNew = regime === 'new'
+  const taxFn = isNew ? taxNewRegime : taxOldRegime
+
   // Derive annual gross from Income tab (latest period × 12), fall back to Config
   const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11}
   const parsePeriod = p => { const [m, y] = (p || '').split(' '); return new Date(+y, MONTHS[m] ?? 0) }
@@ -171,18 +230,24 @@ export default function Tax({ data, memberId }) {
       if (monthlyGross > 0) grossIncome = monthlyGross * 12
     }
   }
-  const taxPayable = taxOldRegime(grossIncome)
-  const slab = slabLabel(grossIncome)
-  const effRate = effectiveRate(grossIncome)
+
+  const taxPayable = taxFn(grossIncome)
+  const slab = isNew ? slabLabelNew(grossIncome) : slabLabelOld(grossIncome)
+  const effRate = effectiveRate(grossIncome, taxFn)
   const capitalGains = cfg.capital_gains_this_year || 0
   const savedByFiling = cfg.saved_by_filing || 0
+
+  // Old regime deductions from Config
   const deduction80c = cfg.deduction_80c || 0
   const deduction80d = cfg.deduction_80d || 0
   const otherDeductions = cfg.other_deductions || 0
+  const totalOldDeductions = deduction80c + deduction80d + otherDeductions
+  const taxableIncomeOld = Math.max(0, grossIncome - totalOldDeductions)
+  const taxAfterOldDeductions = taxOldRegime(taxableIncomeOld)
 
-  const totalDeductions = deduction80c + deduction80d + otherDeductions
-  const taxableIncome = Math.max(0, grossIncome - totalDeductions)
-  const taxAfterDeductions = taxOldRegime(taxableIncome)
+  // New regime: standard deduction only
+  const taxableIncomeNew = Math.max(0, grossIncome - NEW_STD_DEDUCTION)
+  const rebateEligible = taxableIncomeNew <= 1200000
 
   const memberName = memberId
     ? ((data.members || []).find(m => m.id === memberId)?.full_name || '').replace(' (You)', '')
@@ -190,9 +255,12 @@ export default function Tax({ data, memberId }) {
 
   return (
     <div className="fade-in">
-      <div className="stmt-band">
-        <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
-        <div className="stmt-meta">{memberName} · FY 2025-26 · {todayDisplay()}</div>
+      <div className="stmt-band" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
+          <div className="stmt-meta">{memberName} · FY 2025-26 · {todayDisplay()}</div>
+        </div>
+        <RegimeSwitcher value={regime} onChange={setRegime} />
       </div>
       <EdRule thick />
 
@@ -223,66 +291,119 @@ export default function Tax({ data, memberId }) {
       {/* Two columns: tax payable + deductions */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 36, alignItems: 'start' }}>
         <div>
-          <div style={KICK}>Tax payable (old regime)</div>
+          <div style={KICK}>Tax payable ({isNew ? 'new' : 'old'} regime)</div>
           <div className="num serif-num" style={{ fontSize: 48, marginTop: 10 }}>{fmtINR(taxPayable)}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
-            {[
-              { label: 'Effective rate', value: `${effRate}%` },
-              { label: 'After deductions', value: fmtCompact(taxAfterDeductions) },
-              { label: '4% cess', value: fmtCompact(Math.round(taxPayable * 0.04 / 1.04)) },
-              { label: 'Net take-home', value: fmtCompact(grossIncome - taxAfterDeductions) },
-            ].map((r, i) => (
-              <div key={i}>
-                <div style={KICK}>{r.label}</div>
-                <div className="num serif-num" style={{ fontSize: 20, marginTop: 6 }}>{r.value}</div>
-              </div>
-            ))}
-          </div>
+
+          {isNew ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+              {[
+                { label: 'Effective rate', value: `${effRate}%` },
+                { label: 'Std deduction', value: fmtCompact(NEW_STD_DEDUCTION) },
+                { label: '87A rebate', value: rebateEligible ? 'Eligible' : 'Not eligible', color: rebateEligible ? 'var(--pos)' : 'var(--ink-3)' },
+                { label: 'Net take-home', value: fmtCompact(grossIncome - taxPayable) },
+              ].map((r, i) => (
+                <div key={i}>
+                  <div style={KICK}>{r.label}</div>
+                  <div className="num serif-num" style={{ fontSize: 20, marginTop: 6, color: r.color || 'var(--ink)' }}>{r.value}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+              {[
+                { label: 'Effective rate', value: `${effRate}%` },
+                { label: 'After deductions', value: fmtCompact(taxAfterOldDeductions) },
+                { label: '4% cess', value: fmtCompact(Math.round(taxPayable * 0.04 / 1.04)) },
+                { label: 'Net take-home', value: fmtCompact(grossIncome - taxAfterOldDeductions) },
+              ].map((r, i) => (
+                <div key={i}>
+                  <div style={KICK}>{r.label}</div>
+                  <div className="num serif-num" style={{ fontSize: 20, marginTop: 6 }}>{r.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ background: 'var(--line)', alignSelf: 'stretch' }} />
 
         <div>
-          <div style={KICK}>Deduction breakdown</div>
-          <div style={{ marginTop: 12 }}>
-            {[
-              { label: '80C (ELSS · PF · LIC)', cap: 150000, used: deduction80c },
-              { label: '80D (health insurance)', cap: 50000, used: deduction80d },
-              { label: 'Other (NPS · LTA etc.)', cap: 150000, used: otherDeductions },
-            ].map(d => {
-              const pct = d.cap > 0 ? Math.min(d.used / d.cap * 100, 100) : 0
-              return (
-                <div key={d.label} style={{ marginBottom: 18 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{d.label}</span>
-                    <span className="num serif-num" style={{ fontSize: 13 }}>{fmtINR(d.used)} / {fmtCompact(d.cap)}</span>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--line)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--pos)' : 'var(--accent)', borderRadius: 2 }} />
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>
-                    {pct >= 100 ? 'Maxed out' : `₹${fmtCompact(d.cap - d.used)} room remaining`}
-                  </div>
+          {isNew ? (
+            <>
+              <div style={KICK}>Deductions (new regime)</div>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>Standard deduction</span>
+                  <span className="num serif-num" style={{ fontSize: 14, color: 'var(--pos)' }}>{fmtINR(NEW_STD_DEDUCTION)}</span>
                 </div>
-              )
-            })}
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={KICK}>Total deductions</div>
-              <div className="num serif-num" style={{ fontSize: 22 }}>{fmtINR(totalDeductions)}</div>
-            </div>
-          </div>
+                <div style={{ height: 6, background: 'var(--line)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                  <div style={{ height: '100%', width: '100%', background: 'var(--pos)', borderRadius: 2 }} />
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginBottom: 20 }}>
+                  Auto-applied · no documentation needed
+                </div>
+
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 6, padding: '12px 14px', fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.6 }}>
+                  <strong style={{ color: 'var(--ink-2)' }}>Not available under new regime:</strong><br />
+                  80C (ELSS, PF, LIC) · 80D (health insurance) · HRA · LTA · NPS · home loan interest
+                </div>
+
+                {totalOldDeductions > 0 && taxAfterOldDeductions < taxPayable && (
+                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 6, background: 'var(--accent-soft)', fontSize: 12.5, lineHeight: 1.6 }}>
+                    <span style={{ fontWeight: 700 }}>Old regime saves ₹{fmtCompact(taxPayable - taxAfterOldDeductions)} more</span>
+                    {' '}with your ₹{fmtCompact(totalOldDeductions)} in deductions —{' '}
+                    <button onClick={() => setRegime('old')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontWeight: 700, fontSize: 12.5, padding: 0 }}>
+                      switch to compare
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={KICK}>Deduction breakdown</div>
+              <div style={{ marginTop: 12 }}>
+                {[
+                  { label: '80C (ELSS · PF · LIC)', cap: 150000, used: deduction80c },
+                  { label: '80D (health insurance)', cap: 50000, used: deduction80d },
+                  { label: 'Other (NPS · LTA etc.)', cap: 150000, used: otherDeductions },
+                ].map(d => {
+                  const pct = d.cap > 0 ? Math.min(d.used / d.cap * 100, 100) : 0
+                  return (
+                    <div key={d.label} style={{ marginBottom: 18 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600 }}>{d.label}</span>
+                        <span className="num serif-num" style={{ fontSize: 13 }}>{fmtINR(d.used)} / {fmtCompact(d.cap)}</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--line)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--pos)' : 'var(--accent)', borderRadius: 2 }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>
+                        {pct >= 100 ? 'Maxed out' : `₹${fmtCompact(d.cap - d.used)} room remaining`}
+                      </div>
+                    </div>
+                  )
+                })}
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={KICK}>Total deductions</div>
+                  <div className="num serif-num" style={{ fontSize: 22 }}>{fmtINR(totalOldDeductions)}</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       <EdRule />
 
       {/* Income split planner */}
-      <SplitPlanner data={data} grossIncome={grossIncome} />
+      <SplitPlanner data={data} grossIncome={grossIncome} taxFn={taxFn} />
 
       <EdRule />
 
       <div style={{ fontFamily: SERIF, fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink-3)', lineHeight: 1.7 }}>
-        Indicative figures under old regime · no marginal relief applied · consult a qualified CA before acting on any strategy.
+        Indicative figures under {isNew ? 'new' : 'old'} regime · no marginal relief applied · consult a qualified CA before acting on any strategy.
+        {isNew && ' New regime: standard deduction ₹75,000 auto-applied; 87A rebate if taxable income ≤ ₹12L.'}
       </div>
     </div>
   )
