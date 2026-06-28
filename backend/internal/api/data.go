@@ -169,6 +169,11 @@ func (h *Handler) fetchFromRepos() *models.Data {
 	} else {
 		tabLog("History", e)
 	}
+	if rows, e := h.repos.Income.All(); e == nil {
+		d.Income = rows
+	} else {
+		tabLog("Income", e)
+	}
 
 	// Config is a key-value sheet with no typed repository — read it directly.
 	if h.configAPI != nil {

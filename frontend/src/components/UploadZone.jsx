@@ -66,6 +66,7 @@ export default function UploadZone({ docType, onExtracted, onClose }) {
     insurance: 'insurance policy / schedule',
     metals:    'gold or silver invoice',
     nps:       'KFintech NPS account statement',
+    income:    'payslip or salary slip',
   }
 
   return (

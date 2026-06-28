@@ -20,6 +20,7 @@ const Ic = {
   x:       "M6 6l12 12M18 6 6 18",
   family:  "M16 19c0-2.2-1.8-4-4-4s-4 1.8-4 4M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
   link:    "M14 5h5v5M19 5l-9 9M9 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2",
+  income:  "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8ZM14 2v6h6M9 13h6M9 17h3",
 }
 
 export function Icon({ name, size = 18, sw = 1.8, className = '', style }) {

@@ -8,6 +8,7 @@ import ErrorScreen from './ErrorScreen.jsx'
 import Dashboard from '../../screens/Dashboard.jsx'
 import Investments from '../../screens/investments/index.jsx'
 import SIPs from '../../screens/SIPs.jsx'
+import Income from '../../screens/Income.jsx'
 import Expenses from '../../screens/Expenses.jsx'
 import Family from '../../screens/Family.jsx'
 import Tax from '../../screens/Tax.jsx'
@@ -39,6 +40,7 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
       case 'dashboard':   return <Dashboard   {...props} setScreen={setScreen} onSelectMember={m => { setMember(m); setScreen('family') }} />
       case 'investments': return <Investments {...props} />
       case 'sips':        return <SIPs        {...props} />
+      case 'income':      return <Income      {...props} />
       case 'expenses':    return <Expenses    {...props} />
       case 'family':      return <Family      {...props} setScreen={setScreen} onSelect={setMember} />
       case 'tax':         return <Tax         {...props} />

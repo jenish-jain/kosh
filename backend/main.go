@@ -71,6 +71,7 @@ func main() {
 					{Name: repos.SIPs.Sheet(), Columns: repos.SIPs.Columns()},
 					{Name: repos.Lumpsums.Sheet(), Columns: repos.Lumpsums.Columns()},
 					{Name: repos.History.Sheet(), Columns: repos.History.Columns()},
+					{Name: repos.Income.Sheet(), Columns: repos.Income.Columns()},
 					{Name: "Config", Columns: []string{"key", "value"}},
 				}
 				if err := sheetClient.EnsureTabs(tabs); err != nil {

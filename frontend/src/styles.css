@@ -520,6 +520,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   /* ─ Investments summary tiles → 3 columns ─ */
   .summary-tiles { grid-template-columns: repeat(3, 1fr) !important; }
 
+  /* ─ Income tiles → 2 columns ─ */
+  .income-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+
   /* ─ SIPs headline → 2×2 grid ─ */
   .sips-figs { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
   .sips-figs-actions { grid-column: 1 / -1; border-left: none !important; padding-left: 0 !important; flex-direction: row !important; }

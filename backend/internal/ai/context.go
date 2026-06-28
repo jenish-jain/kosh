@@ -8,6 +8,36 @@ import (
 	"kosh/internal/models"
 )
 
+func pct(part, total float64) float64 {
+	if total == 0 {
+		return 0
+	}
+	return part / total * 100
+}
+
+// latestIncomePeriod returns the most recent period string and the summed
+// gross/net totals across all income sources for that period.
+func latestIncomePeriod(income []models.Income) (period string, gross, net float64) {
+	var latest time.Time
+	for _, r := range income {
+		t, err := time.Parse("Jan 2006", r.Period)
+		if err != nil {
+			continue
+		}
+		if t.After(latest) {
+			latest = t
+			period = r.Period
+		}
+	}
+	for _, r := range income {
+		if r.Period == period {
+			gross += r.Gross
+			net += r.Net
+		}
+	}
+	return
+}
+
 // BuildSystemPrompt returns the system prompt with the user's full financial
 // data embedded. The LLM receives this on every request so it can answer
 // questions about the user's actual portfolio.
@@ -104,13 +134,40 @@ INVESTMENTS:
 		fmt.Fprintf(&b, "  Gold & Silver:  ₹%.0f\n", metalsCur)
 	}
 
-	fmt.Fprintf(&b, `
+	// Income
+	incomePeriod, incomeGross, incomeNet := latestIncomePeriod(d.Income)
+
+	if incomeNet > 0 {
+		surplus := incomeNet - sipMonthly - loanEMI
+		savingsRate := 0.0
+		if incomeNet > 0 {
+			savingsRate = (sipMonthly + loanEMI) / incomeNet * 100
+		}
+		fmt.Fprintf(&b, `
+INCOME (%s):
+  Gross:           ₹%.0f/month
+  Net take-home:   ₹%.0f/month
+  Deductions:      ₹%.0f/month
+
+MONTHLY CASH FLOW:
+  SIP investments: ₹%.0f/month  (%d active SIPs)  (%.1f%% of net)
+  Loan EMIs:       ₹%.0f/month  (%.1f%% of net)
+  Monthly surplus: ₹%.0f/month  (after SIPs + EMIs)
+  Committed rate:  %.1f%% of net income goes to investments + debt
+
+`, incomePeriod, incomeGross, incomeNet, incomeGross-incomeNet,
+			sipMonthly, activeSIPs, pct(sipMonthly, incomeNet),
+			loanEMI, pct(loanEMI, incomeNet),
+			surplus, savingsRate)
+	} else {
+		fmt.Fprintf(&b, `
 MONTHLY CASH FLOW:
   SIP investments: ₹%.0f/month  (%d active SIPs)
   Loan EMIs:       ₹%.0f/month
   Total outflow:   ₹%.0f/month
 
 `, sipMonthly, activeSIPs, loanEMI, sipMonthly+loanEMI)
+	}
 
 	if insuranceCover > 0 {
 		fmt.Fprintf(&b, "INSURANCE: ₹%.0f total sum assured, ₹%.0f/year in premiums across %d plans\n\n",
@@ -193,6 +250,19 @@ MONTHLY CASH FLOW:
 		for _, r := range d.Loans {
 			fmt.Fprintf(&b, "  %-30s  %s  borrowed ₹%.0f  outstanding ₹%.0f  EMI ₹%.0f/mo  %.1f%%\n",
 				r.Lender, r.Type, r.Principal, r.Outstanding, r.EMI, r.Rate)
+		}
+		b.WriteString("\n")
+	}
+
+	if len(d.Income) > 0 {
+		b.WriteString("INCOME HISTORY:\n")
+		for _, r := range d.Income {
+			deductions := r.PFDeduction + r.TaxDeduction + r.OtherDeductions
+			line := fmt.Sprintf("  %-8s  %-12s  %-20s  gross ₹%.0f  net ₹%.0f", r.Period, r.Type, r.Source, r.Gross, r.Net)
+			if deductions > 0 {
+				line += fmt.Sprintf("  deductions ₹%.0f", deductions)
+			}
+			b.WriteString(line + "\n")
 		}
 		b.WriteString("\n")
 	}

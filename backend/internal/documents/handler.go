@@ -21,6 +21,7 @@ var driveFolders = map[string]string{
 	"insurance": "Kosh/Insurance",
 	"metals":    "Kosh/Gold & Silver",
 	"nps":       "Kosh/NPS",
+	"income":    "Kosh/Payslips",
 }
 
 // UploadResult is returned to the frontend after parsing.

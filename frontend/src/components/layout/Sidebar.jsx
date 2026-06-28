@@ -7,6 +7,7 @@ const NAV = [
   { id: 'dashboard',   label: 'Dashboard',      icon: 'dash' },
   { id: 'investments', label: 'Investments',     icon: 'invest' },
   { id: 'sips',        label: 'SIPs & schedule', icon: 'sip' },
+  { id: 'income',      label: 'Income',          icon: 'income' },
   { id: 'expenses',    label: 'Expenses',        icon: 'expense' },
   { id: 'family',      label: 'Family',          icon: 'members' },
   { id: 'tax',         label: 'Tax',             icon: 'tax' },

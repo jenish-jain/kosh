@@ -13,6 +13,7 @@ type Data struct {
 	SIPs      []SIP       `json:"sips"`
 	Lumpsums  []Lumpsum   `json:"lumpsums"`
 	History   []History   `json:"history"`
+	Income    []Income    `json:"income"`
 	Config    Config      `json:"config"`
 }
 
@@ -137,6 +138,19 @@ type Lumpsum struct {
 type History struct {
 	Month string  `json:"month" sheet:"month"`
 	Value float64 `json:"value" sheet:"value"`
+}
+
+type Income struct {
+	ID              string  `json:"id"               sheet:"id"`
+	Source          string  `json:"source"           sheet:"source"`
+	Type            string  `json:"type"             sheet:"type"`
+	Period          string  `json:"period"           sheet:"period"`
+	Gross           float64 `json:"gross"            sheet:"gross"`
+	Net             float64 `json:"net"              sheet:"net"`
+	PFDeduction     float64 `json:"pf_deduction"     sheet:"pf_deduction"`
+	TaxDeduction    float64 `json:"tax_deduction"    sheet:"tax_deduction"`
+	OtherDeductions float64 `json:"other_deductions" sheet:"other_deductions"`
+	Notes           string  `json:"notes"            sheet:"notes"`
 }
 
 // Config is read via parseConfig from a key-value sheet — no sheet tags needed.
