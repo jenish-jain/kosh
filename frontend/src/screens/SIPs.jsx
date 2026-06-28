@@ -68,7 +68,9 @@ function EditSipModal({ sip, onClose, onSave }) {
   return (
     <Modal title="Edit SIP" onClose={onClose}>
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{sip.fund}</div>
-      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 16 }}>{sip.platform} · started {fmtDate(sip.start_date)}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 16 }}>
+        {sip.platform}{sip.start_date ? ` · started ${fmtDate(sip.start_date)}` : ''}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Field label="Monthly amount"><input className="input" type="number" value={amount} onChange={e => setAmount(Number(e.target.value))} /></Field>
         <Field label="Debit day (1–28)"><input className="input" type="number" min="1" max="28" value={day} onChange={e => setDay(Number(e.target.value))} /></Field>
@@ -194,6 +196,7 @@ function LumpsumModal({ memberId, data, onClose }) {
   const mfOptions = (data.mf || []).filter(f => !memberId || f.member === memberId)
   const [fundId, setFundId] = useState(mfOptions[0]?.id || '')
   const [amount, setAmount] = useState('')
+  const [date, setDate] = useState(todayStr())
 
   const submit = async () => {
     if (!fundId || !amount) return
@@ -203,7 +206,7 @@ function LumpsumModal({ memberId, data, onClose }) {
       fund: f?.name || fundId,
       member: f?.member || memberId || 'you',
       amount: Number(amount),
-      date: new Date().toISOString().slice(0, 10),
+      date: date || todayStr(),
     })
     onClose()
   }
@@ -218,10 +221,10 @@ function LumpsumModal({ memberId, data, onClose }) {
           })}
         </select>
       </Field>
-      <Field label="Amount"><input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 50000" /></Field>
-      <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5, marginBottom: 16 }}>
-        A one-off investment outside the monthly cycle. Will be recorded in the Lumpsums sheet.
-      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Amount"><input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 50000" /></Field>
+        <Field label="Date"><input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+      </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn primary" onClick={submit}>Add top-up</button>
