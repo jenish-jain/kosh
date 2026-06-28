@@ -55,8 +55,8 @@ export default function AskModal({ onClose }) {
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.22)', zIndex: 1000 }}
         onClick={onClose}
       />
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '100vw',
+      <div className="ask-panel" style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 420,
         background: 'var(--surface)', zIndex: 1001, display: 'flex', flexDirection: 'column',
         boxShadow: '-4px 0 40px rgba(0,0,0,.13)',
       }}>

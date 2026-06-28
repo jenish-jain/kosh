@@ -401,6 +401,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 
 /* ── Ask Kosh ── */
+.ask-nav-item { display: none; } /* shown only in mobile tab bar via media query below */
+
 .ask-kosh-btn {
   display: flex; align-items: center; gap: 8px;
   margin: 0 12px 12px; padding: 10px 14px;
@@ -460,6 +462,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .brand { display: none; }
   .sidebar-foot { display: none; }
   .ask-kosh-btn { display: none; }
+  .ask-nav-item { display: flex; }
   .nav { flex-direction: row; margin-top: 0; gap: 0; flex: 1; }
   .nav-label { display: none; }
   .nav-item {
@@ -470,6 +473,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   }
   .nav-item.active { box-shadow: none !important; border-top: 2px solid var(--accent); }
   .main { padding-bottom: 64px; }
+  .ask-panel { width: 100vw !important; }
 
   /* ─ Topbar ─ */
   .topbar { padding: 0 18px; flex-wrap: wrap; gap: 0; }
