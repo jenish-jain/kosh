@@ -498,6 +498,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
     gap: 7px;
   }
   .memberbar::-webkit-scrollbar { display: none; }
+  .member-chip { padding: 5px; gap: 0; }
+  .member-chip-name { display: none; }
 
   /* ─ Content ─ */
   .content { padding: 20px 18px 80px; overflow-x: clip; }
