@@ -1,0 +1,12 @@
+# Reverse-proxies kosh.jenishjain.in to the Cloud Run service. Cloud Run
+# doesn't support custom domain mapping in asia-south1, so this Netlify site
+# fronts the domain instead — status 200 + force makes it a proxy, not a
+# redirect, so the browser never sees the .run.app URL.
+#
+# Deploy: create a Netlify site with "Base directory" set to netlify/, then
+# add kosh.jenishjain.in as a custom domain on that site.
+[[redirects]]
+  from = "/*"
+  to = "https://kosh-t2xsqgseuq-el.a.run.app/:splat"
+  status = 200
+  force = true
