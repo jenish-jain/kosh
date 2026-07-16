@@ -41,8 +41,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Content-Security-Policy", contentSecurityPolicy)
-		// Only advertise HSTS over HTTPS — Railway terminates TLS at its edge proxy,
-		// so r.TLS is nil and we must check the forwarded-proto header instead.
+		// Only advertise HSTS over HTTPS — platforms like Cloud Run terminate TLS
+		// at their edge proxy, so r.TLS is nil and we must check the forwarded-proto
+		// header instead.
 		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}

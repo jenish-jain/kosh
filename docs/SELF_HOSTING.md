@@ -418,18 +418,38 @@ a clean way to mount a secret *file* — the entrypoint decodes it to
 `Dockerfile`). If your platform supports mounting files directly, you can
 instead mount `credentials.json` and skip this variable.
 
-### Deploying to Railway
+### Deploying to Cloud Run
 
-This repo includes a `railway.json` pre-configured to build from the
-`Dockerfile`. To deploy:
+Cloud Run runs the same `Dockerfile` as a fully managed container — no
+servers to patch, scales to zero when idle. To deploy manually with the
+`gcloud` CLI:
 
-1. Create a new Railway project from this GitHub repo.
-2. Set the environment variables listed in [§8](#8-environment-variable-reference)
-   under **Settings → Variables** (at minimum `SPREADSHEET_ID` and
-   `GOOGLE_CREDENTIALS_B64`; add the auth variables if you want sign-in).
-3. Railway builds the Dockerfile and exposes the app on a generated domain —
-   add that domain to your OAuth client's **Authorized JavaScript origins**
-   (see §5) if you've enabled sign-in.
+1. Build and push the image to Artifact Registry (create a repo first with
+   `gcloud artifacts repositories create <repo> --repository-format=docker
+   --location=<region>` if you don't have one):
+   ```bash
+   gcloud auth configure-docker <region>-docker.pkg.dev
+   docker build -t <region>-docker.pkg.dev/<project>/<repo>/kosh .
+   docker push <region>-docker.pkg.dev/<project>/<repo>/kosh
+   ```
+2. Deploy it, setting the environment variables listed in
+   [§8](#8-environment-variable-reference) (at minimum `SPREADSHEET_ID` and
+   `GOOGLE_CREDENTIALS_B64`; add the auth variables if you want sign-in):
+   ```bash
+   gcloud run deploy kosh \
+     --image <region>-docker.pkg.dev/<project>/<repo>/kosh \
+     --region <region> \
+     --set-env-vars SPREADSHEET_ID=your_spreadsheet_id,GOOGLE_CREDENTIALS_B64=$(base64 -i backend/credentials.json) \
+     --allow-unauthenticated
+   ```
+3. Cloud Run exposes the app on a generated `*.run.app` domain (or a custom
+   domain you map to it) — add that domain to your OAuth client's
+   **Authorized JavaScript origins** (see §5) if you've enabled sign-in.
+
+For continuous deployment, see `.github/workflows/deploy.yml` in this repo
+for a GitHub Actions example that authenticates via Workload Identity
+Federation, builds/pushes the image on every push to `master`, and runs
+`gcloud run deploy` — copy and adapt it to your own GCP project.
 
 Any other platform that runs a Dockerfile (Fly.io, Render, a VPS with
 `docker run`, …) works the same way — just set the same environment

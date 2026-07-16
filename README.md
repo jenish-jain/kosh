@@ -41,7 +41,7 @@ no separate database, no vendor lock-in, your data stays in your account.
 **→ See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)** for the full guide:
 connecting your spreadsheet, adding Google Sign-In so only your family can
 access it, enabling AI-assisted document uploads, and deploying it (Docker /
-Railway) so it's reachable from anywhere.
+Cloud Run) so it's reachable from anywhere.
 
 ---
 
