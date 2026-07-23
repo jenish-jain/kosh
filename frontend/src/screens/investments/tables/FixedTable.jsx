@@ -1,15 +1,25 @@
+import { useState } from 'react'
 import { Icon } from '../../../components/Icons.jsx'
-import { MemberTag } from '../../../components/Primitives.jsx'
+import { MemberTag, Modal } from '../../../components/Primitives.jsx'
 import TotalsBar from '../../../components/shared/TotalsBar.jsx'
 import { fmtINR, fmtDate } from '../../../data/format.js'
 import { memberOf } from '../../../data/aggregate.js'
 import { FIXED_URGENCY_DAYS } from '../../../data/constants.js'
 import { daysLeft, fmtCountdown } from '../countdown.js'
+import { useData } from '../../../data/context.jsx'
 
-export default function FixedTable({ data, rows, all }) {
+export default function FixedTable({ data, rows, all, showToast }) {
+  const { remove } = useData()
+  const [deleting, setDeleting] = useState(null)
   const inv = rows.reduce((a, x) => a + (x.principal     || 0), 0)
   const cur = rows.reduce((a, x) => a + (x.current_value || 0), 0)
   const kindPill = { FD: 'accent', RD: 'gold' }
+
+  const handleDelete = async (id) => {
+    await remove('Fixed', id)
+    setDeleting(null)
+    showToast?.('Deposit removed', 'error')
+  }
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -23,6 +33,7 @@ export default function FixedTable({ data, rows, all }) {
           <th className="r">Principal</th>
           <th className="r">Matures</th>
           <th className="r">Value today</th>
+          <th />
         </tr></thead>
         <tbody>
           {rows.map(r => {
@@ -58,12 +69,29 @@ export default function FixedTable({ data, rows, all }) {
                   <div className="num cell-strong">{fmtINR(r.current_value)}</div>
                   {gain > 0 && <div className="cell-sub" style={{ color: 'var(--pos)' }}>+{fmtINR(gain)}</div>}
                 </td>
+                <td className="r">
+                  <button className="btn ghost sm" title="Remove deposit" onClick={() => setDeleting(r.id)}>
+                    <Icon name="trash" size={13} />
+                  </button>
+                </td>
               </tr>
             )
           })}
         </tbody>
       </table>
       <TotalsBar inv={inv} cur={cur} label={`${rows.length} deposit${rows.length !== 1 ? 's' : ''}`} curLabel="Value today" />
+
+      {deleting && (
+        <Modal title="Remove deposit?" onClose={() => setDeleting(null)} width={380}>
+          <p style={{ fontSize: 14, color: 'var(--ink-2)', margin: '0 0 20px' }}>
+            This will permanently remove the deposit — use this if it's been redeemed or broken.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button className="btn" onClick={() => setDeleting(null)}>Cancel</button>
+            <button className="btn danger" onClick={() => handleDelete(deleting)}>Remove</button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

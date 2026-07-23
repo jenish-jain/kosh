@@ -129,7 +129,7 @@ export default function Investments({ data, memberId, showToast }) {
       {/* Tables */}
       {tab === 'mf'        && <MFTable        data={data} rows={h.mf}        all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'stocks'    && <StockTable     data={data} rows={h.stocks}    all={all} dirty={dirty} setDirty={setDirty} />}
-      {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} />}
+      {tab === 'fixed'     && <FixedTable     data={data} rows={h.fixed}     all={all} showToast={showToast} />}
       {tab === 'nps'       && <NPSTable       data={data} rows={h.nps}       all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'metals'    && <MetalTable     data={data} rows={h.metals}    all={all} dirty={dirty} setDirty={setDirty} />}
       {tab === 'insurance' && <InsuranceTable data={data} rows={h.insurance} all={all} dirty={dirty} setDirty={setDirty} />}
