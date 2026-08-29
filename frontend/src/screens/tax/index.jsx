@@ -1,65 +1,13 @@
 import { useState } from 'react'
-import { fmtINR, fmtCompact } from '../data/format.js'
-import { todayDisplay } from '../data/schedule.js'
-import { KICK, SERIF } from '../data/tokens.js'
-import { EdRule } from '../components/Primitives.jsx'
-
-// ── Tax math ────────────────────────────────────────────────
-function taxOldRegime(income) {
-  if (income <= 250000) return 0
-  let t = 0
-  if (income > 1000000) t += (income - 1000000) * 0.30
-  if (income > 500000)  t += (Math.min(income, 1000000) - 500000) * 0.20
-  if (income > 250000)  t += (Math.min(income, 500000) - 250000) * 0.05
-  let surcharge = 0
-  if (income > 10000000) surcharge = t * 0.15
-  else if (income > 5000000) surcharge = t * 0.10
-  const cess = (t + surcharge) * 0.04
-  return Math.round(t + surcharge + cess)
-}
-
-// New regime FY 2025-26: std deduction ₹75K, 87A rebate if taxable ≤ ₹12L
-const NEW_STD_DEDUCTION = 75000
-function taxNewRegime(gross) {
-  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
-  let t = 0
-  if (taxable > 2400000) t += (taxable - 2400000) * 0.30
-  if (taxable > 2000000) t += (Math.min(taxable, 2400000) - 2000000) * 0.25
-  if (taxable > 1600000) t += (Math.min(taxable, 2000000) - 1600000) * 0.20
-  if (taxable > 1200000) t += (Math.min(taxable, 1600000) - 1200000) * 0.15
-  if (taxable >  800000) t += (Math.min(taxable, 1200000) -  800000) * 0.10
-  if (taxable >  400000) t += (Math.min(taxable,  800000) -  400000) * 0.05
-  if (taxable <= 1200000) t = 0  // Section 87A rebate
-  let surcharge = 0
-  if (gross > 10000000) surcharge = t * 0.15
-  else if (gross > 5000000) surcharge = t * 0.10
-  const cess = (t + surcharge) * 0.04
-  return Math.round(t + surcharge + cess)
-}
-
-function slabLabelOld(income) {
-  if (income <= 250000) return '0%'
-  if (income <= 500000) return '5%'
-  if (income <= 1000000) return '20%'
-  if (income <= 5000000) return '30%'
-  return '30% + surcharge'
-}
-
-function slabLabelNew(gross) {
-  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
-  if (taxable <= 400000)  return '0%'
-  if (taxable <= 800000)  return '5%'
-  if (taxable <= 1200000) return '10% · 0 via 87A'
-  if (taxable <= 1600000) return '15%'
-  if (taxable <= 2000000) return '20%'
-  if (taxable <= 2400000) return '25%'
-  return '30%'
-}
-
-function effectiveRate(income, taxFn) {
-  const t = taxFn(income)
-  return income > 0 ? (t / income * 100).toFixed(1) : '0.0'
-}
+import { fmtINR, fmtCompact } from '../../data/format.js'
+import { todayDisplay } from '../../data/schedule.js'
+import { KICK, SERIF } from '../../data/tokens.js'
+import { EdRule } from '../../components/Primitives.jsx'
+import {
+  taxOldRegime, taxNewRegime, slabLabelOld, slabLabelNew, effectiveRate,
+  NEW_STD_DEDUCTION, currentFY,
+} from './taxMath.js'
+import PotentialInflowsTile from './PotentialInflows.jsx'
 
 // ── Surcharge runway bar ──────────────────────────────────────
 function SurchargeBar({ income }) {
@@ -194,6 +142,7 @@ function SplitPlanner({ data, grossIncome, taxFn }) {
 export default function Tax({ data, memberId }) {
   const cfg = data.config || {}
   const selfMember = (data.members || []).find(m => m.id === 'you') || {}
+  const fy = currentFY()
 
   // Default regime from Config sheet (regime=new/old); falls back to old
   const [regime, setRegime] = useState(() => (cfg.regime || '').toLowerCase() === 'new' ? 'new' : 'old')
@@ -223,7 +172,6 @@ export default function Tax({ data, memberId }) {
   const taxPayable = taxFn(grossIncome)
   const slab = isNew ? slabLabelNew(grossIncome) : slabLabelOld(grossIncome)
   const effRate = effectiveRate(grossIncome, taxFn)
-  const capitalGains = cfg.capital_gains_this_year || 0
   const savedByFiling = cfg.saved_by_filing || 0
 
   // Old regime deductions from Config
@@ -247,7 +195,7 @@ export default function Tax({ data, memberId }) {
       <div className="stmt-band" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
-          <div className="stmt-meta">{memberName} · FY 2025-26 · {todayDisplay()}</div>
+          <div className="stmt-meta">{memberName} · {fy.label} · {todayDisplay()}</div>
         </div>
         <RegimeSwitcher value={regime} onChange={setRegime} />
       </div>
@@ -255,18 +203,26 @@ export default function Tax({ data, memberId }) {
 
       {/* 4 headline figures */}
       <div className="tax-tiles">
-        {[
-          { label: 'Gross income', value: fmtINR(grossIncome), sub: latestPeriod ? `${latestPeriod} × 12 (from Income tab)` : 'before deductions' },
-          { label: 'Current slab', value: slab, sub: `${effRate}% effective rate` },
-          { label: 'Capital gains', value: fmtCompact(capitalGains), sub: 'unrealised this FY' },
-          { label: 'Saved by splitting', value: savedByFiling > 0 ? '+' + fmtINR(savedByFiling) : '—', sub: 'vs. no family routing', color: savedByFiling > 0 ? 'var(--pos)' : 'var(--ink)' },
-        ].map((f, i) => (
-          <div key={i} className="tax-tile">
-            <div style={KICK}>{f.label}</div>
-            <div className="num serif-num" style={{ fontSize: 36, marginTop: 10, color: f.color || 'var(--ink)' }}>{f.value}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>{f.sub}</div>
+        <div className="tax-tile">
+          <div style={KICK}>Gross income</div>
+          <div className="num serif-num" style={{ fontSize: 36, marginTop: 10 }}>{fmtINR(grossIncome)}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>
+            {latestPeriod ? `${latestPeriod} × 12 (from Income tab)` : 'before deductions'}
           </div>
-        ))}
+        </div>
+        <div className="tax-tile">
+          <div style={KICK}>Current slab</div>
+          <div className="num serif-num" style={{ fontSize: 36, marginTop: 10 }}>{slab}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>{effRate}% effective rate</div>
+        </div>
+        <PotentialInflowsTile data={data} />
+        <div className="tax-tile">
+          <div style={KICK}>Saved by splitting</div>
+          <div className="num serif-num" style={{ fontSize: 36, marginTop: 10, color: savedByFiling > 0 ? 'var(--pos)' : 'var(--ink)' }}>
+            {savedByFiling > 0 ? '+' + fmtINR(savedByFiling) : '—'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginTop: 4 }}>vs. no family routing</div>
+        </div>
       </div>
 
       <EdRule />

@@ -36,6 +36,7 @@ type MFRow struct {
 	Current  float64 `json:"current"  sheet:"current"`
 	SIP      float64 `json:"sip"      sheet:"sip"`
 	Notes    string  `json:"notes"    sheet:"notes"`
+	Category string  `json:"category" sheet:"category"` // Equity | Debt | ELSS | Hybrid | Other
 }
 
 type Stock struct {
