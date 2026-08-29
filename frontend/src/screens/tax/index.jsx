@@ -9,6 +9,7 @@ import {
 } from './taxMath.js'
 import PotentialInflowsTile from './PotentialInflows.jsx'
 import RecommendationsPanel from './RecommendationsPanel.jsx'
+import AdvanceTaxSchedule from './AdvanceTaxSchedule.jsx'
 
 // ── Surcharge runway bar ──────────────────────────────────────
 function SurchargeBar({ income }) {
@@ -339,6 +340,11 @@ export default function Tax({ data, memberId }) {
           )}
         </div>
       </div>
+
+      <EdRule />
+
+      {/* Advance tax instalment schedule */}
+      <AdvanceTaxSchedule taxPayable={isNew ? taxPayable : taxAfterOldDeductions} fy={fy} />
 
       <EdRule />
 
