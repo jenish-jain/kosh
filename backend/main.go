@@ -108,6 +108,10 @@ func main() {
 	// Pass sheetClient as configAPI (nil in dev mode is fine — Handler handles it).
 	apiH := api.NewHandler(repos, sheetClient, isDemo)
 
+	// Propose doesn't itself call an AI provider (that happens via the existing
+	// /api/upload/tax_rules parse step) — it's always available, unlike aiH/taxH.
+	taxRulesH := ai.NewTaxRulesHandler(repos, isDemo, apiH.IsSampleData)
+
 	// ── Document upload handler ────────────────────────────────────────────────
 	// Drive uploads use a per-request OAuth token from the frontend (drive.file
 	// scope). The factory creates a new Drive client from that token each call.
@@ -150,7 +154,7 @@ func main() {
 	}
 
 	// ── HTTP server ────────────────────────────────────────────────────────────
-	handler := api.NewServer(authH, apiH, docH, aiH, taxH, frontendDist)
+	handler := api.NewServer(authH, apiH, docH, aiH, taxH, taxRulesH, frontendDist)
 
 	addr := ":" + port
 	fmt.Printf("🪙  Kosh running at http://localhost%s\n", addr)
