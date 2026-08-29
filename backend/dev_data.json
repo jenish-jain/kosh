@@ -5,14 +5,14 @@
     {"id":"dad","name":"Dad","full_name":"Dad","relation":"Father · Sr. Citizen","slab":5,"color":"#7E8AA2"}
   ],
   "mf": [
-    {"id":"mf1","name":"Bluepeak Small Cap Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":72000,"current":78500,"sip":0,"notes":"lumpsum only"},
-    {"id":"mf2","name":"Northstar Flexi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":318500,"current":342100,"sip":6000,"notes":""},
-    {"id":"mf3","name":"Solstice Focused Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":198400,"current":215600,"sip":3500,"notes":""},
-    {"id":"mf4","name":"Vantage Active Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":276000,"current":291200,"sip":6000,"notes":"6k diff"},
-    {"id":"mf5","name":"Horizon Nifty 50 Index Fund","plan":"Direct · Growth","platform":"TradeNest","member":"you","invested":545000,"current":588000,"sip":12000,"notes":"1 failed txn"},
-    {"id":"mf6","name":"Meridian Pharma & Healthcare Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":84000,"current":91500,"sip":4000,"notes":""},
-    {"id":"mf7","name":"Cobalt Multi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":192000,"current":204800,"sip":4000,"notes":""},
-    {"id":"mf8","name":"Evergreen ELSS Tax Saver","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":15000,"current":16200,"sip":0,"notes":"paused"}
+    {"id":"mf1","name":"Bluepeak Small Cap Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":72000,"current":78500,"sip":0,"notes":"lumpsum only","category":"Equity"},
+    {"id":"mf2","name":"Northstar Flexi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":318500,"current":342100,"sip":6000,"notes":"","category":"Equity"},
+    {"id":"mf3","name":"Solstice Focused Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":198400,"current":215600,"sip":3500,"notes":"","category":"Equity"},
+    {"id":"mf4","name":"Vantage Active Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":276000,"current":291200,"sip":6000,"notes":"6k diff","category":"Equity"},
+    {"id":"mf5","name":"Horizon Nifty 50 Index Fund","plan":"Direct · Growth","platform":"TradeNest","member":"you","invested":545000,"current":588000,"sip":12000,"notes":"1 failed txn","category":"Equity"},
+    {"id":"mf6","name":"Meridian Pharma & Healthcare Fund","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":84000,"current":91500,"sip":4000,"notes":"","category":"Equity"},
+    {"id":"mf7","name":"Cobalt Multi Cap Fund","plan":"Direct · Growth","platform":"Brightleaf","member":"you","invested":192000,"current":204800,"sip":4000,"notes":"","category":"Equity"},
+    {"id":"mf8","name":"Evergreen ELSS Tax Saver","plan":"Direct · Growth","platform":"Lumen Invest","member":"you","invested":15000,"current":16200,"sip":0,"notes":"paused","category":"ELSS"}
   ],
   "stocks": [
     {"id":"st1","name":"Crestpoint Industries","ticker":"CRSTPT","qty":35,"avg_price":1860,"last_price":1985,"member":"you"},
@@ -30,7 +30,8 @@
   "insurance": [
     {"id":"in1","name":"Pinnacle Endowment Assurance","type":"Endowment","member":"you","premium":36000,"freq":"annual","paid":252000,"value":298000,"cover":800000,"maturity":2037,"due_date":"2026-07-05"},
     {"id":"in2","name":"Northshield Term Cover","type":"Term","member":"you","premium":14500,"freq":"annual","paid":72500,"value":0,"cover":8000000,"maturity":2054,"due_date":"2025-10-15"},
-    {"id":"in3","name":"Crestmark Wealth ULIP","type":"ULIP","member":"you","premium":80000,"freq":"annual","paid":400000,"value":478000,"cover":800000,"maturity":2039,"due_date":"2025-12-20"}
+    {"id":"in3","name":"Crestmark Wealth ULIP","type":"ULIP","member":"you","premium":80000,"freq":"annual","paid":400000,"value":478000,"cover":800000,"maturity":2039,"due_date":"2025-12-20"},
+    {"id":"in4","name":"Sundial Money-Back Plan","type":"Money-back","member":"you","premium":22000,"freq":"annual","paid":220000,"value":260000,"cover":400000,"maturity":2027,"due_date":"2026-01-15"}
   ],
   "loans": [
     {"id":"ln1","lender":"Sundial Home Loan","type":"Home","member":"you","principal":1500000,"outstanding":980000,"rate":8.75,"emi":15800,"emi_day":7,"started":"2022-08-01","tenure_months":180},
@@ -56,6 +57,13 @@
     {"id":"lp2","fund":"Evergreen ELSS","member":"you","amount":15000,"date":"2025-11-05"},
     {"id":"lp3","fund":"Solstice Focused Fund","member":"you","amount":6800,"date":"2025-04-18"}
   ],
+  "income": [
+    {"id":"inc1","source":"Northcrest Systems","type":"Salary","period":"Apr 2026","gross":400000,"net":299600,"pf_deduction":14400,"tax_deduction":86000,"other_deductions":0,"notes":""},
+    {"id":"inc2","source":"Northcrest Systems","type":"Salary","period":"May 2026","gross":400000,"net":299600,"pf_deduction":14400,"tax_deduction":86000,"other_deductions":0,"notes":""},
+    {"id":"inc3","source":"Northcrest Systems","type":"Salary","period":"Jun 2026","gross":400000,"net":299600,"pf_deduction":14400,"tax_deduction":86000,"other_deductions":0,"notes":""},
+    {"id":"inc4","source":"Northcrest Systems","type":"Salary","period":"Jul 2026","gross":400000,"net":299600,"pf_deduction":14400,"tax_deduction":86000,"other_deductions":0,"notes":""},
+    {"id":"inc5","source":"Northcrest Systems","type":"Salary","period":"Aug 2026","gross":400000,"net":299600,"pf_deduction":14400,"tax_deduction":86000,"other_deductions":0,"notes":""}
+  ],
   "history": [
     {"month":"Jul 25","value":1718000},
     {"month":"Aug 25","value":1763000},
@@ -69,6 +77,10 @@
     {"month":"Apr 26","value":2093000},
     {"month":"May 26","value":2153000},
     {"month":"Jun 26","value":2233000}
+  ],
+  "tax_recommendations": [
+    {"id":"tr-seed-0","generated_date":"2026-06-15","fy":"FY 2026-27","regime":"old","category":"80C Gap","headline":"Top up ELSS by ₹1.35L to max out your 80C limit","suggested_amount":135000,"potential_tax_saving":40500,"rationale":"Your PF + life insurance premiums + ELSS cover only ~₹15K of the ₹1.5L 80C cap this FY. A lumpsum or SIP top-up into your existing ELSS fund closes the gap before March.","status":"actioned","superseded_by":""},
+    {"id":"tr-seed-1","generated_date":"2026-06-15","fy":"FY 2026-27","regime":"old","category":"NPS 80CCD(1B)","headline":"Contribute ₹50K to NPS for the extra 80CCD(1B) deduction","suggested_amount":50000,"potential_tax_saving":15600,"rationale":"This is on top of the ₹1.5L 80C cap — you have an active NPS account but no visibility into this FY's contribution. A ₹50K top-up before March captures the full additional deduction.","status":"new","superseded_by":""}
   ],
   "config": {
     "gross_income": 4800000,

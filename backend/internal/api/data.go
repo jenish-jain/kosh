@@ -42,6 +42,12 @@ func (h *Handler) servingSampleData(r *http.Request) bool {
 	return h.devData != nil || (h.isDemo != nil && h.isDemo(r))
 }
 
+// IsSampleData exposes servingSampleData to other packages (e.g. ai.TaxHandler)
+// that need to decide whether to persist generated data for this request.
+func (h *Handler) IsSampleData(r *http.Request) bool {
+	return h.servingSampleData(r)
+}
+
 // sampleData returns the sample dataset to serve for this request — the
 // dev-mode dataset if the deployment itself runs in dev mode, otherwise the
 // lazily-loaded demo dataset for an individual demo session.
@@ -173,6 +179,11 @@ func (h *Handler) fetchFromRepos() *models.Data {
 		d.Income = rows
 	} else {
 		tabLog("Income", e)
+	}
+	if rows, e := h.repos.TaxRecommendations.All(); e == nil {
+		d.TaxRecommendations = rows
+	} else {
+		tabLog("TaxRecommendations", e)
 	}
 
 	// Config is a key-value sheet with no typed repository — read it directly.

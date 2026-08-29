@@ -72,6 +72,7 @@ func main() {
 					{Name: repos.Lumpsums.Sheet(), Columns: repos.Lumpsums.Columns()},
 					{Name: repos.History.Sheet(), Columns: repos.History.Columns()},
 					{Name: repos.Income.Sheet(), Columns: repos.Income.Columns()},
+					{Name: repos.TaxRecommendations.Sheet(), Columns: repos.TaxRecommendations.Columns()},
 					{Name: "Config", Columns: []string{"key", "value"}},
 				}
 				if err := sheetClient.EnsureTabs(tabs); err != nil {
@@ -113,6 +114,7 @@ func main() {
 
 	// ── AI Financial Advisor ───────────────────────────────────────────────────
 	var aiH *ai.Handler
+	var taxH *ai.TaxHandler
 	if sh.EnvOrDefault("AI_ENABLED", "false") == "true" {
 		aiProvider := sh.EnvOrDefault("AI_PROVIDER", "ollama")
 		var provider ai.Provider
@@ -133,12 +135,13 @@ func main() {
 		}
 		if provider != nil {
 			aiH = ai.NewHandler(provider, apiH.LoadData, isDemo)
+			taxH = ai.NewTaxHandler(provider, repos, apiH.LoadData, isDemo, apiH.IsSampleData)
 			authH.SetAIEnabled(true)
 		}
 	}
 
 	// ── HTTP server ────────────────────────────────────────────────────────────
-	handler := api.NewServer(authH, apiH, docH, aiH, frontendDist)
+	handler := api.NewServer(authH, apiH, docH, aiH, taxH, frontendDist)
 
 	addr := ":" + port
 	fmt.Printf("🪙  Kosh running at http://localhost%s\n", addr)

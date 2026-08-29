@@ -58,6 +58,7 @@ func NewServer(
 	apiH         *Handler,
 	docH         *documents.UploadHandler,
 	aiH          *ai.Handler,
+	taxH         *ai.TaxHandler,
 	frontendDist string,
 ) http.Handler {
 	mux := http.NewServeMux()
@@ -87,6 +88,9 @@ func NewServer(
 	mux.HandleFunc("/api/data", protect(apiH.GetData))
 	if aiH != nil {
 		mux.HandleFunc("/api/chat", protect(aiH.Handle))
+	}
+	if taxH != nil {
+		mux.HandleFunc("/api/tax/recommendations/generate", protect(taxH.Generate))
 	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
