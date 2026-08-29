@@ -17,6 +17,7 @@ type Data struct {
 	Config    Config      `json:"config"`
 
 	TaxRecommendations []TaxRecommendation `json:"tax_recommendations"`
+	TaxRules           []TaxRuleSet        `json:"tax_rules"`
 }
 
 type Member struct {

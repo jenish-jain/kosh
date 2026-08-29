@@ -18,6 +18,7 @@ type Repositories struct {
 	Income    *Repository[models.Income]
 
 	TaxRecommendations *Repository[models.TaxRecommendation]
+	TaxRules           *Repository[models.TaxRuleSet]
 
 	// Registry enables generic mutation dispatch by sheet name.
 	Registry map[string]AnyRepository
@@ -40,6 +41,7 @@ func NewRepositories(api SheetsAPI) *Repositories {
 		Income:    NewRepository[models.Income](api, "Income"),
 
 		TaxRecommendations: NewRepository[models.TaxRecommendation](api, "TaxRecommendations"),
+		TaxRules:           NewRepository[models.TaxRuleSet](api, "TaxRules"),
 	}
 	r.Registry = map[string]AnyRepository{
 		"Members":   r.Members,
@@ -56,6 +58,7 @@ func NewRepositories(api SheetsAPI) *Repositories {
 		"Income":    r.Income,
 
 		"TaxRecommendations": r.TaxRecommendations,
+		"TaxRules":           r.TaxRules,
 	}
 	return r
 }

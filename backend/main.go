@@ -15,6 +15,7 @@ import (
 	"kosh/internal/api"
 	"kosh/internal/auth"
 	"kosh/internal/documents"
+	"kosh/internal/models"
 	"kosh/internal/store"
 	sh "kosh/sheets"
 )
@@ -73,10 +74,18 @@ func main() {
 					{Name: repos.History.Sheet(), Columns: repos.History.Columns()},
 					{Name: repos.Income.Sheet(), Columns: repos.Income.Columns()},
 					{Name: repos.TaxRecommendations.Sheet(), Columns: repos.TaxRecommendations.Columns()},
+					{Name: repos.TaxRules.Sheet(), Columns: repos.TaxRules.Columns()},
 					{Name: "Config", Columns: []string{"key", "value"}},
 				}
 				if err := sheetClient.EnsureTabs(tabs); err != nil {
 					log.Printf("⚠ EnsureTabs: %v", err)
+				}
+				// EnsureTabs only writes a header row into an empty tab — it never
+				// seeds data. Seed the two default "active" rule sets once so the
+				// tax engine has something to read before anyone has ever proposed
+				// a change.
+				if seedTaxRules(repos.TaxRules) {
+					log.Println("✓ Seeded default TaxRules (old + new regime)")
 				}
 			}
 		} else {
@@ -151,4 +160,25 @@ func main() {
 		fmt.Println("   Mode: live (reading/writing Google Sheets)")
 	}
 	log.Fatal(http.ListenAndServe(addr, handler))
+}
+
+// seedTaxRules inserts the two bundled default TaxRuleSet rows (old + new
+// regime, status "active") if the TaxRules sheet is empty — EnsureTabs only
+// writes a header row into an empty tab, it never seeds data. Returns true
+// if it seeded anything.
+func seedTaxRules(repo *store.Repository[models.TaxRuleSet]) bool {
+	existing, err := repo.All()
+	if err != nil {
+		log.Printf("⚠ checking TaxRules for seeding: %v", err)
+		return false
+	}
+	if len(existing) > 0 {
+		return false
+	}
+	for _, regime := range []string{"old", "new"} {
+		if _, err := repo.Add(models.DefaultTaxRuleSet(regime)); err != nil {
+			log.Printf("⚠ seeding TaxRules(%s): %v", regime, err)
+		}
+	}
+	return true
 }
