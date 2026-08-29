@@ -15,6 +15,8 @@ type Data struct {
 	History   []History   `json:"history"`
 	Income    []Income    `json:"income"`
 	Config    Config      `json:"config"`
+
+	TaxRecommendations []TaxRecommendation `json:"tax_recommendations"`
 }
 
 type Member struct {
@@ -152,6 +154,24 @@ type Income struct {
 	TaxDeduction    float64 `json:"tax_deduction"    sheet:"tax_deduction"`
 	OtherDeductions float64 `json:"other_deductions" sheet:"other_deductions"`
 	Notes           string  `json:"notes"            sheet:"notes"`
+}
+
+// TaxRecommendation is one AI-generated, persisted tax-saving suggestion.
+// Regenerating fetches prior rows so the AI can review what it suggested
+// last cycle (Status) instead of repeating stale advice; SupersededBy links
+// a prior row forward to the item that replaced/evolved it.
+type TaxRecommendation struct {
+	ID                 string  `json:"id"                    sheet:"id"`
+	GeneratedDate      string  `json:"generated_date"        sheet:"generated_date"` // YYYY-MM-DD
+	FY                 string  `json:"fy"                    sheet:"fy"`             // "FY 2026-27"
+	Regime             string  `json:"regime"                sheet:"regime"`         // "old" | "new"
+	Category           string  `json:"category"               sheet:"category"`
+	Headline           string  `json:"headline"               sheet:"headline"`
+	SuggestedAmount    float64 `json:"suggested_amount"       sheet:"suggested_amount"`
+	PotentialTaxSaving float64 `json:"potential_tax_saving"   sheet:"potential_tax_saving"`
+	Rationale          string  `json:"rationale"              sheet:"rationale"`
+	Status             string  `json:"status"                 sheet:"status"` // "new" | "actioned" | "dismissed"
+	SupersededBy       string  `json:"superseded_by"          sheet:"superseded_by"`
 }
 
 // Config is read via parseConfig from a key-value sheet — no sheet tags needed.

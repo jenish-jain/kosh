@@ -8,6 +8,7 @@ import {
   NEW_STD_DEDUCTION, currentFY,
 } from './taxMath.js'
 import PotentialInflowsTile from './PotentialInflows.jsx'
+import RecommendationsPanel from './RecommendationsPanel.jsx'
 
 // ── Surcharge runway bar ──────────────────────────────────────
 function SurchargeBar({ income }) {
@@ -338,6 +339,11 @@ export default function Tax({ data, memberId }) {
           )}
         </div>
       </div>
+
+      <EdRule />
+
+      {/* Tax-saving recommendations */}
+      <RecommendationsPanel data={data} regime={regime} />
 
       <EdRule />
 

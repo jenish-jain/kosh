@@ -78,6 +78,10 @@
     {"month":"May 26","value":2153000},
     {"month":"Jun 26","value":2233000}
   ],
+  "tax_recommendations": [
+    {"id":"tr-seed-0","generated_date":"2026-06-15","fy":"FY 2026-27","regime":"old","category":"80C Gap","headline":"Top up ELSS by ₹1.35L to max out your 80C limit","suggested_amount":135000,"potential_tax_saving":40500,"rationale":"Your PF + life insurance premiums + ELSS cover only ~₹15K of the ₹1.5L 80C cap this FY. A lumpsum or SIP top-up into your existing ELSS fund closes the gap before March.","status":"actioned","superseded_by":""},
+    {"id":"tr-seed-1","generated_date":"2026-06-15","fy":"FY 2026-27","regime":"old","category":"NPS 80CCD(1B)","headline":"Contribute ₹50K to NPS for the extra 80CCD(1B) deduction","suggested_amount":50000,"potential_tax_saving":15600,"rationale":"This is on top of the ₹1.5L 80C cap — you have an active NPS account but no visibility into this FY's contribution. A ₹50K top-up before March captures the full additional deduction.","status":"new","superseded_by":""}
+  ],
   "config": {
     "gross_income": 4800000,
     "regime": "New",

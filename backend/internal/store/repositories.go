@@ -17,6 +17,8 @@ type Repositories struct {
 	History   *Repository[models.History]
 	Income    *Repository[models.Income]
 
+	TaxRecommendations *Repository[models.TaxRecommendation]
+
 	// Registry enables generic mutation dispatch by sheet name.
 	Registry map[string]AnyRepository
 }
@@ -36,6 +38,8 @@ func NewRepositories(api SheetsAPI) *Repositories {
 		Lumpsums:  NewRepository[models.Lumpsum](api, "Lumpsums"),
 		History:   NewRepository[models.History](api, "History"),
 		Income:    NewRepository[models.Income](api, "Income"),
+
+		TaxRecommendations: NewRepository[models.TaxRecommendation](api, "TaxRecommendations"),
 	}
 	r.Registry = map[string]AnyRepository{
 		"Members":   r.Members,
@@ -50,6 +54,8 @@ func NewRepositories(api SheetsAPI) *Repositories {
 		"Lumpsums":  r.Lumpsums,
 		"History":   r.History,
 		"Income":    r.Income,
+
+		"TaxRecommendations": r.TaxRecommendations,
 	}
 	return r
 }

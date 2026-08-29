@@ -45,6 +45,19 @@ export async function deleteRow(sheet, id) {
   return res.json()
 }
 
+export async function generateTaxRecommendations(regime) {
+  const res = await fetch(`${BASE}/tax/recommendations/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ regime }),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body.trim() || `Server error ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function chatMessage(messages) {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
