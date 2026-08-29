@@ -9,6 +9,7 @@ import {
 import PotentialInflowsTile from './PotentialInflows.jsx'
 import RecommendationsPanel from './RecommendationsPanel.jsx'
 import AdvanceTaxSchedule from './AdvanceTaxSchedule.jsx'
+import TaxRulesAdmin from './TaxRulesAdmin.jsx'
 
 // ── Surcharge runway bar ──────────────────────────────────────
 function SurchargeBar({ income }) {
@@ -191,6 +192,8 @@ export default function Tax({ data, memberId }) {
   const taxableIncomeNew = Math.max(0, grossIncome - newStdDeduction)
   const rebateEligible = taxableIncomeNew <= (newRules.rebateThreshold || 0)
 
+  const [showTaxRulesAdmin, setShowTaxRulesAdmin] = useState(false)
+
   const memberName = memberId
     ? ((data.members || []).find(m => m.id === memberId)?.full_name || '').replace(' (You)', '')
     : (selfMember.full_name || 'You').replace(' (You)', '')
@@ -202,7 +205,10 @@ export default function Tax({ data, memberId }) {
           <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
           <div className="stmt-meta">{memberName} · {fy.label} · {todayDisplay()}</div>
         </div>
-        <RegimeSwitcher value={regime} onChange={setRegime} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="btn ghost sm" onClick={() => setShowTaxRulesAdmin(true)}>Tax rules</button>
+          <RegimeSwitcher value={regime} onChange={setRegime} />
+        </div>
       </div>
       <EdRule thick />
 
@@ -365,6 +371,10 @@ export default function Tax({ data, memberId }) {
         Indicative figures under {isNew ? 'new' : 'old'} regime · no marginal relief applied · consult a qualified CA before acting on any strategy.
         {isNew && ` New regime: standard deduction ${fmtCompact(newStdDeduction)} auto-applied; 87A rebate if taxable income ≤ ${fmtCompact(newRules.rebateThreshold || 0)}.`}
       </div>
+
+      {showTaxRulesAdmin && (
+        <TaxRulesAdmin data={data} onClose={() => setShowTaxRulesAdmin(false)} />
+      )}
     </div>
   )
 }

@@ -95,6 +95,7 @@ func NewServer(
 	}
 	if taxRulesH != nil {
 		mux.HandleFunc("/api/tax/rules/propose", protect(taxRulesH.Propose))
+		mux.HandleFunc("/api/tax/rules/", protect(taxRulesH.Route))
 	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
