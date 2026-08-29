@@ -1,85 +1,16 @@
 package models
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// ── Tax slab math (Go mirror of frontend/src/screens/tax/taxMath.js) ───────
-// Kept in sync manually — the frontend copy renders instantly with no round
-// trip; this copy lets the AI recommendation facts be computed server-side
-// from data the server just read, without trusting client-submitted numbers.
-
-const newRegimeStdDeduction = 75000.0
-
-func taxOldRegime(income float64) float64 {
-	if income <= 250000 {
-		return 0
-	}
-	t := 0.0
-	if income > 1000000 {
-		t += (income - 1000000) * 0.30
-	}
-	if income > 500000 {
-		t += (math.Min(income, 1000000) - 500000) * 0.20
-	}
-	if income > 250000 {
-		t += (math.Min(income, 500000) - 250000) * 0.05
-	}
-	surcharge := 0.0
-	if income > 10000000 {
-		surcharge = t * 0.15
-	} else if income > 5000000 {
-		surcharge = t * 0.10
-	}
-	cess := (t + surcharge) * 0.04
-	return math.Round(t + surcharge + cess)
-}
-
-func taxNewRegime(gross float64) float64 {
-	taxable := math.Max(0, gross-newRegimeStdDeduction)
-	t := 0.0
-	if taxable > 2400000 {
-		t += (taxable - 2400000) * 0.30
-	}
-	if taxable > 2000000 {
-		t += (math.Min(taxable, 2400000) - 2000000) * 0.25
-	}
-	if taxable > 1600000 {
-		t += (math.Min(taxable, 2000000) - 1600000) * 0.20
-	}
-	if taxable > 1200000 {
-		t += (math.Min(taxable, 1600000) - 1200000) * 0.15
-	}
-	if taxable > 800000 {
-		t += (math.Min(taxable, 1200000) - 800000) * 0.10
-	}
-	if taxable > 400000 {
-		t += (math.Min(taxable, 800000) - 400000) * 0.05
-	}
-	if taxable <= 1200000 {
-		t = 0 // Section 87A rebate
-	}
-	surcharge := 0.0
-	if gross > 10000000 {
-		surcharge = t * 0.15
-	} else if gross > 5000000 {
-		surcharge = t * 0.10
-	}
-	cess := (t + surcharge) * 0.04
-	return math.Round(t + surcharge + cess)
-}
-
-func taxPayable(regime string, gross float64) float64 {
-	if strings.EqualFold(regime, "new") {
-		return taxNewRegime(gross)
-	}
-	return taxOldRegime(gross)
-}
-
 // ── Tax facts ────────────────────────────────────────────────────────────
+// Slab/surcharge/cess/deduction-cap math itself now lives in TaxRuleSet data
+// (tax_rules.go) rather than hardcoded here — see ComputeTax and
+// activeRuleSet. This keeps a Budget-driven rule change a data update
+// (propose → review diff → approve), not a code change + redeploy.
 
 // MFCategoryTotals sums invested/current value for one MF category.
 type MFCategoryTotals struct {
@@ -139,11 +70,13 @@ func ComputeTaxFacts(d *Data, regime string, at time.Time) TaxFacts {
 		regime = "old"
 	}
 
+	rules := ActiveTaxRules(d.TaxRules, fy.Label, regime)
+
 	gross := d.Config.GrossIncome
 	if period, monthlyGross := latestIncomeGross(d.Income); period != "" && monthlyGross > 0 {
 		gross = monthlyGross * 12
 	}
-	payable := taxPayable(regime, gross)
+	payable := ComputeTax(rules, gross)
 	effRate := 0.0
 	if gross > 0 {
 		effRate = payable / gross * 100
@@ -199,11 +132,11 @@ func ComputeTaxFacts(d *Data, regime string, at time.Time) TaxFacts {
 		EffRate:     effRate,
 
 		Deduction80CUsed: deduction80C,
-		Deduction80CCap:  150000,
+		Deduction80CCap:  rules.DeductionCaps.Section80C,
 		NPSInvestedTotal: npsTotal,
-		NPS80CCD1BCap:    50000,
+		NPS80CCD1BCap:    rules.DeductionCaps.NPS80CCD1B,
 		Deduction80DUsed: healthIns,
-		Deduction80DCap:  deduction80DCap(d),
+		Deduction80DCap:  deduction80DCap(d, rules),
 
 		PFAnnualized:     pfAnnual,
 		ELSSThisFYApprox: elssApprox,
@@ -232,11 +165,11 @@ func annualizePremium(premium float64, freq string) float64 {
 	}
 }
 
-func deduction80DCap(d *Data) float64 {
-	cap := 25000.0 // self + family, non-senior
+func deduction80DCap(d *Data, rules TaxRules) float64 {
+	cap := rules.DeductionCaps.Section80DSelf
 	for _, m := range d.Members {
 		if m.ID != "you" && strings.Contains(strings.ToLower(m.Relation), "sr") {
-			cap += 50000.0 // covers a senior-citizen parent
+			cap += rules.DeductionCaps.Section80DSenior // covers a senior-citizen parent
 			break
 		}
 	}

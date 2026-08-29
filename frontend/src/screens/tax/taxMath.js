@@ -1,63 +1,123 @@
-// Tax math — regime slabs, effective rate, and the Indian financial-year window.
-// Mirrors the deterministic Go equivalents in backend/internal/models (fy.go,
-// finance.go) used server-side for the AI recommendation facts — kept as a
-// separate JS copy here so the Tax screen renders instantly with no round trip.
+// Tax math — a generic slab/surcharge/cess interpreter driven by data
+// (data.tax_rules), plus the Indian financial-year window and FD/RD
+// maturity-value helpers.
+//
+// computeTax() mirrors backend/internal/models/tax_rules.go's ComputeTax —
+// kept in sync manually (same pattern as the rest of this file: the frontend
+// copy renders instantly with no round trip). Neither this file nor the Go
+// side hardcodes slab boundaries or deduction caps any more — those live in
+// TaxRuleSet rows (one per FY+regime) so a Budget-driven change is a data
+// update reviewed and approved by the account owner, not a code change.
 
-export function taxOldRegime(income) {
-  if (income <= 250000) return 0
-  let t = 0
-  if (income > 1000000) t += (income - 1000000) * 0.30
-  if (income > 500000)  t += (Math.min(income, 1000000) - 500000) * 0.20
-  if (income > 250000)  t += (Math.min(income, 500000) - 250000) * 0.05
-  let surcharge = 0
-  if (income > 10000000) surcharge = t * 0.15
-  else if (income > 5000000) surcharge = t * 0.10
-  const cess = (t + surcharge) * 0.04
-  return Math.round(t + surcharge + cess)
+// ── Generic tax engine ──────────────────────────────────────────
+export function computeTax(rules, grossIncome) {
+  const taxable = Math.max(0, grossIncome - (rules.stdDeduction || 0))
+
+  let tax = 0
+  let prev = 0
+  for (const band of rules.slabs || []) {
+    const upto = band.upto ?? Infinity
+    const upper = Math.min(taxable, upto)
+    if (upper > prev) tax += (upper - prev) * band.rate
+    if (upto === Infinity) break
+    prev = upto
+  }
+
+  if (rules.rebateThreshold > 0 && taxable <= rules.rebateThreshold) {
+    tax = Math.max(0, tax - (rules.rebateAmount || 0))
+  }
+
+  let surchargeRate = 0
+  let maxAbove = -1
+  for (const band of rules.surcharge || []) {
+    if (grossIncome > band.above && band.above > maxAbove) {
+      maxAbove = band.above
+      surchargeRate = band.rate
+    }
+  }
+  const surcharge = tax * surchargeRate
+
+  const cess = (tax + surcharge) * (rules.cessRate || 0)
+  return Math.round(tax + surcharge + cess)
 }
 
-// New regime FY 2025-26: std deduction ₹75K, 87A rebate if taxable ≤ ₹12L
-export const NEW_STD_DEDUCTION = 75000
-
-export function taxNewRegime(gross) {
-  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
-  let t = 0
-  if (taxable > 2400000) t += (taxable - 2400000) * 0.30
-  if (taxable > 2000000) t += (Math.min(taxable, 2400000) - 2000000) * 0.25
-  if (taxable > 1600000) t += (Math.min(taxable, 2000000) - 1600000) * 0.20
-  if (taxable > 1200000) t += (Math.min(taxable, 1600000) - 1200000) * 0.15
-  if (taxable >  800000) t += (Math.min(taxable, 1200000) -  800000) * 0.10
-  if (taxable >  400000) t += (Math.min(taxable,  800000) -  400000) * 0.05
-  if (taxable <= 1200000) t = 0  // Section 87A rebate
-  let surcharge = 0
-  if (gross > 10000000) surcharge = t * 0.15
-  else if (gross > 5000000) surcharge = t * 0.10
-  const cess = (t + surcharge) * 0.04
-  return Math.round(t + surcharge + cess)
-}
-
-export function slabLabelOld(income) {
-  if (income <= 250000) return '0%'
-  if (income <= 500000) return '5%'
-  if (income <= 1000000) return '20%'
-  if (income <= 5000000) return '30%'
-  return '30% + surcharge'
-}
-
-export function slabLabelNew(gross) {
-  const taxable = Math.max(0, gross - NEW_STD_DEDUCTION)
-  if (taxable <= 400000)  return '0%'
-  if (taxable <= 800000)  return '5%'
-  if (taxable <= 1200000) return '10% · 0 via 87A'
-  if (taxable <= 1600000) return '15%'
-  if (taxable <= 2000000) return '20%'
-  if (taxable <= 2400000) return '25%'
-  return '30%'
+export function slabLabel(rules, grossIncome) {
+  const taxable = Math.max(0, grossIncome - (rules.stdDeduction || 0))
+  let rate = 0
+  let prev = 0
+  for (const band of rules.slabs || []) {
+    const upto = band.upto ?? Infinity
+    if (taxable > prev) rate = band.rate
+    if (taxable <= upto) break
+    prev = upto
+  }
+  let label = `${Math.round(rate * 100)}%`
+  const inRebate = rules.rebateThreshold > 0 && taxable <= rules.rebateThreshold
+  if (inRebate && rate > 0) label += ' · 0 via 87A'
+  const inSurcharge = (rules.surcharge || []).some(b => grossIncome > b.above)
+  if (inSurcharge && !inRebate) label += ' + surcharge'
+  return label
 }
 
 export function effectiveRate(income, taxFn) {
   const t = taxFn(income)
   return income > 0 ? (t / income * 100).toFixed(1) : '0.0'
+}
+
+// ── Bundled default rules (fallback only — mirrors Go's DefaultTaxRuleSet) ─
+// Used if data.tax_rules is empty (e.g. before the backend's one-time
+// migration seed has run) so the screen never breaks.
+const FULL_REBATE = 999999999
+const DEDUCTION_CAPS = { section80C: 150000, section80DSelf: 25000, section80DSenior: 50000, nps80CCD1B: 50000 }
+
+export const DEFAULT_RULES = {
+  old: {
+    schemaVersion: 1,
+    slabs: [{ upto: 250000, rate: 0 }, { upto: 500000, rate: 0.05 }, { upto: 1000000, rate: 0.20 }, { rate: 0.30 }],
+    stdDeduction: 0,
+    rebateThreshold: 500000,
+    rebateAmount: FULL_REBATE,
+    surcharge: [{ above: 5000000, rate: 0.10 }, { above: 10000000, rate: 0.15 }],
+    cessRate: 0.04,
+    deductionCaps: DEDUCTION_CAPS,
+  },
+  new: {
+    schemaVersion: 1,
+    slabs: [
+      { upto: 400000, rate: 0 }, { upto: 800000, rate: 0.05 }, { upto: 1200000, rate: 0.10 },
+      { upto: 1600000, rate: 0.15 }, { upto: 2000000, rate: 0.20 }, { upto: 2400000, rate: 0.25 },
+      { rate: 0.30 },
+    ],
+    stdDeduction: 75000,
+    rebateThreshold: 1200000,
+    rebateAmount: FULL_REBATE,
+    surcharge: [{ above: 5000000, rate: 0.10 }, { above: 10000000, rate: 0.15 }],
+    cessRate: 0.04,
+    deductionCaps: DEDUCTION_CAPS,
+  },
+}
+
+// activeRuleSet resolves the parsed rules to use for `regime`, preferring an
+// "active" TaxRules row matching `fy`, falling back to any active row for
+// the regime (any FY), then to the bundled default. Mirrors
+// backend/internal/models/tax_rules.go's activeRuleSet/ActiveTaxRules.
+export function activeRuleSet(rows, fy, regime) {
+  const pick = matchFY => {
+    let best = null
+    for (const r of rows || []) {
+      if (r.status !== 'active' || (r.regime || '').toLowerCase() !== regime) continue
+      if (matchFY && r.fy !== fy) continue
+      if (!best || (r.activated_date || '') > (best.activated_date || '')) best = r
+    }
+    return best
+  }
+  const row = pick(true) || pick(false)
+  if (!row) return DEFAULT_RULES[regime] || DEFAULT_RULES.old
+  try {
+    return JSON.parse(row.rules_json)
+  } catch {
+    return DEFAULT_RULES[regime] || DEFAULT_RULES.old
+  }
 }
 
 // ── Financial-year window (1 Apr – 31 Mar) ─────────────────────

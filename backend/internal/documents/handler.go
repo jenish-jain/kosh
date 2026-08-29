@@ -22,6 +22,7 @@ var driveFolders = map[string]string{
 	"metals":    "Kosh/Gold & Silver",
 	"nps":       "Kosh/NPS",
 	"income":    "Kosh/Payslips",
+	"tax_rules": "Kosh/Tax Rules",
 }
 
 // UploadResult is returned to the frontend after parsing.
@@ -61,7 +62,7 @@ func (h *UploadHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	docType := strings.TrimPrefix(r.URL.Path, "/api/upload/")
 	if _, ok := driveFolders[docType]; !ok {
-		http.Error(w, fmt.Sprintf("unknown document type %q — use fd, insurance, metals, or nps", docType), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unknown document type %q — use fd, insurance, metals, nps, income, or tax_rules", docType), http.StatusBadRequest)
 		return
 	}
 

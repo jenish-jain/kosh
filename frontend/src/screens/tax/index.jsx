@@ -4,12 +4,12 @@ import { todayDisplay } from '../../data/schedule.js'
 import { KICK, SERIF } from '../../data/tokens.js'
 import { EdRule } from '../../components/Primitives.jsx'
 import {
-  taxOldRegime, taxNewRegime, slabLabelOld, slabLabelNew, effectiveRate,
-  NEW_STD_DEDUCTION, currentFY,
+  computeTax, slabLabel, effectiveRate, currentFY, activeRuleSet,
 } from './taxMath.js'
 import PotentialInflowsTile from './PotentialInflows.jsx'
 import RecommendationsPanel from './RecommendationsPanel.jsx'
 import AdvanceTaxSchedule from './AdvanceTaxSchedule.jsx'
+import TaxRulesAdmin from './TaxRulesAdmin.jsx'
 
 // ── Surcharge runway bar ──────────────────────────────────────
 function SurchargeBar({ income }) {
@@ -149,7 +149,10 @@ export default function Tax({ data, memberId }) {
   // Default regime from Config sheet (regime=new/old); falls back to old
   const [regime, setRegime] = useState(() => (cfg.regime || '').toLowerCase() === 'new' ? 'new' : 'old')
   const isNew = regime === 'new'
-  const taxFn = isNew ? taxNewRegime : taxOldRegime
+  const oldRules = activeRuleSet(data.tax_rules, fy.label, 'old')
+  const newRules = activeRuleSet(data.tax_rules, fy.label, 'new')
+  const rules = isNew ? newRules : oldRules
+  const taxFn = income => computeTax(rules, income)
 
   // Derive annual gross from Income tab (latest period × 12), fall back to Config
   const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11}
@@ -172,7 +175,7 @@ export default function Tax({ data, memberId }) {
   }
 
   const taxPayable = taxFn(grossIncome)
-  const slab = isNew ? slabLabelNew(grossIncome) : slabLabelOld(grossIncome)
+  const slab = slabLabel(rules, grossIncome)
   const effRate = effectiveRate(grossIncome, taxFn)
   const savedByFiling = cfg.saved_by_filing || 0
 
@@ -182,11 +185,14 @@ export default function Tax({ data, memberId }) {
   const otherDeductions = cfg.other_deductions || 0
   const totalOldDeductions = deduction80c + deduction80d + otherDeductions
   const taxableIncomeOld = Math.max(0, grossIncome - totalOldDeductions)
-  const taxAfterOldDeductions = taxOldRegime(taxableIncomeOld)
+  const taxAfterOldDeductions = computeTax(oldRules, taxableIncomeOld)
 
   // New regime: standard deduction only
-  const taxableIncomeNew = Math.max(0, grossIncome - NEW_STD_DEDUCTION)
-  const rebateEligible = taxableIncomeNew <= 1200000
+  const newStdDeduction = newRules.stdDeduction || 0
+  const taxableIncomeNew = Math.max(0, grossIncome - newStdDeduction)
+  const rebateEligible = taxableIncomeNew <= (newRules.rebateThreshold || 0)
+
+  const [showTaxRulesAdmin, setShowTaxRulesAdmin] = useState(false)
 
   const memberName = memberId
     ? ((data.members || []).find(m => m.id === memberId)?.full_name || '').replace(' (You)', '')
@@ -199,7 +205,10 @@ export default function Tax({ data, memberId }) {
           <div style={{ ...KICK, letterSpacing: '.18em' }}>Tax position &amp; planning</div>
           <div className="stmt-meta">{memberName} · {fy.label} · {todayDisplay()}</div>
         </div>
-        <RegimeSwitcher value={regime} onChange={setRegime} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="btn ghost sm" onClick={() => setShowTaxRulesAdmin(true)}>Tax rules</button>
+          <RegimeSwitcher value={regime} onChange={setRegime} />
+        </div>
       </div>
       <EdRule thick />
 
@@ -245,7 +254,7 @@ export default function Tax({ data, memberId }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
               {[
                 { label: 'Effective rate', value: `${effRate}%` },
-                { label: 'Std deduction', value: fmtCompact(NEW_STD_DEDUCTION) },
+                { label: 'Std deduction', value: fmtCompact(newStdDeduction) },
                 { label: '87A rebate', value: rebateEligible ? 'Eligible' : 'Not eligible', color: rebateEligible ? 'var(--pos)' : 'var(--warn)' },
                 { label: 'Net take-home', value: fmtCompact(grossIncome - taxPayable) },
               ].map((r, i) => (
@@ -281,7 +290,7 @@ export default function Tax({ data, memberId }) {
               <div style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700 }}>Standard deduction</span>
-                  <span className="num serif-num" style={{ fontSize: 14, color: 'var(--pos)' }}>{fmtINR(NEW_STD_DEDUCTION)}</span>
+                  <span className="num serif-num" style={{ fontSize: 14, color: 'var(--pos)' }}>{fmtINR(newStdDeduction)}</span>
                 </div>
                 <div style={{ height: 6, background: 'var(--line)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
                   <div style={{ height: '100%', width: '100%', background: 'var(--pos)', borderRadius: 2 }} />
@@ -311,8 +320,8 @@ export default function Tax({ data, memberId }) {
               <div style={KICK}>Deduction breakdown</div>
               <div style={{ marginTop: 12 }}>
                 {[
-                  { label: '80C (ELSS · PF · LIC)', cap: 150000, used: deduction80c },
-                  { label: '80D (health insurance)', cap: 50000, used: deduction80d },
+                  { label: '80C (ELSS · PF · LIC)', cap: oldRules.deductionCaps?.section80C || 150000, used: deduction80c },
+                  { label: '80D (health insurance)', cap: oldRules.deductionCaps?.section80DSelf || 25000, used: deduction80d },
                   { label: 'Other (NPS · LTA etc.)', cap: 150000, used: otherDeductions },
                 ].map(d => {
                   const pct = d.cap > 0 ? Math.min(d.used / d.cap * 100, 100) : 0
@@ -360,8 +369,12 @@ export default function Tax({ data, memberId }) {
 
       <div style={{ fontFamily: SERIF, fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink-3)', lineHeight: 1.7 }}>
         Indicative figures under {isNew ? 'new' : 'old'} regime · no marginal relief applied · consult a qualified CA before acting on any strategy.
-        {isNew && ' New regime: standard deduction ₹75,000 auto-applied; 87A rebate if taxable income ≤ ₹12L.'}
+        {isNew && ` New regime: standard deduction ${fmtCompact(newStdDeduction)} auto-applied; 87A rebate if taxable income ≤ ${fmtCompact(newRules.rebateThreshold || 0)}.`}
       </div>
+
+      {showTaxRulesAdmin && (
+        <TaxRulesAdmin data={data} onClose={() => setShowTaxRulesAdmin(false)} />
+      )}
     </div>
   )
 }

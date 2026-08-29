@@ -58,6 +58,37 @@ export async function generateTaxRecommendations(regime) {
   return res.json()
 }
 
+export async function proposeTaxRules(proposal) {
+  const res = await fetch(`${BASE}/tax/rules/propose`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(proposal),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body.trim() || `Server error ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function approveTaxRule(id) {
+  const res = await fetch(`${BASE}/tax/rules/${id}/approve`, { method: 'POST' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body.trim() || `Server error ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function rejectTaxRule(id) {
+  const res = await fetch(`${BASE}/tax/rules/${id}/reject`, { method: 'POST' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body.trim() || `Server error ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function chatMessage(messages) {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',

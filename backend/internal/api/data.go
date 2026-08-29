@@ -185,6 +185,11 @@ func (h *Handler) fetchFromRepos() *models.Data {
 	} else {
 		tabLog("TaxRecommendations", e)
 	}
+	if rows, e := h.repos.TaxRules.All(); e == nil {
+		d.TaxRules = rows
+	} else {
+		tabLog("TaxRules", e)
+	}
 
 	// Config is a key-value sheet with no typed repository — read it directly.
 	if h.configAPI != nil {

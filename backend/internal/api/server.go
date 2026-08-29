@@ -59,6 +59,7 @@ func NewServer(
 	docH         *documents.UploadHandler,
 	aiH          *ai.Handler,
 	taxH         *ai.TaxHandler,
+	taxRulesH    *ai.TaxRulesHandler,
 	frontendDist string,
 ) http.Handler {
 	mux := http.NewServeMux()
@@ -91,6 +92,10 @@ func NewServer(
 	}
 	if taxH != nil {
 		mux.HandleFunc("/api/tax/recommendations/generate", protect(taxH.Generate))
+	}
+	if taxRulesH != nil {
+		mux.HandleFunc("/api/tax/rules/propose", protect(taxRulesH.Propose))
+		mux.HandleFunc("/api/tax/rules/", protect(taxRulesH.Route))
 	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 

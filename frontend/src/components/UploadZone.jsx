@@ -67,6 +67,7 @@ export default function UploadZone({ docType, onExtracted, onClose }) {
     metals:    'gold or silver invoice',
     nps:       'KFintech NPS account statement',
     income:    'payslip or salary slip',
+    tax_rules: 'Budget memorandum, Finance Bill excerpt, or CBDT circular',
   }
 
   return (

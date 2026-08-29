@@ -25,6 +25,7 @@ var promptFiles = map[string]string{
 	"metals":    "metals.md",
 	"nps":       "nps.md",
 	"income":    "income.md",
+	"tax_rules": "tax_rules.md",
 }
 
 // ClaudeParser calls the Anthropic API to extract structured fields from a document.
