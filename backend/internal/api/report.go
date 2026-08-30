@@ -59,7 +59,14 @@ func (h *Handler) ExportReport(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.xlsx"`, filename))
 		w.Write(fileBytes)
 	case "pdf":
-		http.Error(w, "PDF export is not available yet", http.StatusNotImplemented)
+		fileBytes, err := report.RenderPDF(tables, meta)
+		if err != nil {
+			http.Error(w, "generating report: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.pdf"`, filename))
+		w.Write(fileBytes)
 	}
 }
 
