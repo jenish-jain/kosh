@@ -110,6 +110,15 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
             </button>
           )}
         </div>
+        <a
+          href="https://jenishjain.in/" target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'block', marginTop: 10, fontSize: 9, letterSpacing: '.04em',
+            color: 'var(--ink-3)', opacity: .5, textDecoration: 'none',
+          }}
+        >
+          Developed by Jenish Jain
+        </a>
       </div>
     </aside>
   )
