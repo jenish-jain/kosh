@@ -47,6 +47,16 @@ func securityHeaders(next http.Handler) http.Handler {
 		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
+		// This deployment is fronted by a Netlify reverse-proxy (see
+		// netlify/netlify.toml) for the custom domain — without an explicit
+		// no-store, a CDN/edge layer (or an intermediate browser cache) can
+		// cache a dynamic, per-session /api/ GET response and serve it stale
+		// on a later request that hits a different edge node or an expired-
+		// but-still-served cache entry. Static frontend assets are excluded
+		// so JS/CSS bundles keep benefiting from normal caching.
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			h.Set("Cache-Control", "no-store")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

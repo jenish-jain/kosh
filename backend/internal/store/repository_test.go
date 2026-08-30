@@ -119,6 +119,28 @@ func TestAdd_AppendsCorrectRow(t *testing.T) {
 	}
 }
 
+func TestAdd_LargeFloatDoesNotUseScientificNotation(t *testing.T) {
+	f := store.NewFakeSheetsAPI()
+	seedMFHeader(f)
+
+	repo := store.NewRepository[models.MFRow](f, mfSheetName)
+	// fmt.Sprintf("%g", 1350000.0) renders "1.35e+06" — with the Sheets API's
+	// USER_ENTERED input option that's still a valid number, but it's a
+	// confusing thing for a human to see when opening the sheet directly,
+	// and the cell keeps that scientific formatting going forward.
+	if _, err := repo.Add(models.MFRow{ID: "mf1", Invested: 1350000, Current: 5000000}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	dataRow := f.Data[mfSheetName][1]
+	if dataRow[5] != "1350000" {
+		t.Errorf("Invested cell = %v, want %q (no scientific notation)", dataRow[5], "1350000")
+	}
+	if dataRow[6] != "5000000" {
+		t.Errorf("Current cell = %v, want %q (no scientific notation)", dataRow[6], "5000000")
+	}
+}
+
 // --- Update() tests ---
 
 func TestUpdate_ModifiesSpecifiedFields(t *testing.T) {
