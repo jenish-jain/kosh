@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useData } from '../../data/context.jsx'
 import { Toast } from '../Primitives.jsx'
+import { Icon } from '../Icons.jsx'
+import ExportModal from '../ExportModal.jsx'
 import Sidebar from './Sidebar.jsx'
 import MemberSwitcher from './MemberSwitcher.jsx'
 import LoadingScreen from './LoadingScreen.jsx'
@@ -24,6 +26,7 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
   const [toast, setToast] = useState(null)
   const [showPinSettings, setShowPinSettings] = useState(false)
   const [showAsk, setShowAsk] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const pinLock = usePinLock()
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
@@ -59,6 +62,9 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
       <div className="main">
         <header className="topbar">
           <div className="topbar-spacer" style={{ flex: 1 }} />
+          <button className="btn ghost sm" onClick={() => setShowExport(true)} title="Export report" style={{ marginRight: 10 }}>
+            <Icon name="download" size={15} />
+          </button>
           <MemberSwitcher member={member} setMember={setMember} members={data?.members} />
         </header>
         <main className="content fade-in" key={screen}>
@@ -71,6 +77,7 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
       {pinLock.locked && <PinLock onVerify={pinLock.verify} />}
       {showPinSettings && <PinSettings pinLock={pinLock} onClose={() => setShowPinSettings(false)} />}
       {showAsk && <AskModal onClose={() => setShowAsk(false)} />}
+      {showExport && <ExportModal data={data} memberId={member} onClose={() => setShowExport(false)} />}
     </div>
   )
 }
