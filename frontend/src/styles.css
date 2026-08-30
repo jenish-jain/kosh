@@ -563,6 +563,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   /* ─ Marketing pages: multi-column grids → stack ─ */
   .marketing-grid-3, .marketing-grid-2 { grid-template-columns: 1fr !important; gap: 28px !important; }
+  /* Alternating feature rows use `order` to zigzag image/text on desktop —
+     reset it on mobile so every row reads text-then-image, not a zigzag. */
+  .marketing-row-text { order: 1 !important; }
+  .marketing-row-image { order: 2 !important; }
 
   /* ─ Marketing header: hide the middle nav links, keep logo + Sign in ─ */
   .marketing-header { padding: 14px 18px !important; }
