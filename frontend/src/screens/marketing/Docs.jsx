@@ -131,20 +131,6 @@ docker run -p 8080:8080 \\
           </p>
         </Section>
       </Container>
-
-      <div style={{ borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-        <Container style={{ paddingTop: 56, paddingBottom: 56, textAlign: 'center' }}>
-          <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, marginBottom: 20 }}>
-            Every tab schema, every environment variable, in one place
-          </div>
-          <a
-            href="https://github.com/jenish-jain/kosh/blob/master/docs/SELF_HOSTING.md" target="_blank" rel="noopener noreferrer"
-            className="btn primary" style={{ textDecoration: 'none', padding: '11px 22px', fontSize: 14 }}
-          >
-            Open the full self-hosting guide →
-          </a>
-        </Container>
-      </div>
     </MarketingLayout>
   )
 }
