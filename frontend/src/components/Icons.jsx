@@ -13,6 +13,7 @@ const Ic = {
   chevD:   "M6 9l6 6 6-6",
   search:  "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-3.5-3.5",
   upload:  "M12 16V4M7 9l5-5 5 5M5 20h14",
+  download: "M12 4v12M7 11l5 5 5-5M5 20h14",
   trash:   "M4 6h16M9 6V4h6v2M19 6l-1 14H6L5 6",
   check:   "M5 12l4.5 4.5L19 7",
   save:    "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2ZM17 21v-8H7v8M7 3v5h8",

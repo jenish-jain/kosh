@@ -87,6 +87,7 @@ func NewServer(
 	// ── Protected routes ─────────────────────────────────────────────────────
 	mux.HandleFunc("/api/upload/", protect(docH.Handle))
 	mux.HandleFunc("/api/data", protect(apiH.GetData))
+	mux.HandleFunc("/api/report/export", protect(apiH.ExportReport))
 	if aiH != nil {
 		mux.HandleFunc("/api/chat", protect(aiH.Handle))
 	}
