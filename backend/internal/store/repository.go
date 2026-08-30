@@ -231,7 +231,12 @@ func buildRow(item any, columns []string, indices map[string]int) []interface{} 
 		case reflect.String:
 			row[colIdx] = fv.String()
 		case reflect.Float64:
-			row[colIdx] = fmt.Sprintf("%g", fv.Float())
+			// 'f' (never scientific notation) — %g switches to exponential
+			// form for large-magnitude values (e.g. 1350000 -> "1.35e+06"),
+			// which Sheets' USER_ENTERED input option would happily accept
+			// but is confusing to a human opening the sheet directly. -1
+			// precision keeps the shortest exact decimal representation.
+			row[colIdx] = strconv.FormatFloat(fv.Float(), 'f', -1, 64)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			row[colIdx] = fmt.Sprintf("%d", fv.Int())
 		default:

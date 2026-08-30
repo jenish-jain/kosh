@@ -5,17 +5,24 @@ import { Icon } from '../../components/Icons.jsx'
 import { useData } from '../../data/context.jsx'
 import { generateTaxRecommendations } from '../../data/api.js'
 
-const STATUS_PILL = { new: 'pill accent', actioned: 'pill pos', dismissed: 'pill neutral' }
-const STATUS_LABEL = { new: 'New', actioned: 'Actioned', dismissed: 'Dismissed' }
+const STATUS_PILL = { new: 'pill accent', actioned: 'pill pos', dismissed: 'pill neutral', superseded: 'pill neutral' }
+const STATUS_LABEL = { new: 'New', actioned: 'Actioned', dismissed: 'Dismissed', superseded: 'Superseded' }
 
 function RecommendationCard({ rec, onUpdate, busy }) {
+  // A row keeps whatever status it had (new/actioned/dismissed) when a later
+  // generation cycle superseded it — superseded_by is set independently of
+  // status. Surface that here rather than showing a stale "New" pill on
+  // advice that's no longer current.
+  const superseded = !!rec.superseded_by
+  const displayStatus = superseded ? 'superseded' : rec.status
+
   return (
-    <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
+    <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line)', opacity: superseded ? 0.6 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={KICK}>{rec.category}</span>
-            <span className={STATUS_PILL[rec.status] || 'pill neutral'}>{STATUS_LABEL[rec.status] || rec.status}</span>
+            <span className={STATUS_PILL[displayStatus] || 'pill neutral'}>{STATUS_LABEL[displayStatus] || displayStatus}</span>
           </div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>{rec.headline}</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 500, marginTop: 6, lineHeight: 1.6 }}>{rec.rationale}</div>
@@ -32,7 +39,7 @@ function RecommendationCard({ rec, onUpdate, busy }) {
         </div>
       </div>
 
-      {rec.status === 'new' && (
+      {rec.status === 'new' && !superseded && (
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button className="btn ghost sm" disabled={busy} onClick={() => onUpdate(rec.id, 'actioned')}>
             <Icon name="check" size={14} /> Mark actioned
