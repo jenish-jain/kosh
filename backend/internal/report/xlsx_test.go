@@ -28,13 +28,22 @@ func TestRenderXLSX_RoundTrips(t *testing.T) {
 	defer f.Close()
 
 	sheets := f.GetSheetList()
-	if len(sheets) != len(tables) {
-		t.Errorf("got %d sheets, want %d (tables: %v, sheets: %v)", len(sheets), len(tables), tableTitles(tables), sheets)
+	// +1 for the trailing "About" branding sheet.
+	if len(sheets) != len(tables)+1 {
+		t.Errorf("got %d sheets, want %d (tables: %v, sheets: %v)", len(sheets), len(tables)+1, tableTitles(tables), sheets)
 	}
 	for _, s := range sheets {
 		if s == "Sheet1" {
 			t.Errorf("default Sheet1 was not removed; sheets = %v", sheets)
 		}
+	}
+
+	about, err := f.GetCellValue("About", "A1")
+	if err != nil {
+		t.Fatalf("GetCellValue(About, A1): %v", err)
+	}
+	if about != report.BrandingFooter {
+		t.Errorf("About!A1 = %q, want %q", about, report.BrandingFooter)
 	}
 
 	got, err := f.GetCellValue("Mutual Funds", "A4")
