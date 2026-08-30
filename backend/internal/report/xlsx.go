@@ -83,6 +83,17 @@ func RenderXLSX(tables []Table, meta ReportMeta) ([]byte, error) {
 		}
 	}
 
+	aboutStyle, err := f.NewStyle(&excelize.Style{Font: &excelize.Font{Italic: true, Color: "969696"}})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := f.NewSheet("About"); err != nil {
+		return nil, fmt.Errorf("creating About sheet: %w", err)
+	}
+	f.SetCellStr("About", "A1", BrandingFooter)
+	f.SetCellStyle("About", "A1", "A1", aboutStyle)
+	f.SetColWidth("About", "A", "A", 70)
+
 	if firstSheet != "" {
 		f.SetActiveSheet(0)
 		f.DeleteSheet("Sheet1")

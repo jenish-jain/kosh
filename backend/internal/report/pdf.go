@@ -51,6 +51,8 @@ func RenderPDF(tables []Table, meta ReportMeta) ([]byte, error) {
 		pdf.Ln(6)
 	}
 
+	drawBrandingFooter(pdf, tr)
+
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, fmt.Errorf("rendering pdf: %w", err)
@@ -58,14 +60,33 @@ func RenderPDF(tables []Table, meta ReportMeta) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func drawTable(pdf *fpdf.Fpdf, tr func(string) string, t Table) {
-	pageW, pageH := pdf.GetPageSize()
+// printableBottom returns the Y coordinate below which content must not be
+// placed without a page break first.
+func printableBottom(pdf *fpdf.Fpdf) float64 {
+	_, pageH := pdf.GetPageSize()
 	_, _, _, marginBottom := pdf.GetMargins()
+	return pageH - marginBottom
+}
+
+// drawBrandingFooter closes out the report with a single small, muted
+// attribution line after the last table.
+func drawBrandingFooter(pdf *fpdf.Fpdf, tr func(string) string) {
+	if pdf.GetY()+8 > printableBottom(pdf) {
+		pdf.AddPage()
+	}
+	pdf.SetFont("Helvetica", "I", 8)
+	pdf.SetTextColor(150, 150, 150)
+	pdf.CellFormat(0, 6, tr(BrandingFooter), "", 1, "C", false, 0, "")
+	pdf.SetTextColor(0, 0, 0)
+}
+
+func drawTable(pdf *fpdf.Fpdf, tr func(string) string, t Table) {
+	pageW, _ := pdf.GetPageSize()
 	printableW := pageW - pageMargin*2
-	printableBottom := pageH - marginBottom
+	pageBottom := printableBottom(pdf)
 
 	// Don't orphan a title + header row alone at the bottom of a page.
-	if pdf.GetY()+10+headerHeight+rowHeight > printableBottom {
+	if pdf.GetY()+10+headerHeight+rowHeight > pageBottom {
 		pdf.AddPage()
 	}
 
@@ -91,7 +112,7 @@ func drawTable(pdf *fpdf.Fpdf, tr func(string) string, t Table) {
 
 	pdf.SetFont("Helvetica", "", 8.5)
 	for _, row := range t.Rows {
-		if pdf.GetY()+rowHeight > printableBottom {
+		if pdf.GetY()+rowHeight > pageBottom {
 			pdf.AddPage()
 			drawHeader()
 			pdf.SetFont("Helvetica", "", 8.5)
@@ -107,7 +128,7 @@ func drawTable(pdf *fpdf.Fpdf, tr func(string) string, t Table) {
 	}
 
 	if len(t.Totals) > 0 {
-		if pdf.GetY()+rowHeight > printableBottom {
+		if pdf.GetY()+rowHeight > pageBottom {
 			pdf.AddPage()
 			drawHeader()
 		}
