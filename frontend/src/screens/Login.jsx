@@ -146,6 +146,14 @@ export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
         >
           View source & self-host →
         </a>
+        <div>
+          <a
+            href="https://jenishjain.in/" target="_blank" rel="noopener noreferrer"
+            style={{ ...KICK, display: 'inline-block', marginTop: 10, fontSize: 9.5, color: 'var(--ink-3)', opacity: .6, textDecoration: 'none' }}
+          >
+            Developed by Jenish Jain
+          </a>
+        </div>
       </div>
     </div>
   )
