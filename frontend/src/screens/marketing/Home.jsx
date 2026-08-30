@@ -73,21 +73,6 @@ export default function Home() {
           </div>
         </Container>
       </div>
-
-      {/* Footer CTA */}
-      <Container style={{ paddingTop: 72, paddingBottom: 88, textAlign: 'center' }}>
-        <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, marginBottom: 16 }}>
-          Ready to see your whole financial picture?
-        </div>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/app" className="btn primary" style={{ textDecoration: 'none', padding: '11px 22px', fontSize: 14 }}>
-            Try the demo →
-          </Link>
-          <Link to="/docs" className="btn" style={{ textDecoration: 'none', padding: '11px 22px', fontSize: 14 }}>
-            Read the self-host guide
-          </Link>
-        </div>
-      </Container>
     </MarketingLayout>
   )
 }
