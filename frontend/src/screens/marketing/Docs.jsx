@@ -1,5 +1,6 @@
 import MarketingLayout, { Container } from './MarketingLayout.jsx'
 import { KICK, SERIF } from '../../data/tokens.js'
+import { useDocumentTitle } from '../../data/useDocumentTitle.js'
 
 const SECTIONS = [
   { id: 'quick-start', label: 'Quick start' },
@@ -31,6 +32,7 @@ function Section({ id, title, children }) {
 }
 
 export default function Docs() {
+  useDocumentTitle('Documentation — Kosh')
   return (
     <MarketingLayout>
       <Container style={{ paddingTop: 64, paddingBottom: 16, textAlign: 'center' }}>

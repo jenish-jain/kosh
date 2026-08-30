@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import MarketingLayout, { Container } from './MarketingLayout.jsx'
 import { KICK, SERIF } from '../../data/tokens.js'
+import { useDocumentTitle } from '../../data/useDocumentTitle.js'
 
 export default function About() {
+  useDocumentTitle('About — Kosh')
   return (
     <MarketingLayout>
       <Container style={{ paddingTop: 64, paddingBottom: 16, textAlign: 'center' }}>

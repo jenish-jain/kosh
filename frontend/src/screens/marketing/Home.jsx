@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import MarketingLayout, { Container } from './MarketingLayout.jsx'
 import { KICK, SERIF } from '../../data/tokens.js'
+import { useDocumentTitle } from '../../data/useDocumentTitle.js'
 
 const VALUE_PROPS = [
   {
@@ -18,6 +19,7 @@ const VALUE_PROPS = [
 ]
 
 export default function Home() {
+  useDocumentTitle('Kosh — Family Wealth')
   return (
     <MarketingLayout>
       {/* Hero */}
