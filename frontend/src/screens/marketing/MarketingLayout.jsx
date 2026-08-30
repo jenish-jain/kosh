@@ -52,18 +52,9 @@ export default function MarketingLayout({ children }) {
       <main style={{ flex: 1 }}>{children}</main>
 
       <footer style={{ borderTop: '1px solid var(--line)', padding: '32px', textAlign: 'center' }}>
-        <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
-          <Link to="/" style={{ color: 'inherit', textDecoration: 'none', fontWeight: 700 }}>Kosh</Link>
-          {' · '}
-          <a href="https://github.com/jenish-jain/kosh" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-            View source & self-host
-          </a>
-          {' · '}
-          <Link to="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
-        </div>
         <a
           href="https://jenishjain.in/" target="_blank" rel="noopener noreferrer"
-          style={{ display: 'inline-block', marginTop: 10, fontSize: 10.5, letterSpacing: '.04em', color: 'var(--ink-3)', opacity: .6, textDecoration: 'none' }}
+          style={{ display: 'inline-block', fontSize: 10.5, letterSpacing: '.04em', color: 'var(--ink-3)', opacity: .6, textDecoration: 'none' }}
         >
           Developed by Jenish Jain
         </a>
