@@ -95,8 +95,8 @@ func TestBilling_LapsedHouseholdIsReadOnlyButKeepsSafetyActions(t *testing.T) {
 
 	e.endTrial(hid)
 
-	if code, out := alice.do("POST", "/api/Members", map[string]string{"id": "m2", "name": "Ravi"}); code != 402 || !strings.Contains(out, "subscription_required") {
-		t.Errorf("edit after trial: want 402 subscription_required, got %d %s", code, out)
+	if code, out := alice.do("POST", "/api/Members", map[string]string{"id": "m2", "name": "Ravi"}); code != 402 || !strings.Contains(out, "read-only") {
+		t.Errorf("edit after trial: want 402 read-only, got %d %s", code, out)
 	}
 	if code, _ := alice.do("POST", "/api/shares", map[string]string{"name": "Dad"}); code != 402 {
 		t.Errorf("new share link after trial: want 402, got %d", code)
