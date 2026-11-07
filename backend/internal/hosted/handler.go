@@ -42,6 +42,22 @@ type Handler struct {
 
 	// cancelSubscription stops billing immediately (account deletion).
 	cancelSubscription func(ctx context.Context, subscriptionID string) error
+	// entitlements reports a household's tier and features (billing).
+	entitlements func(ctx context.Context, b controlplane.Billing) (string, map[string]bool, error)
+	// isOperator reports whether an account runs the service.
+	isOperator func(email string) bool
+}
+
+// SetEntitlements wires billing's tiers into the household views, so the
+// UI can hide what the household's plan doesn't include. (The billing
+// middleware enforces it regardless.)
+func (h *Handler) SetEntitlements(fn func(ctx context.Context, b controlplane.Billing) (string, map[string]bool, error)) {
+	h.entitlements = fn
+}
+
+// SetOperatorCheck lets /me tell the UI to show the operator settings.
+func (h *Handler) SetOperatorCheck(fn func(email string) bool) {
+	h.isOperator = fn
 }
 
 // SetSubscriptionCanceller wires billing into account deletion.
@@ -111,16 +127,18 @@ type billingView struct {
 }
 
 type householdView struct {
-	ID             string      `json:"id"`
-	Name           string      `json:"name"`
-	Role           string      `json:"role"`
-	OwnerEmail     string      `json:"owner_email"`
-	NeedsReconnect bool        `json:"needs_reconnect"`
-	SheetURL       string      `json:"sheet_url,omitempty"` // owner only — it's their Drive file
-	Billing        billingView `json:"billing"`
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Role           string          `json:"role"`
+	OwnerEmail     string          `json:"owner_email"`
+	NeedsReconnect bool            `json:"needs_reconnect"`
+	SheetURL       string          `json:"sheet_url,omitempty"` // owner only — it's their Drive file
+	Billing        billingView     `json:"billing"`
+	Tier           string          `json:"tier,omitempty"`
+	Features       map[string]bool `json:"features,omitempty"`
 }
 
-func viewHousehold(hh controlplane.Household, role string) householdView {
+func (h *Handler) viewHousehold(ctx context.Context, hh controlplane.Household, role string) householdView {
 	v := householdView{
 		ID: hh.ID, Name: hh.Name, Role: role, OwnerEmail: hh.OwnerEmail, NeedsReconnect: hh.NeedsReconnect,
 		Billing: billingView{
@@ -130,6 +148,13 @@ func viewHousehold(hh controlplane.Household, role string) householdView {
 	}
 	if role == controlplane.RoleOwner {
 		v.SheetURL = "https://docs.google.com/spreadsheets/d/" + hh.SpreadsheetID
+	}
+	if h.entitlements != nil {
+		var err error
+		if v.Tier, v.Features, err = h.entitlements(ctx, hh.Billing); err != nil {
+			// Only a display hint — the server still enforces the plan.
+			log.Printf("⚠ hosted: loading features for %s: %v", hh.ID, err)
+		}
 	}
 	return v
 }
@@ -168,7 +193,7 @@ func (h *Handler) ownerOnly(w http.ResponseWriter, r *http.Request, email string
 // ── endpoints ───────────────────────────────────────────────────────────────
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request, email string) {
-	out := map[string]any{"email": email, "household": nil}
+	out := map[string]any{"email": email, "household": nil, "operator": h.isOperator != nil && h.isOperator(email)}
 	m, err := h.store.GetMember(r.Context(), email)
 	switch {
 	case errors.Is(err, controlplane.ErrNotFound):
@@ -181,7 +206,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request, email string) {
 			serverError(w, "loading household", err)
 			return
 		}
-		out["household"] = viewHousehold(hh, m.Role)
+		out["household"] = h.viewHousehold(r.Context(), hh, m.Role)
 	}
 	writeJSON(w, out)
 }
@@ -252,7 +277,7 @@ func (h *Handler) onboard(w http.ResponseWriter, r *http.Request, email string) 
 		serverError(w, "saving your household", err)
 		return
 	}
-	writeJSON(w, map[string]any{"household": viewHousehold(hh, controlplane.RoleOwner)})
+	writeJSON(w, map[string]any{"household": h.viewHousehold(r.Context(), hh, controlplane.RoleOwner)})
 }
 
 // reconnect stores a fresh Drive grant after Google revoked the old one.
@@ -288,7 +313,7 @@ func (h *Handler) reconnect(w http.ResponseWriter, r *http.Request, email string
 		return
 	}
 	h.resolver.Invalidate(hh.ID)
-	writeJSON(w, map[string]any{"household": viewHousehold(updated, controlplane.RoleOwner)})
+	writeJSON(w, map[string]any{"household": h.viewHousehold(r.Context(), updated, controlplane.RoleOwner)})
 }
 
 // exchange trades the code for a grant and insists it belongs to the
@@ -337,7 +362,7 @@ func (h *Handler) household(w http.ResponseWriter, r *http.Request, email string
 		serverError(w, "listing members", err)
 		return
 	}
-	out := map[string]any{"household": viewHousehold(hh, m.Role)}
+	out := map[string]any{"household": h.viewHousehold(r.Context(), hh, m.Role)}
 	mv := make([]memberView, 0, len(members))
 	for _, x := range members {
 		mv = append(mv, memberView{Email: x.Email, Role: x.Role, JoinedAt: x.JoinedAt})
@@ -452,7 +477,7 @@ func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request, email str
 		serverError(w, "loading household", err)
 		return
 	}
-	writeJSON(w, map[string]any{"household": viewHousehold(hh, m.Role)})
+	writeJSON(w, map[string]any{"household": h.viewHousehold(r.Context(), hh, m.Role)})
 }
 
 func (h *Handler) cancelInvite(w http.ResponseWriter, r *http.Request, email, id string) {

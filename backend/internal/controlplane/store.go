@@ -83,6 +83,16 @@ type Invite struct {
 	ExpiresAt   time.Time
 }
 
+// FeaturePolicy is the operator's choice of which features each tier gets:
+// tier -> feature -> enabled. The store only persists it; the billing
+// package defines the tiers and features and fills in defaults for anything
+// the stored policy doesn't mention.
+type FeaturePolicy struct {
+	Tiers     map[string]map[string]bool
+	UpdatedBy string
+	UpdatedAt time.Time
+}
+
 // Store is the control-plane persistence interface. Implementations must
 // make every method safe for concurrent use and atomic on its own.
 type Store interface {
@@ -136,6 +146,11 @@ type Store interface {
 	// MarkEventProcessed records a webhook event ID, returning false if it
 	// was already recorded — for idempotent webhook handling.
 	MarkEventProcessed(ctx context.Context, eventID string) (bool, error)
+
+	// GetFeaturePolicy returns the saved policy, or ErrNotFound if the
+	// operator has never saved one.
+	GetFeaturePolicy(ctx context.Context) (FeaturePolicy, error)
+	PutFeaturePolicy(ctx context.Context, p FeaturePolicy) error
 }
 
 // NormalizeEmail is the one canonical form emails are stored and looked

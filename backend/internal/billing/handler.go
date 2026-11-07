@@ -36,13 +36,13 @@ const maxWebhookBody = 256 << 10
 // household's current one (e.g. an abandoned checkout) — ignored.
 var errStaleSubscription = errors.New("stale subscription")
 
-// Handler serves /api/billing/* and enforces read-only access for lapsed
-// households.
+// Handler serves /api/billing/* and enforces each tier's features.
 type Handler struct {
 	store        controlplane.Store
 	gw           Gateway
 	planIDs      map[string]string // plan key -> Razorpay plan ID
 	plans        map[string]Plan
+	policy       *Policy
 	sessionEmail func(*http.Request) (string, bool)
 	isDemo       func(*http.Request) bool
 	now          func() time.Time
@@ -50,9 +50,9 @@ type Handler struct {
 
 // NewHandler loads the configured plans from the gateway up front, so a
 // misconfigured plan ID fails startup rather than a customer's checkout.
-func NewHandler(ctx context.Context, store controlplane.Store, gw Gateway, planIDs map[string]string,
+func NewHandler(ctx context.Context, store controlplane.Store, gw Gateway, planIDs map[string]string, policy *Policy,
 	sessionEmail func(*http.Request) (string, bool), isDemo func(*http.Request) bool) (*Handler, error) {
-	h := &Handler{store: store, gw: gw, planIDs: planIDs, plans: map[string]Plan{}, sessionEmail: sessionEmail, isDemo: isDemo, now: time.Now}
+	h := &Handler{store: store, gw: gw, planIDs: planIDs, plans: map[string]Plan{}, policy: policy, sessionEmail: sessionEmail, isDemo: isDemo, now: time.Now}
 	for key, id := range planIDs {
 		p, err := gw.FetchPlan(ctx, id)
 		if err != nil {
@@ -405,13 +405,13 @@ func (h *Handler) CancelNow(ctx context.Context, subID string) error {
 	return err
 }
 
-// Enforce wraps the server: a household without Full access (trial over,
-// subscription lapsed) can still read and export everything, and revoke or
-// delete family-share links — but not edit data, use AI, or create new
-// share links. Answers 402 subscription_required.
+// Enforce wraps the server: each gated request (see featureFor) is allowed
+// only if the household's tier has that feature in the operator's policy.
+// Answers 402 with an explanation otherwise.
 func (h *Handler) Enforce(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !needsFullAccess(r) || h.isDemo(r) {
+		feature := featureFor(r)
+		if feature == "" || h.isDemo(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -430,35 +430,25 @@ func (h *Handler) Enforce(next http.Handler) http.Handler {
 			serverError(w, "checking your subscription", err)
 			return
 		}
-		if AccessFor(hh.Billing, h.now()) != Full {
-			http.Error(w, "subscription_required", http.StatusPaymentRequired)
+		tier := TierFor(hh.Billing, h.now())
+		features, err := h.policy.Features(r.Context(), tier)
+		if err != nil {
+			serverError(w, "checking your plan", err)
+			return
+		}
+		if !features[feature] {
+			http.Error(w, unavailable(tier, feature), http.StatusPaymentRequired)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
-// needsFullAccess: state-changing API calls, minus the ones a lapsed
-// household must always keep (account, billing, recipients' own views,
-// and revoking or deleting share links).
-func needsFullAccess(r *http.Request) bool {
-	p := r.URL.Path
-	if !strings.HasPrefix(p, "/api/") {
-		return false
-	}
-	switch r.Method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions:
-		return false
-	}
-	for _, prefix := range []string{"/api/auth/", "/api/hosted/", "/api/billing/", "/api/share/", "/api/dev/"} {
-		if strings.HasPrefix(p, prefix) {
-			return false
-		}
-	}
-	if strings.HasPrefix(p, "/api/shares/") && (r.Method == http.MethodDelete || strings.HasSuffix(p, "/revoke")) {
-		return false
-	}
-	return true
+// Entitlements reports a household's tier and what it may do, for the UI.
+func (h *Handler) Entitlements(ctx context.Context, b controlplane.Billing) (string, map[string]bool, error) {
+	tier := TierFor(b, h.now())
+	features, err := h.policy.Features(ctx, tier)
+	return tier, features, err
 }
 
 type billingJSON struct {
