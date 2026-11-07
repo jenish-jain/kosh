@@ -246,8 +246,12 @@ func copyView(v PolicyView) PolicyView {
 // featureFor maps a request to the feature it uses, or "" for requests
 // that are never gated: reads, and the account, billing, recipient and
 // safety actions a household must always keep.
+//
+// Handlers ignore trailing slashes (/api/shares/ creates a link), so paths
+// are compared without them, and share routes are gated unless they're
+// one of the two known-safe actions.
 func featureFor(r *http.Request) string {
-	p := r.URL.Path
+	p := strings.TrimRight(r.URL.Path, "/")
 	if !strings.HasPrefix(p, "/api/") {
 		return ""
 	}
@@ -258,10 +262,13 @@ func featureFor(r *http.Request) string {
 	switch {
 	case p == "/api/hosted/invites":
 		return FeatureInvite
-	case p == "/api/shares", strings.HasPrefix(p, "/api/shares/") && strings.HasSuffix(p, "/reset"):
+	case p == "/api/shares" || strings.HasPrefix(p, "/api/shares/"):
+		parts := strings.Split(strings.TrimPrefix(p, "/api/shares/"), "/")
+		if p != "/api/shares" && (r.Method == http.MethodDelete && len(parts) == 1 ||
+			r.Method == http.MethodPost && len(parts) == 2 && parts[1] == "revoke") {
+			return "" // revoke and delete
+		}
 		return FeatureShare
-	case strings.HasPrefix(p, "/api/shares/"):
-		return "" // revoke and delete
 	case p == "/api/chat":
 		return FeatureAsk
 	case p == "/api/tax/recommendations/generate":

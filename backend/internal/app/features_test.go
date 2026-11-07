@@ -107,6 +107,9 @@ func TestFeatures_TogglesApplyPerTier(t *testing.T) {
 	if code, out := alice.do("POST", "/api/shares", map[string]string{"name": "Mom"}); code != 402 || !strings.Contains(out, "Family sharing isn't included in the free plan") {
 		t.Errorf("free sharing switched off: want 402 with explanation, got %d %s", code, out)
 	}
+	if code, _ := alice.do("POST", "/api/shares/", map[string]string{"name": "Mom"}); code != 402 {
+		t.Errorf("free sharing via a trailing slash: want 402, got %d", code)
+	}
 	if code, out := bob.do("POST", "/api/shares", map[string]string{"name": "Mom"}); code != 402 || !strings.Contains(out, "free trial") {
 		t.Errorf("trial sharing switched off: want 402, got %d %s", code, out)
 	}
