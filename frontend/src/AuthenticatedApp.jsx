@@ -17,17 +17,18 @@ export default function AuthenticatedApp() {
     <Login clientId={clientId} demoAvailable={demoAvailable} onDemo={handleDemo} onLogin={handleLogin}
       hosted={mode === 'hosted'} devLogin={devLogin} />
   )
-  const shell = household => (
+  const shell = (household, reloadHousehold, operator) => (
     <DataProvider clientId={clientId}>
       <AppShell user={user} onLogout={clientId ? handleLogout : null} aiEnabled={aiEnabled}
-        shareEnabled={shareEnabled && !user?.demo} household={household} />
+        shareEnabled={shareEnabled && !user?.demo} household={household}
+        reloadHousehold={reloadHousehold} devLogin={devLogin} operator={operator} />
     </DataProvider>
   )
   // Hosted: the account must belong to a (connected) household first. Demo
   // sessions skip straight to the sample data, as when self-hosted.
   if (mode === 'hosted' && !user?.demo) return (
     <HostedGate user={user} clientId={clientId} devLogin={devLogin} onSignOut={handleLogout}>
-      {household => shell(household)}
+      {(household, reload, operator) => shell(household, reload, operator)}
     </HostedGate>
   )
   return shell(null)

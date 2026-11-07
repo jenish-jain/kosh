@@ -22,13 +22,16 @@ export default function HostedGate({ user, clientId, devLogin, onSignOut, childr
   const [state, setState] = useState({ loading: true })
   const [joinToken, setJoinToken] = useState(readJoinToken)
 
-  const load = useCallback(() => {
-    setState({ loading: true })
-    hostedMe().then(me => setState({ household: me.household })).catch(e => setState({ error: e.message }))
+  // The first load shows a spinner; later refreshes (after subscribing,
+  // say) update in place so the app — and its toasts — stay mounted.
+  const load = useCallback((background = false) => {
+    if (!background) setState({ loading: true })
+    hostedMe().then(me => setState({ household: me.household, operator: !!me.operator })).catch(e => setState({ error: e.message }))
   }, [])
-  useEffect(load, [load])
+  useEffect(() => load(), [load])
+  const refresh = useCallback(() => load(true), [load])
 
-  const settle = household => { clearJoinToken(); setJoinToken(null); setState({ household }) }
+  const settle = household => { clearJoinToken(); setJoinToken(null); setState(s => ({ household, operator: s.operator })) }
   const common = { email: user.email, clientId, devLogin, onSignOut }
 
   if (state.loading) return <LoadingScreen />
@@ -39,5 +42,5 @@ export default function HostedGate({ user, clientId, devLogin, onSignOut, childr
   }
   if (!state.household) return <Onboarding {...common} onDone={settle} />
   if (state.household.needs_reconnect) return <Reconnect household={state.household} {...common} onDone={settle} />
-  return children(state.household, load)
+  return children(state.household, refresh, state.operator)
 }

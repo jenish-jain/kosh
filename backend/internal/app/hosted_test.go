@@ -45,6 +45,10 @@ func hostedConfig() app.Config {
 		Mode: app.ModeHosted, FrontendDist: "/nonexistent", GoogleClientID: clientID,
 		GoogleClientSecret: "secret", SessionSecret: k, CookieSecure: true,
 		ShareKey: k, ControlPlaneKey: strings.Repeat("c", 40),
+		RazorpayKeyID: hostedtest.RazorpayKeyID, RazorpayKeySecret: hostedtest.RazorpayKeySecret,
+		RazorpayWebhookSecret: hostedtest.RazorpayWebhookSecret,
+		RazorpayPlanMonthly: hostedtest.PlanMonthlyID, RazorpayPlanAnnual: hostedtest.PlanAnnualID,
+		OperatorEmails: []string{" Op@X.com "},
 	}
 }
 
@@ -53,12 +57,13 @@ type env struct {
 	srv    *httptest.Server
 	google *hostedtest.Google
 	store  *controlplane.Memory
+	rzp    *hostedtest.Razorpay
 }
 
 func newHostedEnv(t *testing.T) *env {
 	t.Helper()
-	e := &env{t: t, google: hostedtest.New(), store: controlplane.NewMemory()}
-	a, err := app.New(context.Background(), hostedConfig(), app.Deps{Verifier: idVerifier{}, Store: e.store, Google: e.google})
+	e := &env{t: t, google: hostedtest.New(), store: controlplane.NewMemory(), rzp: hostedtest.NewRazorpay()}
+	a, err := app.New(context.Background(), hostedConfig(), app.Deps{Verifier: idVerifier{}, Store: e.store, Google: e.google, Gateway: e.rzp})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,6 +130,7 @@ func (b *browser) login(email string) {
 
 type me struct {
 	Email     string `json:"email"`
+	Operator  bool   `json:"operator"`
 	Household *struct {
 		ID             string `json:"id"`
 		Name           string `json:"name"`
@@ -134,6 +140,8 @@ type me struct {
 		Billing        struct {
 			Status string `json:"status"`
 		} `json:"billing"`
+		Tier     string          `json:"tier"`
+		Features map[string]bool `json:"features"`
 	} `json:"household"`
 }
 
@@ -176,13 +184,13 @@ func TestHosted_ConfigValidation(t *testing.T) {
 	cfg := hostedConfig()
 	cfg.ControlPlaneKey = "short"
 	cfg.GoogleClientSecret = ""
-	_, err := app.New(context.Background(), cfg, app.Deps{Verifier: idVerifier{}, Store: controlplane.NewMemory(), Google: hostedtest.New()})
+	_, err := app.New(context.Background(), cfg, app.Deps{Verifier: idVerifier{}, Store: controlplane.NewMemory(), Google: hostedtest.New(), Gateway: hostedtest.NewRazorpay()})
 	if err == nil || !strings.Contains(err.Error(), "CONTROL_PLANE_ENCRYPTION_KEY") || !strings.Contains(err.Error(), "GOOGLE_CLIENT_SECRET") {
 		t.Fatalf("want missing-config error naming both vars, got %v", err)
 	}
 	cfg = hostedConfig()
 	cfg.CookieSecure = false
-	if _, err := app.New(context.Background(), cfg, app.Deps{Verifier: idVerifier{}, Store: controlplane.NewMemory(), Google: hostedtest.New()}); err == nil {
+	if _, err := app.New(context.Background(), cfg, app.Deps{Verifier: idVerifier{}, Store: controlplane.NewMemory(), Google: hostedtest.New(), Gateway: hostedtest.NewRazorpay()}); err == nil {
 		t.Fatal("hosted mode must refuse insecure cookies")
 	}
 }
