@@ -16,6 +16,7 @@ import (
 	"kosh/internal/ai"
 	"kosh/internal/api"
 	"kosh/internal/auth"
+	"kosh/internal/billing"
 	"kosh/internal/controlplane"
 	"kosh/internal/documents"
 	"kosh/internal/hosted"
@@ -56,6 +57,11 @@ type Config struct {
 	ControlPlaneKey    string
 	FirestoreProject   string
 	FirestoreDatabase  string
+	RazorpayKeyID         string
+	RazorpayKeySecret     string
+	RazorpayWebhookSecret string
+	RazorpayPlanMonthly   string
+	RazorpayPlanAnnual    string
 
 	// PublicConfig is merged into /api/auth/config (the hosteddev build uses
 	// it to tell the frontend to show its dev login).
@@ -84,6 +90,11 @@ func ConfigFromEnv() Config {
 		ControlPlaneKey:    os.Getenv("CONTROL_PLANE_ENCRYPTION_KEY"),
 		FirestoreProject:   sh.EnvOrDefault("FIRESTORE_PROJECT", os.Getenv("GOOGLE_CLOUD_PROJECT")),
 		FirestoreDatabase:  sh.EnvOrDefault("FIRESTORE_DATABASE", "(default)"),
+		RazorpayKeyID:         os.Getenv("RAZORPAY_KEY_ID"),
+		RazorpayKeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
+		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
+		RazorpayPlanMonthly:   os.Getenv("RAZORPAY_PLAN_MONTHLY"),
+		RazorpayPlanAnnual:    os.Getenv("RAZORPAY_PLAN_ANNUAL"),
 	}
 }
 
@@ -92,6 +103,7 @@ type Deps struct {
 	Verifier   auth.TokenVerifier
 	Store      controlplane.Store // hosted
 	Google     hosted.Google      // hosted
+	Gateway    billing.Gateway    // hosted
 	AIProvider ai.Provider
 }
 
@@ -142,6 +154,7 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		devMode  bool
 		summary  string
 		hostedH  *hosted.Handler
+		billingH *billing.Handler
 		cpStore  controlplane.Store
 	)
 	if hostedMode {
@@ -163,6 +176,16 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		resolver := hosted.NewResolver(cpStore, sealer, google, authH.SessionEmail)
 		tenants = resolver
 		hostedH = hosted.NewHandler(cpStore, sealer, google, resolver, authH.SessionEmail, isDemo)
+		gw := deps.Gateway
+		if gw == nil {
+			gw = billing.NewRazorpay(cfg.RazorpayKeyID, cfg.RazorpayKeySecret, cfg.RazorpayWebhookSecret, http.DefaultClient)
+		}
+		billingH, err = billing.NewHandler(ctx, cpStore, gw, map[string]string{
+			billing.PlanMonthly: cfg.RazorpayPlanMonthly, billing.PlanAnnual: cfg.RazorpayPlanAnnual,
+		}, authH.SessionEmail, isDemo)
+		if err != nil {
+			return nil, err
+		}
 		summary = "Mode: hosted (multi-household, Firestore control plane)"
 	} else {
 		var t *tenant.Tenant
@@ -230,12 +253,26 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 	}
 
 	var extra func(mux *http.ServeMux, protect func(http.HandlerFunc) http.HandlerFunc)
+	var opts []api.ServerOption
 	if hostedH != nil {
 		extra = func(mux *http.ServeMux, protect func(http.HandlerFunc) http.HandlerFunc) {
 			mux.HandleFunc("/api/hosted/", protect(hostedH.Routes))
+			// The webhook is unauthenticated by design — trusted only once
+			// its signature verifies.
+			mux.HandleFunc("/api/billing/webhook", billingH.Webhook)
+			mux.HandleFunc("/api/billing/", protect(billingH.Routes))
 		}
+		opts = append(opts,
+			api.WithMiddleware(billingH.Enforce),
+			// Razorpay Checkout: its script, its payment iframe, and the
+			// endpoints the iframe's parent page talks to.
+			api.WithCSPSources("script-src", "https://checkout.razorpay.com"),
+			api.WithCSPSources("frame-src", "https://api.razorpay.com", "https://checkout.razorpay.com"),
+			api.WithCSPSources("connect-src", "https://api.razorpay.com", "https://lumberjack.razorpay.com"),
+			api.WithCSPSources("img-src", "https://*.razorpay.com"),
+		)
 	}
-	handler := api.NewServer(authH, apiH, docH, aiH, taxH, taxRulesH, shareH, extra, cfg.FrontendDist)
+	handler := api.NewServer(authH, apiH, docH, aiH, taxH, taxRulesH, shareH, extra, cfg.FrontendDist, opts...)
 	return &App{Handler: handler, Summary: summary}, nil
 }
 
@@ -254,6 +291,11 @@ func validateHosted(cfg Config) error {
 	need("SESSION_SECRET", cfg.SessionSecret, 32)
 	need("SHARE_ENCRYPTION_KEY", cfg.ShareKey, share.MinKeyLength)
 	need("CONTROL_PLANE_ENCRYPTION_KEY", cfg.ControlPlaneKey, controlplane.MinKeyLength)
+	need("RAZORPAY_KEY_ID", cfg.RazorpayKeyID, 1)
+	need("RAZORPAY_KEY_SECRET", cfg.RazorpayKeySecret, 1)
+	need("RAZORPAY_WEBHOOK_SECRET", cfg.RazorpayWebhookSecret, 16)
+	need("RAZORPAY_PLAN_MONTHLY", cfg.RazorpayPlanMonthly, 1)
+	need("RAZORPAY_PLAN_ANNUAL", cfg.RazorpayPlanAnnual, 1)
 	if len(missing) > 0 {
 		return errors.New("hosted mode needs: " + strings.Join(missing, ", "))
 	}
