@@ -21,10 +21,9 @@ think about money.
 
 ## Two ways to use it
 
-- **Hosted Kosh**: sign up with Google and you're in, with a 14-day free
-  trial and then ₹149/month or ₹1,499/year for the whole household. Your
-  data still lives in a Google Sheet in *your* Drive. See
-  [pricing](https://kosh.jenishjain.in/pricing).
+- **Hosted Kosh** *(coming soon)*: sign up with Google and you're in, with
+  a 14-day free trial and then a monthly or annual plan for the whole
+  household. Your data still lives in a Google Sheet in *your* Drive.
 - **Self-hosted**: free and open source (AGPL-3.0). Run it on your own
   Google Cloud project; everything below is about this route.
 

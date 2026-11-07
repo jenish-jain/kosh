@@ -9,8 +9,8 @@ Each section is independent — you can stop after **Local dev mode** if you
 just want to try Kosh, or go all the way to **Deploying** if you want a
 private install your family can reach from anywhere.
 
-Rather not run it yourself? [Hosted Kosh](https://kosh.jenishjain.in/pricing)
-is the same app, run for you. (Operating that hosted service is covered
+Rather not run it yourself? Hosted Kosh, the same app run for you, is
+coming soon. (Operating that hosted service is covered
 separately in [HOSTED.md](HOSTED.md).)
 
 ---

@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { SERIF } from '../../data/tokens.js'
+import { useHosted } from '../../data/serverMode.js'
 
 const NAV = [
   { to: '/features', label: 'Features' },
-  { to: '/pricing', label: 'Pricing' },
+  { to: '/pricing', label: 'Pricing', hostedOnly: true },
   { to: '/about', label: 'About' },
   { to: '/docs', label: 'Docs' },
 ]
@@ -20,6 +21,7 @@ export function Container({ children, style }) {
 
 export default function MarketingLayout({ children }) {
   const { pathname } = useLocation()
+  const hosted = useHosted()
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', display: 'flex', flexDirection: 'column' }}>
@@ -32,7 +34,7 @@ export default function MarketingLayout({ children }) {
           <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: '-.01em' }}>Kosh</div>
         </Link>
         <nav className="marketing-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 26 }}>
-          {NAV.map(n => (
+          {NAV.filter(n => !n.hostedOnly || hosted).map(n => (
             <Link
               key={n.to}
               to={n.to}

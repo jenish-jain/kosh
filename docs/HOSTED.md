@@ -63,9 +63,12 @@ Everything from self-hosting except `SPREADSHEET_ID`, `CREDENTIALS_PATH` and
 
 Hosted mode **refuses to start** if any of these (except `OPERATOR_EMAILS`) are missing or too short.
 
-If the marketing site is served from a deploy that *isn't* the hosted
-service, build its frontend with `VITE_HOSTED_APP_URL=https://<hosted-host>/app`
-so "Start free trial" goes to the right place.
+The pricing page, its nav link and the "Hosted Kosh" pointer on the docs
+page only appear when the server runs in hosted mode (the frontend asks
+`/api/auth/config`); a self-hosted deploy redirects `/pricing` home. If
+you later show pricing from a deploy that *isn't* the hosted service, build
+its frontend with `VITE_HOSTED_APP_URL=https://<hosted-host>/app` so
+"Start free trial" goes to the right place.
 
 ## Deploying
 
