@@ -15,6 +15,7 @@ import (
 	"kosh/internal/models"
 	"kosh/internal/report"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 const (
@@ -37,34 +38,53 @@ const errGeneric = "This link or code isn't valid. Check the code in your authen
 // Handler serves both the owner's share-management API (behind normal login)
 // and the recipients' unauthenticated verify/report API.
 type Handler struct {
-	shares       *store.Repository[models.ShareRecipient]
-	access       *store.Repository[models.ShareAccess]
+	tenants      tenant.Resolver
 	sealer       *Sealer
 	session      *auth.Session
-	familyData   func() *models.Data
+	familyData   func(*tenant.Tenant) *models.Data
 	isDemo       func(*http.Request) bool
 	cookieSecure bool
 	now          func() time.Time
 
 	// mu serialises verify attempts within this instance so two concurrent
-	// guesses can't both read the same failed-attempt count.
-	mu sync.Mutex
+	// guesses can't both read the same failed-attempt count. A pointer, so
+	// the per-request copies made by scoped all share it.
+	mu *sync.Mutex
+
+	// Set only on the per-request copy returned by scoped.
+	t      *tenant.Tenant
+	shares *store.Repository[models.ShareRecipient]
+	access *store.Repository[models.ShareAccess]
 }
 
 // NewHandler constructs a share Handler. sessionSecret is the app's
 // SESSION_SECRET; share sessions are signed with a key derived from it, so a
 // share cookie can never be accepted as an owner session (or vice versa).
-func NewHandler(repos *store.Repositories, sealer *Sealer, sessionSecret string, familyData func() *models.Data, isDemo func(*http.Request) bool, cookieSecure bool) *Handler {
+func NewHandler(tenants tenant.Resolver, sealer *Sealer, sessionSecret string, familyData func(*tenant.Tenant) *models.Data, isDemo func(*http.Request) bool, cookieSecure bool) *Handler {
 	return &Handler{
-		shares:       repos.Shares,
-		access:       repos.ShareAccess,
+		tenants:      tenants,
 		sealer:       sealer,
 		session:      auth.NewSession("kosh-share-session:" + sessionSecret),
 		familyData:   familyData,
 		isDemo:       isDemo,
 		cookieSecure: cookieSecure,
 		now:          time.Now,
+		mu:           &sync.Mutex{},
 	}
+}
+
+// scoped returns a copy of h bound to the request's tenant, so the helpers
+// below can use h.shares / h.access without threading the tenant through.
+// In hosted mode the resolver finds the tenant from the session (owner
+// routes) or the link token (recipient routes).
+func (h *Handler) scoped(w http.ResponseWriter, r *http.Request) (*Handler, bool) {
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return nil, false
+	}
+	cp := *h
+	cp.t, cp.shares, cp.access = t, t.Repos.Shares, t.Repos.ShareAccess
+	return &cp, true
 }
 
 // ── Owner API ────────────────────────────────────────────────────────────────
@@ -94,6 +114,10 @@ type enrolment struct {
 func (h *Handler) Owner(w http.ResponseWriter, r *http.Request) {
 	if h.isDemo != nil && h.isDemo(r) {
 		http.Error(w, "Family sharing isn't available in the demo.", http.StatusForbidden)
+		return
+	}
+	h, ok := h.scoped(w, r)
+	if !ok {
 		return
 	}
 	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/shares"), "/"), "/")
@@ -300,6 +324,10 @@ func (h *Handler) view(s models.ShareRecipient) shareView {
 // Recipient routes /api/share/{verify|report|export|logout}. Unauthenticated:
 // access is granted by link token + TOTP code, then by the share cookie.
 func (h *Handler) Recipient(w http.ResponseWriter, r *http.Request) {
+	h, ok := h.scoped(w, r)
+	if !ok {
+		return
+	}
 	switch strings.TrimPrefix(r.URL.Path, "/api/share/") {
 	case "verify":
 		h.verify(w, r)
@@ -408,7 +436,7 @@ func (h *Handler) report(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	data := h.familyData()
+	data := h.familyData(h.t)
 	meta := report.BuildMeta(data, "", h.now())
 	h.logAccess(r, rec.ID, "viewed")
 	writeJSON(w, sharedReport{
@@ -424,7 +452,7 @@ func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	data := h.familyData()
+	data := h.familyData(h.t)
 	meta := report.BuildMeta(data, "", h.now())
 	// Stamp the recipient's name on the PDF so a forwarded copy is traceable.
 	meta.Scope += " · shared with " + rec.Name

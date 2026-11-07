@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"kosh/internal/tenant"
 )
 
 func (h *Handler) AddRow(w http.ResponseWriter, r *http.Request) {
@@ -12,7 +14,11 @@ func (h *Handler) AddRow(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
-	repo, ok := h.repos.Registry[sheetName]
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return
+	}
+	repo, ok := t.Repos.Registry[sheetName]
 	if !ok {
 		http.Error(w, "unknown sheet: "+sheetName, http.StatusBadRequest)
 		return
@@ -42,7 +48,11 @@ func (h *Handler) UpdateRow(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
-	repo, ok := h.repos.Registry[sheetName]
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return
+	}
+	repo, ok := t.Repos.Registry[sheetName]
 	if !ok {
 		http.Error(w, "unknown sheet: "+sheetName, http.StatusBadRequest)
 		return
@@ -70,7 +80,11 @@ func (h *Handler) DeleteRow(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok", "note": "sample data — not persisted"})
 		return
 	}
-	repo, ok := h.repos.Registry[sheetName]
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return
+	}
+	repo, ok := t.Repos.Registry[sheetName]
 	if !ok {
 		http.Error(w, "unknown sheet: "+sheetName, http.StatusBadRequest)
 		return

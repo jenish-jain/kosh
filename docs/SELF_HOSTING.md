@@ -530,6 +530,7 @@ kosh/
 │   │   ├── auth/            # Google Sign-In, sessions, demo mode
 │   │   ├── share/           # Family sharing: TOTP, share links, recipient report
 │   │   ├── store/           # Struct-tag ↔ sheet-row repositories
+│   │   ├── tenant/          # Which household's Sheet a request uses (one, when self-hosted)
 │   │   ├── report/          # PDF/XLSX report builder
 │   │   ├── documents/       # Document upload + AI parsing
 │   │   ├── ai/              # Ask Kosh + tax recommendations

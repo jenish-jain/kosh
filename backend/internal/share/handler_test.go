@@ -13,6 +13,7 @@ import (
 	"kosh/internal/auth"
 	"kosh/internal/models"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 const testSecret = "test-session-secret"
@@ -27,7 +28,8 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	fake := store.NewFakeSheetsAPI()
-	repos := store.NewRepositories(fake)
+	tn := tenant.New("default", fake)
+	repos := tn.Repos
 	for _, r := range []store.AnyRepository{repos.Shares, repos.ShareAccess} {
 		header := make([]interface{}, len(r.Columns()))
 		for i, c := range r.Columns() {
@@ -40,10 +42,10 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 	f := &fixture{fake: fake, clock: time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)}
-	data := func() *models.Data {
+	data := func(*tenant.Tenant) *models.Data {
 		return &models.Data{Members: []models.Member{{ID: "m1", Name: "Asha"}}}
 	}
-	f.h = NewHandler(repos, sealer, testSecret, data, func(*http.Request) bool { return f.isDemo }, false)
+	f.h = NewHandler(tenant.Single(tn), sealer, testSecret, data, func(*http.Request) bool { return f.isDemo }, false)
 	f.h.now = func() time.Time { return f.clock }
 	return f
 }

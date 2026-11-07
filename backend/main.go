@@ -18,6 +18,7 @@ import (
 	"kosh/internal/models"
 	"kosh/internal/share"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 	sh "kosh/sheets"
 )
 
@@ -49,8 +50,10 @@ func main() {
 	}
 
 	// ── Sheets client ──────────────────────────────────────────────────────────
+	// Self-hosted Kosh has exactly one household: the spreadsheet configured
+	// above (or, in dev mode, an in-memory fake).
 	var sheetClient *sh.Client
-	var repos *store.Repositories
+	var household *tenant.Tenant
 	if spreadsheetID != "" {
 		if _, err := os.Stat(credPath); err == nil {
 			c, err := sh.NewClient(credPath, spreadsheetID)
@@ -58,7 +61,8 @@ func main() {
 				log.Printf("⚠ Sheets client error: %v — running in dev mode", err)
 			} else {
 				sheetClient = c
-				repos = store.NewRepositories(c)
+				household = tenant.New("default", c)
+				repos := household.Repos
 				log.Printf("✓ Connected to Google Sheets (%s)", spreadsheetID)
 				fmt.Println("  Verifying tabs…")
 				// Build tab definitions from repositories (single source of truth).
@@ -99,11 +103,12 @@ func main() {
 		log.Println("⚠ SPREADSHEET_ID not set — running in dev mode (dev_data.json)")
 	}
 
-	// In dev mode (sheetClient == nil), repos is nil — NewHandler handles this
-	// by loading dev data. Use a fake API so repos is always non-nil.
-	if repos == nil {
+	// In dev mode there's no spreadsheet — data reads are served from
+	// dev_data.json, and a fake API backs the repositories so they're never nil.
+	if household == nil {
 		fake := store.NewFakeSheetsAPI()
-		repos = store.NewRepositories(fake)
+		household = tenant.New("default", fake)
+		repos := household.Repos
 		// Family shares are the one thing dev mode persists (in memory), so
 		// their tabs need the header row Repository.All expects to skip.
 		for _, r := range []store.AnyRepository{repos.Shares, repos.ShareAccess} {
@@ -115,18 +120,12 @@ func main() {
 	isDemo := func(r *http.Request) bool {
 		return authH.IsDemoSession(r)
 	}
-	// Pass sheetClient as configAPI; in dev mode pass an untyped nil — a nil
-	// *sh.Client wrapped in the interface is non-nil, so Handler would skip
-	// loading dev_data.json and panic reading Config.
-	var configAPI store.SheetsAPI
-	if sheetClient != nil {
-		configAPI = sheetClient
-	}
-	apiH := api.NewHandler(repos, configAPI, isDemo)
+	tenants := tenant.Single(household)
+	apiH := api.NewHandler(tenants, sheetClient == nil, isDemo)
 
 	// Propose doesn't itself call an AI provider (that happens via the existing
 	// /api/upload/tax_rules parse step) — it's always available, unlike aiH/taxH.
-	taxRulesH := ai.NewTaxRulesHandler(repos, isDemo, apiH.IsSampleData)
+	taxRulesH := ai.NewTaxRulesHandler(tenants, isDemo, apiH.IsSampleData)
 
 	// ── Document upload handler ────────────────────────────────────────────────
 	// Drive uploads use a per-request OAuth token from the frontend (drive.file
@@ -164,7 +163,7 @@ func main() {
 		}
 		if provider != nil {
 			aiH = ai.NewHandler(provider, apiH.LoadData, isDemo)
-			taxH = ai.NewTaxHandler(provider, repos, apiH.LoadData, isDemo, apiH.IsSampleData)
+			taxH = ai.NewTaxHandler(provider, tenants, apiH.LoadData, isDemo, apiH.IsSampleData)
 			authH.SetAIEnabled(true)
 		}
 	}
@@ -185,7 +184,7 @@ func main() {
 			log.Printf("⚠ Family sharing disabled: SHARE_ENCRYPTION_KEY must be at least %d characters (try `openssl rand -hex 32`)", share.MinKeyLength)
 			break
 		}
-		shareH = share.NewHandler(repos, sealer, sessionSecret, apiH.FamilyData, isDemo, cookieSecure)
+		shareH = share.NewHandler(tenants, sealer, sessionSecret, apiH.FamilyData, isDemo, cookieSecure)
 		authH.SetShareEnabled(true)
 		if sheetClient == nil {
 			log.Println("✓ Family sharing enabled (dev mode — shares live in memory and reset on restart)")

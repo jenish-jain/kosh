@@ -9,20 +9,20 @@ import (
 	"time"
 
 	"kosh/internal/models"
-	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 // TaxHandler serves POST /api/tax/recommendations/generate.
 type TaxHandler struct {
 	provider Provider
-	repos    *store.Repositories
+	tenants  tenant.Resolver
 	loadData DataLoader
 	isDemo   func(*http.Request) bool
 	isSample func(*http.Request) bool
 }
 
-func NewTaxHandler(provider Provider, repos *store.Repositories, loadData DataLoader, isDemo, isSample func(*http.Request) bool) *TaxHandler {
-	return &TaxHandler{provider: provider, repos: repos, loadData: loadData, isDemo: isDemo, isSample: isSample}
+func NewTaxHandler(provider Provider, tenants tenant.Resolver, loadData DataLoader, isDemo, isSample func(*http.Request) bool) *TaxHandler {
+	return &TaxHandler{provider: provider, tenants: tenants, loadData: loadData, isDemo: isDemo, isSample: isSample}
 }
 
 func (h *TaxHandler) Generate(w http.ResponseWriter, r *http.Request) {
@@ -49,13 +49,18 @@ func (h *TaxHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		req.Regime = "old"
 	}
 
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return
+	}
+	recs := t.Repos.TaxRecommendations
 	data := h.loadData(r)
 	now := time.Now()
 	facts := models.ComputeTaxFacts(data, req.Regime, now)
 
 	var prior []models.TaxRecommendation
-	if h.repos != nil && h.repos.TaxRecommendations != nil {
-		if rows, err := h.repos.TaxRecommendations.All(); err == nil {
+	if recs != nil {
+		if rows, err := recs.All(); err == nil {
 			prior = latestCycle(rows)
 		}
 	}
@@ -101,11 +106,11 @@ func (h *TaxHandler) Generate(w http.ResponseWriter, r *http.Request) {
 	if h.isSample == nil || !h.isSample(r) {
 		for i, item := range items {
 			if item.SupersedesID != "" {
-				_ = h.repos.TaxRecommendations.Update(item.SupersedesID, map[string]any{"superseded_by": out[i].ID})
+				_ = recs.Update(item.SupersedesID, map[string]any{"superseded_by": out[i].ID})
 			}
 		}
 		for _, rec := range out {
-			if _, err := h.repos.TaxRecommendations.Add(rec); err != nil {
+			if _, err := recs.Add(rec); err != nil {
 				http.Error(w, `{"error":"saving recommendation: `+err.Error()+`"}`, http.StatusInternalServerError)
 				return
 			}

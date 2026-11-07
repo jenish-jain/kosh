@@ -8,6 +8,7 @@ import (
 
 	"kosh/internal/api"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 // newDemoHandlerForData returns a Handler in demo mode suitable for GetData
@@ -16,11 +17,10 @@ import (
 // isolation; the compiler will complain about the duplicate if they are ever
 // merged into one file.
 func newDemoHandlerForData() *api.Handler {
-	fakeAPI := store.NewFakeSheetsAPI()
-	repos := store.NewRepositories(fakeAPI)
-	// Pass nil configAPI so the handler enters dev mode (loads devData from file
-	// or returns empty Data). isDemo returning true ensures demo-mode short-circuit.
-	return api.NewHandler(repos, nil, func(_ *http.Request) bool { return true })
+	// devMode loads devData from file (or returns empty Data); isDemo
+	// returning true ensures the demo-mode short-circuit.
+	tn := tenant.New("default", store.NewFakeSheetsAPI())
+	return api.NewHandler(tenant.Single(tn), true, func(_ *http.Request) bool { return true })
 }
 
 func TestGetData_DemoMode_Returns200(t *testing.T) {

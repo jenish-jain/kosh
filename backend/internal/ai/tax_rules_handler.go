@@ -9,6 +9,7 @@ import (
 
 	"kosh/internal/models"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 // TaxRulesHandler serves the tax-rules propose/approve/reject endpoints.
@@ -16,13 +17,22 @@ import (
 // approves — Propose only ever creates status="pending" rows, regardless
 // of what a client sends.
 type TaxRulesHandler struct {
-	repos    *store.Repositories
+	tenants  tenant.Resolver
 	isDemo   func(*http.Request) bool
 	isSample func(*http.Request) bool
 }
 
-func NewTaxRulesHandler(repos *store.Repositories, isDemo, isSample func(*http.Request) bool) *TaxRulesHandler {
-	return &TaxRulesHandler{repos: repos, isDemo: isDemo, isSample: isSample}
+func NewTaxRulesHandler(tenants tenant.Resolver, isDemo, isSample func(*http.Request) bool) *TaxRulesHandler {
+	return &TaxRulesHandler{tenants: tenants, isDemo: isDemo, isSample: isSample}
+}
+
+// rulesRepo resolves the request's tenant and returns its TaxRules repo.
+func (h *TaxRulesHandler) rulesRepo(w http.ResponseWriter, r *http.Request) (*store.Repository[models.TaxRuleSet], bool) {
+	t, ok := tenant.FromRequest(h.tenants, w, r)
+	if !ok {
+		return nil, false
+	}
+	return t.Repos.TaxRules, true
 }
 
 // proposeRequest is the admin-reviewed payload from the review UI (after a
@@ -92,7 +102,11 @@ func (h *TaxRulesHandler) Propose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.repos.TaxRules.Add(row); err != nil {
+	rules, ok := h.rulesRepo(w, r)
+	if !ok {
+		return
+	}
+	if _, err := rules.Add(row); err != nil {
 		http.Error(w, "saving proposal: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -123,8 +137,8 @@ func idFromPath(path string) string {
 	return parts[0]
 }
 
-func (h *TaxRulesHandler) findByID(id string) (models.TaxRuleSet, bool) {
-	rows, err := h.repos.TaxRules.All()
+func findByID(rules *store.Repository[models.TaxRuleSet], id string) (models.TaxRuleSet, bool) {
+	rows, err := rules.All()
 	if err != nil {
 		return models.TaxRuleSet{}, false
 	}
@@ -157,8 +171,12 @@ func (h *TaxRulesHandler) Approve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rules, ok := h.rulesRepo(w, r)
+	if !ok {
+		return
+	}
 	id := idFromPath(r.URL.Path)
-	target, ok := h.findByID(id)
+	target, ok := findByID(rules, id)
 	if !ok {
 		http.Error(w, "tax rule proposal not found", http.StatusNotFound)
 		return
@@ -169,12 +187,12 @@ func (h *TaxRulesHandler) Approve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	today := time.Now().Format("2006-01-02")
-	if err := h.repos.TaxRules.Update(id, map[string]any{"status": "active", "activated_date": today}); err != nil {
+	if err := rules.Update(id, map[string]any{"status": "active", "activated_date": today}); err != nil {
 		http.Error(w, "activating proposal: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	rows, err := h.repos.TaxRules.All()
+	rows, err := rules.All()
 	if err != nil {
 		// The new row is already active — superseding the old one failing to
 		// even look up candidates isn't fatal, just log-worthy in a bigger app.
@@ -185,7 +203,7 @@ func (h *TaxRulesHandler) Approve(w http.ResponseWriter, r *http.Request) {
 		if other.ID == id || other.Status != "active" || !strings.EqualFold(other.Regime, target.Regime) {
 			continue
 		}
-		if err := h.repos.TaxRules.Update(other.ID, map[string]any{"status": "superseded"}); err != nil {
+		if err := rules.Update(other.ID, map[string]any{"status": "superseded"}); err != nil {
 			writeJSON(w, map[string]any{"status": "ok", "warning": "activated, but failed to supersede " + other.ID + ": " + err.Error()})
 			return
 		}
@@ -210,8 +228,12 @@ func (h *TaxRulesHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rules, ok := h.rulesRepo(w, r)
+	if !ok {
+		return
+	}
 	id := idFromPath(r.URL.Path)
-	target, ok := h.findByID(id)
+	target, ok := findByID(rules, id)
 	if !ok {
 		http.Error(w, "tax rule proposal not found", http.StatusNotFound)
 		return
@@ -221,7 +243,7 @@ func (h *TaxRulesHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repos.TaxRules.Update(id, map[string]any{"status": "rejected"}); err != nil {
+	if err := rules.Update(id, map[string]any{"status": "rejected"}); err != nil {
 		http.Error(w, "rejecting proposal: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
