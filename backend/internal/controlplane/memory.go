@@ -12,12 +12,13 @@ import (
 type Memory struct {
 	mu            sync.Mutex
 	households    map[string]Household
-	members       map[string]Member // by normalized email
-	invites       map[string]Invite // by token hash
-	shareTokens   map[string]string // token hash -> household
-	subscriptions map[string]string // subscription ID -> household
+	members       map[string]Member                    // by normalized email
+	invites       map[string]Invite                    // by token hash
+	shareTokens   map[string]string                    // token hash -> household
+	subscriptions map[string]string                    // subscription ID -> household
 	usage         map[string]map[string]map[string]int // household -> period -> kind -> count
 	events        map[string]bool
+	policy        *FeaturePolicy
 }
 
 // NewMemory returns an empty in-memory Store.
@@ -281,6 +282,36 @@ func (m *Memory) MarkEventProcessed(_ context.Context, eventID string) (bool, er
 	}
 	m.events[eventID] = true
 	return true, nil
+}
+
+func (m *Memory) GetFeaturePolicy(_ context.Context) (FeaturePolicy, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.policy == nil {
+		return FeaturePolicy{}, ErrNotFound
+	}
+	return copyPolicy(*m.policy), nil
+}
+
+func (m *Memory) PutFeaturePolicy(_ context.Context, p FeaturePolicy) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	c := copyPolicy(p)
+	m.policy = &c
+	return nil
+}
+
+// copyPolicy deep-copies p so callers can't mutate stored state.
+func copyPolicy(p FeaturePolicy) FeaturePolicy {
+	tiers := make(map[string]map[string]bool, len(p.Tiers))
+	for tier, fs := range p.Tiers {
+		tiers[tier] = make(map[string]bool, len(fs))
+		for f, on := range fs {
+			tiers[tier][f] = on
+		}
+	}
+	p.Tiers = tiers
+	return p
 }
 
 func sortMembers(ms []Member) {

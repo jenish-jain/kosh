@@ -7,26 +7,26 @@ import (
 	"kosh/internal/controlplane"
 )
 
-func TestAccessFor(t *testing.T) {
+func TestTierFor(t *testing.T) {
 	now := time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
 	later, earlier := now.Add(time.Hour), now.Add(-time.Hour)
 	cases := []struct {
 		name string
 		b    controlplane.Billing
-		want Access
+		want string
 	}{
-		{"trial running", controlplane.Billing{Status: controlplane.StatusTrialing, TrialEndsAt: later}, Full},
-		{"trial over", controlplane.Billing{Status: controlplane.StatusTrialing, TrialEndsAt: earlier}, ReadOnly},
-		{"active", controlplane.Billing{Status: controlplane.StatusActive}, Full},
-		{"payment retrying", controlplane.Billing{Status: controlplane.StatusPastDue}, Full},
-		{"cancelled, paid time left", controlplane.Billing{Status: controlplane.StatusCancelled, CurrentPeriodEnd: later}, Full},
-		{"cancelled, period over", controlplane.Billing{Status: controlplane.StatusCancelled, CurrentPeriodEnd: earlier}, ReadOnly},
-		{"lapsed", controlplane.Billing{Status: controlplane.StatusLapsed, CurrentPeriodEnd: later}, ReadOnly},
-		{"unknown status", controlplane.Billing{Status: "weird"}, ReadOnly},
-		{"zero value", controlplane.Billing{}, ReadOnly},
+		{"trial running", controlplane.Billing{Status: controlplane.StatusTrialing, TrialEndsAt: later}, TierTrial},
+		{"trial over", controlplane.Billing{Status: controlplane.StatusTrialing, TrialEndsAt: earlier}, TierFree},
+		{"active", controlplane.Billing{Status: controlplane.StatusActive}, TierPaid},
+		{"payment retrying", controlplane.Billing{Status: controlplane.StatusPastDue}, TierPaid},
+		{"cancelled, paid time left", controlplane.Billing{Status: controlplane.StatusCancelled, CurrentPeriodEnd: later}, TierPaid},
+		{"cancelled, period over", controlplane.Billing{Status: controlplane.StatusCancelled, CurrentPeriodEnd: earlier}, TierFree},
+		{"lapsed", controlplane.Billing{Status: controlplane.StatusLapsed, CurrentPeriodEnd: later}, TierFree},
+		{"unknown status", controlplane.Billing{Status: "weird"}, TierFree},
+		{"zero value", controlplane.Billing{}, TierFree},
 	}
 	for _, c := range cases {
-		if got := AccessFor(c.b, now); got != c.want {
+		if got := TierFor(c.b, now); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
 	}

@@ -5,9 +5,13 @@ const BASE = '/api'
 
 let _cache = null
 
-// Hosted: a household without an active plan is read-only (HTTP 402).
-function mutationError(what, res) {
-  if (res.status === 402) return new Error('Your household is read-only. Subscribe to keep editing.')
+// Hosted: HTTP 402 means the household's plan doesn't include this; the
+// server says why.
+async function mutationError(what, res) {
+  if (res.status === 402) {
+    const body = await res.text().catch(() => '')
+    return new Error(body.trim() || 'Your plan doesn\'t include this. Subscribe to keep editing.')
+  }
   return new Error(`${what} failed: ${res.status}`)
 }
 
@@ -31,7 +35,7 @@ export async function addRow(sheet, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw mutationError('Add', res)
+  if (!res.ok) throw await mutationError('Add', res)
   return res.json()
 }
 
@@ -41,13 +45,13 @@ export async function updateRow(sheet, id, patch) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   })
-  if (!res.ok) throw mutationError('Update', res)
+  if (!res.ok) throw await mutationError('Update', res)
   return res.json()
 }
 
 export async function deleteRow(sheet, id) {
   const res = await fetch(`${BASE}/${sheet}/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw mutationError('Delete', res)
+  if (!res.ok) throw await mutationError('Delete', res)
   return res.json()
 }
 

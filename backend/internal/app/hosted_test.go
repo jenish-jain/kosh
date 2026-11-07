@@ -48,6 +48,7 @@ func hostedConfig() app.Config {
 		RazorpayKeyID: hostedtest.RazorpayKeyID, RazorpayKeySecret: hostedtest.RazorpayKeySecret,
 		RazorpayWebhookSecret: hostedtest.RazorpayWebhookSecret,
 		RazorpayPlanMonthly: hostedtest.PlanMonthlyID, RazorpayPlanAnnual: hostedtest.PlanAnnualID,
+		OperatorEmails: []string{" Op@X.com "},
 	}
 }
 
@@ -129,6 +130,7 @@ func (b *browser) login(email string) {
 
 type me struct {
 	Email     string `json:"email"`
+	Operator  bool   `json:"operator"`
 	Household *struct {
 		ID             string `json:"id"`
 		Name           string `json:"name"`
@@ -138,6 +140,8 @@ type me struct {
 		Billing        struct {
 			Status string `json:"status"`
 		} `json:"billing"`
+		Tier     string          `json:"tier"`
+		Features map[string]bool `json:"features"`
 	} `json:"household"`
 }
 

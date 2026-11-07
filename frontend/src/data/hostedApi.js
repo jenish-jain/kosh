@@ -29,3 +29,7 @@ export const removeMember    = email => send('DELETE', `/api/hosted/members/${en
 export const leaveHousehold  = () => send('POST', '/api/hosted/leave')
 export const deleteHousehold = confirm => send('DELETE', '/api/hosted/household', { confirm })
 export const getUsage        = () => request('/api/hosted/usage')
+
+// Operator only (OPERATOR_EMAILS): which features each tier gets.
+export const getFeaturePolicy  = () => request('/api/operator/features')
+export const saveFeaturePolicy = policy => send('PUT', '/api/operator/features', { policy })

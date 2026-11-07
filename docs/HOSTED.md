@@ -59,31 +59,73 @@ Everything from self-hosting except `SPREADSHEET_ID`, `CREDENTIALS_PATH` and
 | `RAZORPAY_WEBHOOK_SECRET` | The webhook's secret, 16+ characters |
 | `RAZORPAY_PLAN_MONTHLY` / `RAZORPAY_PLAN_ANNUAL` | Plan IDs (`plan_...`). Loaded at startup, so a wrong ID fails boot |
 | `COOKIE_SECURE` | Must be `true` (the default) |
+| `OPERATOR_EMAILS` | Optional. Comma-separated Google accounts allowed to change [feature tiers](#feature-tiers). Without it the saved policy (or the defaults) can't be changed |
 
-Hosted mode **refuses to start** if any of these are missing or too short.
+Hosted mode **refuses to start** if any of these (except `OPERATOR_EMAILS`) are missing or too short.
 
 If the marketing site is served from a deploy that *isn't* the hosted
 service, build its frontend with `VITE_HOSTED_APP_URL=https://<hosted-host>/app`
 so "Start free trial" goes to the right place.
 
+## Deploying
+
+Hosted Kosh is the same Docker image as a self-hosted deploy, run as a
+second Cloud Run service (`kosh-hosted`; Terraform in
+jenish-jain/infrastructure, behind `create_kosh_hosted`). Set the repository
+variable `DEPLOY_HOSTED=true` and every push to `master` deploys the image
+to both services. Env vars and secrets are owned by Terraform; CI only
+changes the image.
+
 ## Plans, trials and access
 
 - New households get a **14-day trial** (`hosted.TrialLength`). Subscribing
   during the trial defers the first charge to its end.
-- **Full access**: trial running, subscription active, payment being retried
-  (`past_due`), or cancelled with paid time left. Otherwise **read-only**:
-  view and export work, and share links can still be revoked or deleted, but
-  edits, AI and new share links answer `402 subscription_required`.
+- Every household is on a **tier**: **trial** while the trial runs, **paid**
+  while a subscription is active, being retried (`past_due`) or cancelled
+  with paid time left, and **free** otherwise. What each tier may do is the
+  [feature policy](#feature-tiers); by default trial and paid get
+  everything and free is **read-only**. A feature the tier leaves out
+  answers `402` with an explanation.
 - **AI allowance** per household per month (`hosted.MonthlyQuotas`): Ask 200,
   document scans 30, tax runs 20. Failed calls are refunded.
 - Households have up to **6 people** including pending invites.
+
+## Feature tiers
+
+Operators (`OPERATOR_EMAILS`) open **Household → Feature tiers** in the app
+to switch each feature on or off per tier:
+
+| Feature | Covers | Default: free / trial / paid |
+|---|---|---|
+| Adding and editing data | Every change to the household's data | off / on / on |
+| Family sharing | Creating or resetting share links | off / on / on |
+| Household invites | Inviting people to the household | on / on / on |
+| Ask Kosh | AI questions | off / on / on |
+| Document scanning | AI reading of uploads | off / on / on |
+| Tax recommendations | AI tax suggestions | off / on / on |
+
+- The defaults are the original read-only rule, so nothing changes until a
+  policy is saved. Features a saved policy doesn't mention keep their
+  default.
+- Reading and exporting data, billing, deleting the household, accepting an
+  invite and revoking or deleting share links are **never** gated. Switching
+  off family sharing stops new links; existing links keep working until the
+  owner revokes them.
+- The policy is one Firestore document (`settings/featurePolicy`). Each
+  instance caches it for 30 seconds, and keeps its last copy if Firestore
+  is briefly unreachable.
+- The API is `GET`/`PUT /api/operator/features`; anyone who isn't an
+  operator gets a 404. Each change is logged with the operator's email.
+- The pricing page and its FAQ are static text describing the defaults:
+  update `frontend/src/screens/marketing/Pricing.jsx` when you change what
+  a tier includes.
 
 ## Testing locally without Google or Razorpay
 
 ```bash
 cd backend
 go build -tags hosteddev -o kosh-hosteddev .   # never use this binary in production
-FRONTEND_DIST=../frontend/dist ./kosh-hosteddev
+OPERATOR_EMAILS=you@example.com FRONTEND_DIST=../frontend/dist ./kosh-hosteddev
 ```
 
 Sign in at `/app` with any email. Drive and payments are simulated, and
