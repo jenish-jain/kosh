@@ -490,6 +490,16 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .color-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
 .color-dot.active { border-color: var(--bg); box-shadow: 0 0 0 2px var(--ink); }
 
+/* ── Hosted: onboarding / join / reconnect ── */
+.hosted-page { min-height: 100vh; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 32px 16px; box-sizing: border-box; }
+.hosted-card { width: 100%; max-width: 420px; text-align: center; }
+.hosted-title { font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.2; margin: 0 0 14px; }
+.hosted-text { font-size: 14px; color: var(--ink-2); line-height: 1.65; margin: 0 0 18px; }
+.hosted-cta { width: 100%; justify-content: center; padding: 12px; font-size: 14.5px; margin-bottom: 10px; }
+.hosted-fine { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 8px 0 0; }
+.hosted-foot { margin-top: 28px; font-size: 12.5px; color: var(--ink-3); }
+.linklike { background: none; border: none; padding: 0; color: var(--accent-ink); font: inherit; text-decoration: underline; cursor: pointer; }
+
 /* ── Family sharing (recipient page) ── */
 .shared-page { min-height: 100vh; background: var(--bg); max-width: 980px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; }
 .shared-center { display: flex; align-items: center; justify-content: center; }
