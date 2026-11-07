@@ -5,6 +5,8 @@ import { Icon } from '../Icons.jsx'
 import ExportModal from '../ExportModal.jsx'
 import SharingModal from '../SharingModal.jsx'
 import HouseholdModal from '../HouseholdModal.jsx'
+import PlanModal from '../PlanModal.jsx'
+import PlanBanner from '../PlanBanner.jsx'
 import Sidebar from './Sidebar.jsx'
 import MemberSwitcher from './MemberSwitcher.jsx'
 import LoadingScreen from './LoadingScreen.jsx'
@@ -21,7 +23,7 @@ import PinLock from '../PinLock.jsx'
 import PinSettings from '../PinSettings.jsx'
 import AskModal from '../AskModal.jsx'
 
-export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, household }) {
+export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, household, reloadHousehold, devLogin }) {
   const { data, loading, error } = useData()
   const [screen, setScreenRaw] = useState(() => localStorage.getItem('kosh.screen') || 'dashboard')
   const [member, setMemberRaw] = useState(() => { const v = localStorage.getItem('kosh.member'); return v === 'null' || !v ? null : v })
@@ -31,6 +33,7 @@ export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, hous
   const [showExport, setShowExport] = useState(false)
   const [showSharing, setShowSharing] = useState(false)
   const [showHousehold, setShowHousehold] = useState(false)
+  const [showPlan, setShowPlan] = useState(false)
   const pinLock = usePinLock()
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
@@ -81,6 +84,7 @@ export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, hous
           </button>
           <MemberSwitcher member={member} setMember={setMember} members={data?.members} />
         </header>
+        <PlanBanner household={household} onOpen={() => setShowPlan(true)} />
         <main className="content fade-in" key={screen}>
           {screenEl}
         </main>
@@ -91,7 +95,10 @@ export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, hous
       {pinLock.locked && <PinLock onVerify={pinLock.verify} />}
       {showPinSettings && <PinSettings pinLock={pinLock} onClose={() => setShowPinSettings(false)} />}
       {showAsk && <AskModal onClose={() => setShowAsk(false)} />}
-      {showHousehold && <HouseholdModal onClose={() => setShowHousehold(false)} showToast={showToast} onLeft={() => window.location.reload()} />}
+      {showHousehold && <HouseholdModal onClose={() => setShowHousehold(false)} showToast={showToast} onLeft={() => window.location.reload()}
+        onOpenPlan={() => { setShowHousehold(false); setShowPlan(true) }} />}
+      {showPlan && <PlanModal household={household} devLogin={devLogin} showToast={showToast}
+        onClose={() => setShowPlan(false)} onChanged={() => { setShowPlan(false); reloadHousehold() }} />}
       {showSharing && <SharingModal onClose={() => setShowSharing(false)} showToast={showToast} />}
       {showExport && <ExportModal data={data} memberId={member} onClose={() => setShowExport(false)} />}
     </div>
