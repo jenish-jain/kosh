@@ -20,10 +20,15 @@ func NewSession(secret string) *Session {
 }
 
 // Sign creates a signed token encoding email and a 30-day expiry.
-// Token format: base64(email) | base64(expiry_unix) | hmac(payload, secret)
 func (s *Session) Sign(email string) string {
-	exp := fmt.Sprint(time.Now().Add(30 * 24 * time.Hour).Unix())
-	payload := base64.RawURLEncoding.EncodeToString([]byte(email)) + "|" +
+	return s.SignFor(email, 30*24*time.Hour)
+}
+
+// SignFor creates a signed token encoding subject and an expiry ttl from now.
+// Token format: base64(subject) | base64(expiry_unix) | hmac(payload, secret)
+func (s *Session) SignFor(subject string, ttl time.Duration) string {
+	exp := fmt.Sprint(time.Now().Add(ttl).Unix())
+	payload := base64.RawURLEncoding.EncodeToString([]byte(subject)) + "|" +
 		base64.RawURLEncoding.EncodeToString([]byte(exp))
 	mac := hmac.New(sha256.New, []byte(s.secret))
 	mac.Write([]byte(payload))

@@ -75,6 +75,8 @@ func main() {
 					{Name: repos.Income.Sheet(), Columns: repos.Income.Columns()},
 					{Name: repos.TaxRecommendations.Sheet(), Columns: repos.TaxRecommendations.Columns()},
 					{Name: repos.TaxRules.Sheet(), Columns: repos.TaxRules.Columns()},
+					{Name: repos.Shares.Sheet(), Columns: repos.Shares.Columns()},
+					{Name: repos.ShareAccess.Sheet(), Columns: repos.ShareAccess.Columns()},
 					{Name: "Config", Columns: []string{"key", "value"}},
 				}
 				if err := sheetClient.EnsureTabs(tabs); err != nil {
