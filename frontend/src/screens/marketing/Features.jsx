@@ -32,6 +32,13 @@ const MAJOR = [
     img: '/screenshots/export.webp',
     alt: 'Kosh export dialog with checkboxes for each report section and a PDF/Excel format toggle',
   },
+  {
+    kicker: 'Family sharing',
+    title: 'Let your parents see where things stand, without handing over a password',
+    body: 'Give each family member their own private link to a read-only family report. They unlock it with a 6-digit code from an authenticator app on their phone, so there\'s no password to remember and no Google account needed. There\'s no SMS provider either, so their numbers never leave your server. Revoke or reset anyone in one tap, and see exactly when each link was opened.',
+    img: '/screenshots/sharing.webp',
+    alt: 'Kosh family sharing dialog listing family members with their access status, last-opened time, and revoke/reset controls',
+  },
 ]
 
 const MINOR = [

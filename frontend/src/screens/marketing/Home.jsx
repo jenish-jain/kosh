@@ -14,7 +14,7 @@ const VALUE_PROPS = [
   },
   {
     title: 'Built for a family, not just you',
-    body: 'Track holdings per member or as a household, split income across lower tax slabs, and see who owns what at a glance.',
+    body: 'Track holdings per member or as a household, split income across lower tax slabs, and see who owns what at a glance. Share a read-only view with parents or a spouse, unlocked with a code from their phone instead of a password.',
   },
 ]
 
