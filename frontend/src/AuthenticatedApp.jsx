@@ -9,7 +9,7 @@ import Login from './screens/Login.jsx'
 // alongside it. Mounted at /app/* by App.jsx; internal screen switching
 // inside AppShell stays state-driven, not route-driven.
 export default function AuthenticatedApp() {
-  const { authState, user, clientId, demoAvailable, aiEnabled, handleLogin, handleDemo, handleLogout } = useAuth()
+  const { authState, user, clientId, demoAvailable, aiEnabled, shareEnabled, handleLogin, handleDemo, handleLogout } = useAuth()
 
   if (authState === 'checking') return <LoadingScreen />
   if (authState === 'login') return (
@@ -17,7 +17,7 @@ export default function AuthenticatedApp() {
   )
   return (
     <DataProvider clientId={clientId}>
-      <AppShell user={user} onLogout={clientId ? handleLogout : null} aiEnabled={aiEnabled} />
+      <AppShell user={user} onLogout={clientId ? handleLogout : null} aiEnabled={aiEnabled} shareEnabled={shareEnabled && !user?.demo} />
     </DataProvider>
   )
 }

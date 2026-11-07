@@ -4,6 +4,7 @@ import Home from './screens/marketing/Home.jsx'
 import Features from './screens/marketing/Features.jsx'
 import About from './screens/marketing/About.jsx'
 import Docs from './screens/marketing/Docs.jsx'
+import SharedReport from './screens/SharedReport.jsx'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/app/*" element={<AuthenticatedApp />} />
+        <Route path="/s/:token" element={<SharedReport />} />
         <Route path="*" element={<Home />} />
       </Routes>
     </BrowserRouter>

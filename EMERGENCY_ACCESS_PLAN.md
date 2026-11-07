@@ -1,80 +1,157 @@
-# Plan: Emergency encashment info + nominee access
+# Plan: Emergency info + family access (secure sharing)
 
-Goal: attach PDF links and step-by-step liquidation/encashment instructions to
-investments (MF, Stocks, FDs, Insurance, Metals) so that in an emergency,
-declared nominees (parents/spouse) can access them in one click — without
-needing to learn the Kosh app or have a Google account.
+Goal: let family members (parents, spouse, nominees) open a read-only view of
+the household report — and, in an emergency, the encashment info for each
+asset — from a link or QR on their phone, **without a password or a Google
+account**, while keeping it accessible only to people the owner has
+explicitly enrolled.
 
-## Part 1 — Data model: what to capture, and where
+Two parts:
+1. **Emergency info** — per-asset document links and liquidation runbooks
+   (the "more details" that get shared).
+2. **Family access** — per-recipient secret link + authenticator-app (TOTP)
+   code, replacing the passphrase gate from the original version of this plan.
 
-Add two new fields to each liquidatable asset type:
+---
 
-- **`doc_link`** — Drive URL to the policy/statement/certificate PDF. Kosh
-  already has Drive upload plumbing (`backend/handlers/upload.go`,
-  `frontend/src/components/UploadZone.jsx`, returns `DriveURL`/`drive_url`).
-  Currently the URL gets appended into the `notes` column as a workaround
-  (`Investments.jsx` ~line 560) — instead, route it into a dedicated column.
-- **`emergency_steps`** — free-text liquidation runbook: agent/RM name & phone,
-  folio/policy/account number, branch/helpline, claim form name, documents
-  required (death certificate, KYC, nominee proof), expected turnaround.
+## Part 1 — Emergency info: data model
 
-Backend changes:
-- Extend `koshTabs` column defs in `backend/main.go` (~line 31-43)
-- Extend `sheetColumns` map in `backend/handlers/mutations.go` (~line 11-22)
-- Extend the relevant structs + `ReadSheet` parsing in `backend/handlers/data.go`
-  (~lines 40-98, 276-339)
+Add two fields to each liquidatable asset type:
 
-Frontend changes:
-- Add an expandable "Emergency info" section / modal per row in
-  `InsuranceTable`/`FixedTable`/etc. in `frontend/src/screens/Investments.jsx`
-  with a small form for `doc_link` (wired to the existing `UploadZone`) and
-  `emergency_steps`.
+- **`doc_link`** — Drive URL to the policy/statement/certificate PDF.
+  ✅ **Done for Fixed and Insurance** (commit 72ef5f1): dedicated `doc_link`
+  column, populated by the upload flow, link icon in `FixedTable.jsx` /
+  `InsuranceTable.jsx`. Still to do: MF, Stocks, Metals.
+- **`emergency_steps`** — free-text liquidation runbook: agent/RM name &
+  phone, folio/policy/account number, branch/helpline, claim form name,
+  documents required (death certificate, KYC, nominee proof), expected
+  turnaround.
 
-Current sheetColumns reference (as of writing):
-```
-MF:        ["id", "name", "plan", "platform", "member", "invested", "current", "sip", "notes"]
-Stocks:    ["id", "name", "ticker", "qty", "avg_price", "last_price", "member"]
-Metals:    ["id", "type", "date_purchased", "grams", "buy_rate", "today_price", "place", "member"]
-Fixed:     ["id", "kind", "name", "member", "principal", "rate", "current_value", "opened", "matures", "monthly"]
-Insurance: ["id", "name", "type", "member", "premium", "freq", "paid", "value", "cover", "maturity", "due_date"]
-```
+Where (columns are now derived from `sheet:"..."` struct tags):
+- Structs in `backend/internal/models/types.go` (`MF`, `Stock`, `Metal`,
+  `Fixed`, `Insurance`)
+- Seed data in `backend/dev_data.json`
+- Frontend: an expandable "Emergency info" section per row in
+  `frontend/src/screens/investments/tables/*`, with a small form for
+  `emergency_steps` and `doc_link` (wired to the existing `UploadZone`).
 
-## Part 2 — Nominee access: secret link + passphrase gate
+---
 
-Decision (confirmed with user): use a **secret read-only link gated by a
-passphrase** (not OTP — OTP would require adding a new email/SMS-sending
-dependency the project doesn't have; a passphrase needs nothing new).
+## Part 2 — Family access: secret link + authenticator code
 
-### 1. New "Emergency" tab/config (Sheets-backed)
-- A long random **access token** (e.g. 32-byte hex) forming the secret URL:
-  `https://kosh.app/emergency/<token>`
-- A **passphrase**, stored hashed (bcrypt) — never in plaintext
-- Optional list of nominee names/relations, just for display
-  ("Prepared for: Mom, Dad, Spouse")
+### Decisions (confirmed with user 2026-11-07)
+- **TOTP (authenticator app), not SMS OTP.** SMS needs a paid provider
+  (Twilio etc.), India DLT sender/template registration, sends family phone
+  numbers and access events to a third party (contradicts Kosh's privacy
+  pitch), and is exposed to SIM-swap. TOTP needs no new service and works
+  offline. Cost: one-time in-person enrolment for each family member.
+- **Supersedes the earlier passphrase design** (approved 2026-06-08). A
+  shared passphrase can't be revoked per person and gets written down; a
+  per-recipient TOTP secret can.
+- **One link per recipient**, not one shared link. The "whitelist" is a list
+  of named recipients ("Mom", "Dad"), each with their own secret, so access
+  can be scoped, logged and revoked per person.
+- **Live view, not a snapshot** — recipients always see current numbers.
 
-### 2. Backend — unauthenticated read-only route `/emergency/<token>`
-- Bypasses normal Google-login auth entirely (separate code path from `auth.go`)
-- First visit: shows a minimal passphrase-entry page
-- On correct passphrase: issues a short-lived signed cookie scoped only to this
-  view, then renders the emergency content
-- **Rate-limiting / lockout** after N wrong attempts (in-memory counter keyed
-  by IP+token) — brute-force protection even if the URL leaks
-- Defense in depth: unguessable token is the first line, passphrase the second
+- **Code asked again after 1 day** — the recipient session cookie lasts
+  24 hours.
+- **Scope: full family view for now** — every recipient sees the complete
+  household report (all sections, all members). Per-recipient scoping is
+  listed under "Later".
 
-### 3. Emergency content shown (read-only, stripped down)
-- Grouped by asset class (FDs, insurance, MF, stocks): name, account/folio/
-  policy number, current value, the `emergency_steps` runbook text, and a
-  clickable `doc_link` to the supporting PDF in Drive
-- No edit controls, no nav, no other Kosh data — just what's needed to act
+### Two different artefacts — never confuse them
+| | Share link / QR | Enrolment QR |
+|---|---|---|
+| Content | `https://<host>/s/<random-token>` | `otpauth://totp/Kosh:<name>?secret=…` |
+| Grants access alone? | No — identifies the recipient only | No — but link + this = full access |
+| How it travels | WhatsApp, print, fridge — fine | **Shown once, scanned in person.** Never sent over chat |
 
-### 4. New "Emergency" settings screen (in Kosh, behind normal login)
-- Button to **generate/regenerate** the link + set the passphrase
-- Shows the current secret URL (copy button) to store in a password manager /
-  share with nominees
-- **Last-accessed log** (timestamp + rough location/IP) — peace of mind and a
-  tamper signal
-- One-click **revoke & regenerate** if the link is ever suspected to have leaked
+### Infrastructure constraint
+Kosh has no database, sessions are stateless HMAC cookies
+(`internal/auth/session.go`), and Cloud Run may run multiple instances and
+scale to zero. **In-memory rate limits / lockouts silently reset**, so all
+security state is persisted in the Sheet (family scale is far below Sheets
+write quotas).
+
+### 1. Data model (new Sheet tabs)
+- **`Shares`** — one row per recipient: `id`, `name`, `relation`,
+  `token_hash` (SHA-256 of the link token; the raw token is never stored),
+  `totp_secret_enc` (AES-GCM, key from new env var `SHARE_ENCRYPTION_KEY` —
+  anyone with view access to the Sheet must not be able to copy secrets),
+  `expires`, `revoked`, `failed_attempts`,
+  `locked_until`, `last_totp_step` (replay protection), `created`.
+- **`ShareAccess`** — access log: `share_id`, timestamp, outcome
+  (ok / bad code / locked / revoked), coarse IP / user agent.
+
+### 2. Backend
+- `internal/share` package: TOTP verify per RFC 6238 (30 s step, ±1 step
+  clock-drift window, reject steps ≤ `last_totp_step`), AES-GCM secret
+  encryption, token generation (32 random bytes, base64url) and hashing.
+- **Session scoping:** add a scope/type field to the signed token. Share
+  sessions use a separate cookie name, `Path=/s/` + `/api/share/`, and are
+  rejected by the existing `protect` middleware, so a recipient can never
+  reach `/api/data`, mutations, AI or upload endpoints.
+- Owner endpoints (behind `protect`, disabled in demo mode):
+  - `POST /api/shares` → create recipient; returns link + enrolment QR
+    **once**
+  - `GET /api/shares` → list (never returns secrets/tokens)
+  - `PUT /api/shares/{id}` → edit expiry, revoke, re-enrol
+    (new secret), regenerate link
+  - `GET /api/shares/{id}/access` → access log
+- Recipient endpoints (unauthenticated, separate code path):
+  - `POST /api/share/verify` `{token, code}` → on success sets share cookie
+  - `GET /api/share/report` → read-only JSON of the family report, built
+    server-side via `report.BuildTables(data, "", allSections)` — the
+    recipient never receives the raw `/api/data` payload
+  - `GET /api/share/report/export?format=pdf` → PDF watermarked with the
+    recipient's name
+- Lockout: 5 wrong codes → locked 15 min (persisted). Generic error
+  messages that don't reveal whether a link is valid/revoked/expired.
+- Headers on all share routes/pages: `Cache-Control: no-store`,
+  `Referrer-Policy: no-referrer` (token is in the URL), `X-Robots-Tag:
+  noindex`; tokens redacted from logs.
+
+### 3. Frontend — owner "Sharing" screen (behind normal login)
+- Add recipient: name, relation, optional expiry
+- Show enrolment QR + share link/QR once, with a "scan this together now"
+  instruction; copy-link button
+- List recipients with last access, status; revoke / re-enrol / regenerate
+- Access log per recipient
+- Mobile-first: entry in the bottom tab bar (not only the sidebar),
+  full-width modals on ≤768px
+
+### 4. Frontend — recipient view (`/s/<token>`, phone-first)
+- Minimal code-entry page (6-digit numeric input, large tap targets)
+- Read-only family report, no nav, no edit controls, no
+  other Kosh data; emergency runbooks + doc links once Part 1 lands
+- "Download PDF" button
+
+### 5. Recovery
+Lost phone / new authenticator → owner re-enrols that recipient (new secret,
+old one dead). No self-service recovery, by design.
+
+### 6. Tests
+Wrong code, replayed code, clock-drift edges, expired/revoked share,
+lockout persistence, share cookie rejected on `/api/*`, owner session
+not accepted as a share session, demo mode blocks owner endpoints.
+
+### 7. Docs (same PR as the feature)
+`SHARE_ENCRYPTION_KEY` + sharing setup in `docs/SELF_HOSTING.md`; feature
+mention in `README.md` and `frontend/src/screens/marketing/Docs.jsx`.
+
+---
+
+## Later
+- **Passkeys (WebAuthn)** as an alternative to TOTP — Face ID / fingerprint,
+  nothing to type; best UX for older family members
+- Per-recipient scope (sections + member filter, e.g. Dad sees only his
+  own holdings)
+- Optional "notify me when someone opens the share"
+- `doc_link` / `emergency_steps` for MF, Stocks, Metals
 
 ## Status
-Plan approved by user on 2026-06-08. Not yet implemented — revisit when ready
-to build.
+- Part 1: `doc_link` shipped for Fixed + Insurance; rest pending.
+- Part 2: TOTP family access implemented 2026-11-07 (`backend/internal/share`,
+  `SharingModal.jsx`, `SharedReport.jsx`). Implementation notes vs. plan:
+  link regeneration is folded into **Reset** (new link + new secret together);
+  "last opened" is derived from the `ShareAccess` log rather than a column.

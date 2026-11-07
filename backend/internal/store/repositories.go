@@ -20,6 +20,12 @@ type Repositories struct {
 	TaxRecommendations *Repository[models.TaxRecommendation]
 	TaxRules           *Repository[models.TaxRuleSet]
 
+	// Family-share tabs. Deliberately absent from Registry: the generic
+	// /api/{sheet} mutation routes must never be able to read or write share
+	// secrets — only the share handler touches these.
+	Shares      *Repository[models.ShareRecipient]
+	ShareAccess *Repository[models.ShareAccess]
+
 	// Registry enables generic mutation dispatch by sheet name.
 	Registry map[string]AnyRepository
 }
@@ -42,6 +48,9 @@ func NewRepositories(api SheetsAPI) *Repositories {
 
 		TaxRecommendations: NewRepository[models.TaxRecommendation](api, "TaxRecommendations"),
 		TaxRules:           NewRepository[models.TaxRuleSet](api, "TaxRules"),
+
+		Shares:      NewRepository[models.ShareRecipient](api, "Shares"),
+		ShareAccess: NewRepository[models.ShareAccess](api, "ShareAccess"),
 	}
 	r.Registry = map[string]AnyRepository{
 		"Members":   r.Members,

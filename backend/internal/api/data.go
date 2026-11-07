@@ -86,6 +86,23 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 	return d
 }
 
+// FamilyData returns the owner's dataset regardless of who is asking — dev
+// data in dev mode, live Sheets otherwise. Used by family-share views, whose
+// requests carry no owner session (and must not be switched to demo data by
+// a stray demo cookie in the recipient's browser).
+func (h *Handler) FamilyData() *models.Data {
+	var d *models.Data
+	if h.devData != nil {
+		cp := *h.devData
+		cp.Fixed = append([]models.Fixed(nil), cp.Fixed...)
+		d = &cp
+	} else {
+		d = h.fetchFromRepos()
+	}
+	models.ComputeFixedValues(d.Fixed)
+	return d
+}
+
 func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 	var d *models.Data
 	sample := h.servingSampleData(r)

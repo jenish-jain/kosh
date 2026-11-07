@@ -190,3 +190,32 @@ type Config struct {
 	OtherDeductions      float64 `json:"other_deductions"`
 	SavedByFiling        float64 `json:"saved_by_filing"`
 }
+
+// ShareRecipient is a family member enrolled to view the read-only family
+// report via a secret link + authenticator-app (TOTP) code. TokenHash and
+// SecretEnc are never serialised to clients — the raw link token is never
+// stored at all, and the TOTP secret is AES-GCM encrypted at rest so read
+// access to the Sheet alone can't be used to mint codes.
+type ShareRecipient struct {
+	ID             string `json:"id"        sheet:"id"`
+	Name           string `json:"name"      sheet:"name"`
+	Relation       string `json:"relation"  sheet:"relation"`
+	TokenHash      string `json:"-"         sheet:"token_hash"`
+	SecretEnc      string `json:"-"         sheet:"totp_secret_enc"`
+	Expires        string `json:"expires"   sheet:"expires"` // YYYY-MM-DD, "" = never
+	Revoked        string `json:"-"         sheet:"revoked"` // "true" | ""
+	FailedAttempts int    `json:"-"         sheet:"failed_attempts"`
+	LockedUntil    string `json:"-"         sheet:"locked_until"`   // RFC 3339, "" = not locked
+	LastTOTPStep   int    `json:"-"         sheet:"last_totp_step"` // replay protection
+	Created        string `json:"created"   sheet:"created"`        // RFC 3339
+}
+
+// ShareAccess is one entry in the family-share access log.
+type ShareAccess struct {
+	ID        string `json:"id"         sheet:"id"`
+	ShareID   string `json:"share_id"   sheet:"share_id"`
+	At        string `json:"at"         sheet:"at"`    // RFC 3339
+	Event     string `json:"event"      sheet:"event"` // verified | bad_code | locked | denied | viewed | pdf
+	IP        string `json:"ip"         sheet:"ip"`
+	UserAgent string `json:"user_agent" sheet:"user_agent"`
+}

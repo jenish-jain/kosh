@@ -55,6 +55,9 @@ Cloud Run) so it's reachable from anywhere.
   with tools you already trust
 - **Auth**: optional Google Sign-In restricted to an email allow-list — or
   run it open on a trusted machine
+- **Family sharing**: optional read-only report links for family members,
+  unlocked with an authenticator-app code (no passwords, no SMS) — see
+  [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md#family-sharing-optional)
 
 See [docs/SELF_HOSTING.md § Project structure](docs/SELF_HOSTING.md#project-structure)
 for a tour of the codebase.
