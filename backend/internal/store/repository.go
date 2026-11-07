@@ -51,8 +51,14 @@ func (r *Repository[T]) All() ([]T, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading sheet %s: %w", r.sheet, err)
 	}
+	return r.Parse(rows), nil
+}
+
+// Parse maps already-fetched rows (header row first, as ReadSheet returns
+// them) to T — for rows read in bulk via BatchReader.
+func (r *Repository[T]) Parse(rows [][]interface{}) []T {
 	if len(rows) <= 1 {
-		return nil, nil
+		return nil
 	}
 	result := make([]T, 0, len(rows)-1)
 	for _, row := range rows[1:] {
@@ -60,7 +66,7 @@ func (r *Repository[T]) All() ([]T, error) {
 		scanRow(row, r.columns, r.indices, &item)
 		result = append(result, item)
 	}
-	return result, nil
+	return result
 }
 
 // Add serializes item to a row and appends it to the sheet. Returns the new
