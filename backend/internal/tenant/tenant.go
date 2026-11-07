@@ -8,6 +8,7 @@
 package tenant
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -41,11 +42,24 @@ func Single(t *Tenant) Resolver { return single{t} }
 
 func (s single) Resolve(*http.Request) (*Tenant, error) { return s.t, nil }
 
+// HTTPError lets a Resolver choose the response for an expected failure
+// (e.g. "this account hasn't set up a household yet") instead of the
+// generic 401.
+type HTTPError interface {
+	error
+	HTTPStatus() int
+}
+
 // FromRequest resolves r's tenant, writing an error response and returning
 // false if that fails, so handlers can bail out with a single check.
 func FromRequest(res Resolver, w http.ResponseWriter, r *http.Request) (*Tenant, bool) {
 	t, err := res.Resolve(r)
 	if err != nil {
+		var he HTTPError
+		if errors.As(err, &he) {
+			http.Error(w, he.Error(), he.HTTPStatus())
+			return nil, false
+		}
 		log.Printf("⚠ resolving tenant: %v", err)
 		http.Error(w, "couldn't load your household", http.StatusUnauthorized)
 		return nil, false

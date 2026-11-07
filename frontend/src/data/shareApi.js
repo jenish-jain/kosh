@@ -27,7 +27,28 @@ export const deleteShare   = id => request(`/api/shares/${id}`, { method: 'DELET
 export const shareAccessLog = id => request(`/api/shares/${id}/access`)
 
 // ── Recipient ──
-export const verifyShare  = (token, code) => post('/api/share/verify', { token, code })
-export const fetchSharedReport = token => request(`/api/share/report?token=${encodeURIComponent(token)}`)
-export const lockShare    = () => post('/api/share/logout')
-export const sharedPdfUrl = token => `/api/share/export?token=${encodeURIComponent(token)}`
+// The link token travels in a header, never a URL, so it can't end up in
+// server or proxy logs.
+const TOKEN_HEADER = 'X-Kosh-Share-Token'
+const withToken = (token, opts = {}) => ({ ...opts, headers: { ...(opts.headers || {}), [TOKEN_HEADER]: token } })
+
+export const verifyShare = (token, code) => request('/api/share/verify', withToken(token, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code }),
+}))
+export const fetchSharedReport = token => request('/api/share/report', withToken(token))
+export const lockShare = () => post('/api/share/logout')
+
+export async function downloadSharedPdf(token) {
+  const res = await request('/api/share/export', withToken(token))
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Kosh-Family-Report-${new Date().toISOString().slice(0, 10)}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

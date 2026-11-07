@@ -1,6 +1,7 @@
 package share
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,11 +30,25 @@ const (
 	maxAttempts = 5
 	lockout     = 15 * time.Minute
 	issuer      = "Kosh"
+
+	// TokenHeader carries the share-link token on recipient API calls. It's
+	// never put in a URL query, so it can't end up in request logs; links
+	// themselves keep it in the URL fragment (/s#<token>), which browsers
+	// never send to the server.
+	TokenHeader = "X-Kosh-Share-Token"
 )
 
-// errGeneric is shown for every "no" that isn't a lockout, so a response
+// TokenIndex records which tenant a share-link token belongs to, so a
+// hosted deploy can route an anonymous recipient request to the right
+// household. Self-hosted Kosh has one household and needs none.
+type TokenIndex interface {
+	PutShareToken(ctx context.Context, tokenHash, tenantID string) error
+	DeleteShareToken(ctx context.Context, tokenHash string) error
+}
+
+// ErrGeneric is shown for every "no" that isn't a lockout, so a response
 // never reveals whether a link exists, was revoked, or has expired.
-const errGeneric = "This link or code isn't valid. Check the code in your authenticator app, or ask for a new link."
+const ErrGeneric = "This link or code isn't valid. Check the code in your authenticator app, or ask for a new link."
 
 // Handler serves both the owner's share-management API (behind normal login)
 // and the recipients' unauthenticated verify/report API.
@@ -41,7 +56,7 @@ type Handler struct {
 	tenants      tenant.Resolver
 	sealer       *Sealer
 	session      *auth.Session
-	familyData   func(*tenant.Tenant) *models.Data
+	familyData   func(*tenant.Tenant) (*models.Data, error)
 	isDemo       func(*http.Request) bool
 	cookieSecure bool
 	now          func() time.Time
@@ -50,6 +65,8 @@ type Handler struct {
 	// guesses can't both read the same failed-attempt count. A pointer, so
 	// the per-request copies made by scoped all share it.
 	mu *sync.Mutex
+
+	index TokenIndex // nil when self-hosted
 
 	// Set only on the per-request copy returned by scoped.
 	t      *tenant.Tenant
@@ -60,7 +77,7 @@ type Handler struct {
 // NewHandler constructs a share Handler. sessionSecret is the app's
 // SESSION_SECRET; share sessions are signed with a key derived from it, so a
 // share cookie can never be accepted as an owner session (or vice versa).
-func NewHandler(tenants tenant.Resolver, sealer *Sealer, sessionSecret string, familyData func(*tenant.Tenant) *models.Data, isDemo func(*http.Request) bool, cookieSecure bool) *Handler {
+func NewHandler(tenants tenant.Resolver, sealer *Sealer, sessionSecret string, familyData func(*tenant.Tenant) (*models.Data, error), isDemo func(*http.Request) bool, cookieSecure bool) *Handler {
 	return &Handler{
 		tenants:      tenants,
 		sealer:       sealer,
@@ -70,6 +87,28 @@ func NewHandler(tenants tenant.Resolver, sealer *Sealer, sessionSecret string, f
 		cookieSecure: cookieSecure,
 		now:          time.Now,
 		mu:           &sync.Mutex{},
+	}
+}
+
+// SetTokenIndex enables share-token indexing (hosted mode).
+func (h *Handler) SetTokenIndex(idx TokenIndex) { h.index = idx }
+
+// indexPut / indexDelete are no-ops when self-hosted.
+func (h *Handler) indexPut(ctx context.Context, tokenHash string) error {
+	if h.index == nil {
+		return nil
+	}
+	return h.index.PutShareToken(ctx, tokenHash, h.t.ID)
+}
+
+func (h *Handler) indexDelete(ctx context.Context, tokenHash string) {
+	if h.index == nil {
+		return
+	}
+	if err := h.index.DeleteShareToken(ctx, tokenHash); err != nil {
+		// A stale index entry only points at a row that no longer matches
+		// any token hash, so it grants nothing; log and move on.
+		log.Printf("⚠ removing share token from index: %v", err)
 	}
 }
 
@@ -127,11 +166,11 @@ func (h *Handler) Owner(w http.ResponseWriter, r *http.Request) {
 	case parts[0] == "" && r.Method == http.MethodPost:
 		h.create(w, r)
 	case len(parts) == 1 && r.Method == http.MethodDelete:
-		h.remove(w, parts[0])
+		h.remove(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "revoke" && r.Method == http.MethodPost:
 		h.revoke(w, parts[0])
 	case len(parts) == 2 && parts[1] == "reset" && r.Method == http.MethodPost:
-		h.reset(w, parts[0])
+		h.reset(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "access" && r.Method == http.MethodGet:
 		h.accessLog(w, parts[0])
 	default:
@@ -195,7 +234,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "generating credentials: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Index first: a share row whose token isn't indexed would be a link
+	// that silently never works in hosted mode.
+	if err := h.indexPut(r.Context(), rec.TokenHash); err != nil {
+		http.Error(w, "indexing share link: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if _, err := h.shares.Add(rec); err != nil {
+		h.indexDelete(r.Context(), rec.TokenHash)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -205,14 +251,19 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 // reset issues a brand-new link and TOTP secret (lost phone, leaked link),
 // killing the old ones, and lifts any revocation/lockout.
-func (h *Handler) reset(w http.ResponseWriter, id string) {
+func (h *Handler) reset(w http.ResponseWriter, r *http.Request, id string) {
 	rec, ok := h.byID(w, id)
 	if !ok {
 		return
 	}
+	oldHash := rec.TokenHash
 	enr, err := h.issueCredentials(&rec)
 	if err != nil {
 		http.Error(w, "generating credentials: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.indexPut(r.Context(), rec.TokenHash); err != nil {
+		http.Error(w, "indexing share link: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	err = h.shares.Update(id, map[string]any{
@@ -220,9 +271,11 @@ func (h *Handler) reset(w http.ResponseWriter, id string) {
 		"revoked": "", "failed_attempts": 0, "locked_until": "", "last_totp_step": 0,
 	})
 	if err != nil {
+		h.indexDelete(r.Context(), rec.TokenHash)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	h.indexDelete(r.Context(), oldHash)
 	rec.Revoked, rec.FailedAttempts, rec.LockedUntil = "", 0, ""
 	enr.Share = h.view(rec)
 	writeJSON(w, enr)
@@ -239,14 +292,16 @@ func (h *Handler) revoke(w http.ResponseWriter, id string) {
 	writeJSON(w, map[string]string{"status": "ok"})
 }
 
-func (h *Handler) remove(w http.ResponseWriter, id string) {
-	if _, ok := h.byID(w, id); !ok {
+func (h *Handler) remove(w http.ResponseWriter, r *http.Request, id string) {
+	rec, ok := h.byID(w, id)
+	if !ok {
 		return
 	}
 	if err := h.shares.Delete(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	h.indexDelete(r.Context(), rec.TokenHash)
 	writeJSON(w, map[string]string{"status": "ok"})
 }
 
@@ -285,7 +340,7 @@ func (h *Handler) issueCredentials(rec *models.ShareRecipient) (enrolment, error
 	rec.TokenHash = HashToken(token)
 	rec.SecretEnc = enc
 	return enrolment{
-		LinkPath:   "/s/" + token,
+		LinkPath:   "/s#" + token,
 		OTPAuthURI: ProvisioningURI(issuer, rec.Name, secret),
 		Secret:     secret,
 	}, nil
@@ -349,11 +404,10 @@ func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Token string `json:"token"`
-		Code  string `json:"code"`
+		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, errGeneric, http.StatusUnauthorized)
+		http.Error(w, ErrGeneric, http.StatusUnauthorized)
 		return
 	}
 	code := strings.ReplaceAll(strings.TrimSpace(body.Code), " ", "")
@@ -361,14 +415,14 @@ func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	rec, found := h.byToken(body.Token)
+	rec, found := h.byToken(r.Header.Get(TokenHeader))
 	if !found {
-		http.Error(w, errGeneric, http.StatusUnauthorized)
+		http.Error(w, ErrGeneric, http.StatusUnauthorized)
 		return
 	}
 	if rec.Revoked == "true" || h.expired(rec) {
 		h.logAccess(r, rec.ID, "denied")
-		http.Error(w, errGeneric, http.StatusUnauthorized)
+		http.Error(w, ErrGeneric, http.StatusUnauthorized)
 		return
 	}
 	if h.locked(rec) {
@@ -380,14 +434,14 @@ func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
 	secret, err := h.sealer.Open(rec.SecretEnc)
 	if err != nil {
 		log.Printf("⚠ share %s: decrypting TOTP secret: %v", rec.ID, err)
-		http.Error(w, errGeneric, http.StatusUnauthorized)
+		http.Error(w, ErrGeneric, http.StatusUnauthorized)
 		return
 	}
 	step, ok := VerifyTOTP(secret, code, h.now(), int64(rec.LastTOTPStep))
 	if !ok {
 		failed := rec.FailedAttempts + 1
 		patch := map[string]any{"failed_attempts": failed}
-		status, msg := http.StatusUnauthorized, errGeneric
+		status, msg := http.StatusUnauthorized, ErrGeneric
 		if failed >= maxAttempts {
 			rec.LockedUntil = h.now().Add(lockout).UTC().Format(time.RFC3339)
 			patch = map[string]any{"failed_attempts": 0, "locked_until": rec.LockedUntil}
@@ -436,7 +490,12 @@ func (h *Handler) report(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	data := h.familyData(h.t)
+	data, err := h.familyData(h.t)
+	if err != nil {
+		log.Printf("⚠ share %s: loading family data: %v", rec.ID, err)
+		http.Error(w, "This report is temporarily unavailable. Please let the person who shared it know.", http.StatusServiceUnavailable)
+		return
+	}
 	meta := report.BuildMeta(data, "", h.now())
 	h.logAccess(r, rec.ID, "viewed")
 	writeJSON(w, sharedReport{
@@ -452,7 +511,12 @@ func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	data := h.familyData(h.t)
+	data, err := h.familyData(h.t)
+	if err != nil {
+		log.Printf("⚠ share %s: loading family data: %v", rec.ID, err)
+		http.Error(w, "This report is temporarily unavailable. Please let the person who shared it know.", http.StatusServiceUnavailable)
+		return
+	}
 	meta := report.BuildMeta(data, "", h.now())
 	// Stamp the recipient's name on the PDF so a forwarded copy is traceable.
 	meta.Scope += " · shared with " + rec.Name
@@ -468,7 +532,7 @@ func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 }
 
 // authorize checks that the request's share cookie belongs to the recipient
-// whose link token is in the query, and that the share is still active.
+// whose link token is in the TokenHeader, and that the share is still active.
 func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) (models.ShareRecipient, bool) {
 	deny := func() (models.ShareRecipient, bool) {
 		http.Error(w, "verification required", http.StatusUnauthorized)
@@ -486,7 +550,7 @@ func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) (models.Shar
 	if err != nil {
 		return deny()
 	}
-	rec, found := h.byToken(r.URL.Query().Get("token"))
+	rec, found := h.byToken(r.Header.Get(TokenHeader))
 	if !found || rec.ID != shareID || rec.Revoked == "true" || h.expired(rec) {
 		return deny()
 	}

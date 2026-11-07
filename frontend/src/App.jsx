@@ -15,6 +15,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/app/*" element={<AuthenticatedApp />} />
+        <Route path="/s" element={<SharedReport />} />
         <Route path="/s/:token" element={<SharedReport />} />
         <Route path="*" element={<Home />} />
       </Routes>
