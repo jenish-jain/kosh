@@ -115,8 +115,14 @@ func main() {
 	isDemo := func(r *http.Request) bool {
 		return authH.IsDemoSession(r)
 	}
-	// Pass sheetClient as configAPI (nil in dev mode is fine — Handler handles it).
-	apiH := api.NewHandler(repos, sheetClient, isDemo)
+	// Pass sheetClient as configAPI; in dev mode pass an untyped nil — a nil
+	// *sh.Client wrapped in the interface is non-nil, so Handler would skip
+	// loading dev_data.json and panic reading Config.
+	var configAPI store.SheetsAPI
+	if sheetClient != nil {
+		configAPI = sheetClient
+	}
+	apiH := api.NewHandler(repos, configAPI, isDemo)
 
 	// Propose doesn't itself call an AI provider (that happens via the existing
 	// /api/upload/tax_rules parse step) — it's always available, unlike aiH/taxH.
