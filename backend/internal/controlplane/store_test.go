@@ -292,6 +292,37 @@ func TestStore_MarkEventProcessed(t *testing.T) {
 	})
 }
 
+func TestStore_FeaturePolicy(t *testing.T) {
+	// Only a fresh store is guaranteed never to have had one saved (the
+	// emulator is shared across runs).
+	if _, err := NewMemory().GetFeaturePolicy(ctx); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unsaved policy: want ErrNotFound, got %v", err)
+	}
+	forEachStore(t, func(t *testing.T, s Store) {
+		by := uniq("op") + "@x.com"
+		at := time.Now().UTC().Truncate(time.Millisecond)
+		in := FeaturePolicy{Tiers: map[string]map[string]bool{
+			"free": {"share": false, "edit": true},
+			"paid": {"share": true},
+		}, UpdatedBy: by, UpdatedAt: at}
+		if err := s.PutFeaturePolicy(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+		in.Tiers["free"]["share"] = true // the store must have kept its own copy
+		got, err := s.GetFeaturePolicy(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.UpdatedBy != by || !got.UpdatedAt.Equal(at) || got.Tiers["free"]["share"] || !got.Tiers["free"]["edit"] || !got.Tiers["paid"]["share"] {
+			t.Errorf("round trip: %+v", got)
+		}
+		got.Tiers["paid"]["share"] = false
+		if again, _ := s.GetFeaturePolicy(ctx); !again.Tiers["paid"]["share"] {
+			t.Error("mutating a returned policy changed the stored one")
+		}
+	})
+}
+
 func TestStore_DeleteHouseholdRemovesOnlyItsData(t *testing.T) {
 	forEachStore(t, func(t *testing.T, s Store) {
 		aOwner, bOwner := uniq("a")+"@x.com", uniq("b")+"@x.com"
