@@ -26,12 +26,12 @@ export default function HostedGate({ user, clientId, devLogin, onSignOut, childr
   // say) update in place so the app — and its toasts — stay mounted.
   const load = useCallback((background = false) => {
     if (!background) setState({ loading: true })
-    hostedMe().then(me => setState({ household: me.household })).catch(e => setState({ error: e.message }))
+    hostedMe().then(me => setState({ household: me.household, operator: !!me.operator })).catch(e => setState({ error: e.message }))
   }, [])
   useEffect(() => load(), [load])
   const refresh = useCallback(() => load(true), [load])
 
-  const settle = household => { clearJoinToken(); setJoinToken(null); setState({ household }) }
+  const settle = household => { clearJoinToken(); setJoinToken(null); setState(s => ({ household, operator: s.operator })) }
   const common = { email: user.email, clientId, devLogin, onSignOut }
 
   if (state.loading) return <LoadingScreen />
@@ -42,5 +42,5 @@ export default function HostedGate({ user, clientId, devLogin, onSignOut, childr
   }
   if (!state.household) return <Onboarding {...common} onDone={settle} />
   if (state.household.needs_reconnect) return <Reconnect household={state.household} {...common} onDone={settle} />
-  return children(state.household, refresh)
+  return children(state.household, refresh, state.operator)
 }

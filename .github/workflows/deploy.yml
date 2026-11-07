@@ -52,3 +52,14 @@ jobs:
           gcloud run deploy ${{ env.SERVICE }} \
             --image ${{ env.IMAGE }}:${{ github.sha }} \
             --region ${{ env.REGION }} --project ${{ env.PROJECT }}
+
+      # Hosted Kosh (multi-household, KOSH_MODE=hosted) runs the same image as
+      # a separate service. Opt in with the repo variable DEPLOY_HOSTED=true
+      # once the infra for it exists (jenish-jain/infrastructure#43). Only the
+      # image changes — env vars and secrets are owned by Terraform.
+      - name: Deploy hosted Kosh to Cloud Run
+        if: vars.DEPLOY_HOSTED == 'true'
+        run: |
+          gcloud run deploy kosh-hosted \
+            --image ${{ env.IMAGE }}:${{ github.sha }} \
+            --region ${{ env.REGION }} --project ${{ env.PROJECT }}

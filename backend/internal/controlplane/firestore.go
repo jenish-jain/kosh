@@ -21,7 +21,11 @@ const (
 	colSubscriptions = "subscriptions"
 	colUsage         = "usage"
 	colEvents        = "webhookEvents"
+	colSettings      = "settings"
 )
+
+// docFeaturePolicy is the one settings document holding the feature policy.
+const docFeaturePolicy = "featurePolicy"
 
 // eventRetention is how long processed webhook IDs are kept. Razorpay
 // retries for up to 24h; a Firestore TTL policy on expireAt does cleanup.
@@ -90,6 +94,12 @@ type fsUsage struct {
 	HouseholdID string         `firestore:"householdId"`
 	Period      string         `firestore:"period"`
 	Counts      map[string]int `firestore:"counts"`
+}
+
+type fsFeaturePolicy struct {
+	Tiers     map[string]map[string]bool `firestore:"tiers"`
+	UpdatedBy string                     `firestore:"updatedBy"`
+	UpdatedAt time.Time                  `firestore:"updatedAt"`
 }
 
 func toFSHousehold(h Household) fsHousehold {
@@ -481,6 +491,28 @@ func (f *Firestore) MarkEventProcessed(ctx context.Context, eventID string) (boo
 		return false, err
 	}
 	return true, nil
+}
+
+func (f *Firestore) GetFeaturePolicy(ctx context.Context) (FeaturePolicy, error) {
+	snap, err := f.c.Collection(colSettings).Doc(docFeaturePolicy).Get(ctx)
+	if isCode(err, codes.NotFound) {
+		return FeaturePolicy{}, ErrNotFound
+	}
+	if err != nil {
+		return FeaturePolicy{}, err
+	}
+	var d fsFeaturePolicy
+	if err := snap.DataTo(&d); err != nil {
+		return FeaturePolicy{}, err
+	}
+	return FeaturePolicy{Tiers: d.Tiers, UpdatedBy: d.UpdatedBy, UpdatedAt: d.UpdatedAt}, nil
+}
+
+func (f *Firestore) PutFeaturePolicy(ctx context.Context, p FeaturePolicy) error {
+	_, err := f.c.Collection(colSettings).Doc(docFeaturePolicy).Set(ctx, fsFeaturePolicy{
+		Tiers: p.Tiers, UpdatedBy: p.UpdatedBy, UpdatedAt: p.UpdatedAt,
+	})
+	return err
 }
 
 var (

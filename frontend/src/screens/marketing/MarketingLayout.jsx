@@ -3,6 +3,7 @@ import { SERIF } from '../../data/tokens.js'
 
 const NAV = [
   { to: '/features', label: 'Features' },
+  { to: '/pricing', label: 'Pricing' },
   { to: '/about', label: 'About' },
   { to: '/docs', label: 'Docs' },
 ]
