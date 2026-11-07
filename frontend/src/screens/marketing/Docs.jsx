@@ -6,6 +6,7 @@ const SECTIONS = [
   { id: 'quick-start', label: 'Quick start' },
   { id: 'your-sheet', label: 'Connect your own Google Sheet' },
   { id: 'sign-in', label: 'Adding Google Sign-In' },
+  { id: 'family-sharing', label: 'Sharing with family' },
   { id: 'ai', label: 'AI features' },
   { id: 'deploying', label: 'Deploying' },
 ]
@@ -100,6 +101,21 @@ ALLOWED_EMAILS=you@gmail.com,partner@gmail.com`}</Code>
             Auth is entirely optional — leave these unset to run open on a trusted machine. Whenever
             sign-in is enabled, the login screen also offers a read-only <strong>Try the demo</strong> mode
             with no Google account needed — no extra setup required, it's what powers this site's own demo.
+          </p>
+        </Section>
+
+        <Section id="family-sharing" title="Sharing with family">
+          <p>
+            Give parents or a spouse a read-only view of the whole-family report without a password or a
+            Google account. Each person gets their own link and unlocks it with a 6-digit code from an
+            authenticator app on their phone. No SMS provider is involved. With sign-in set up, add:
+          </p>
+          <Code>{'SHARE_ENCRYPTION_KEY=$(openssl rand -hex 32)'}</Code>
+          <p>
+            A share icon then appears in the top bar. Add a family member, have them scan the one-time
+            setup QR into their authenticator app (in person, never over chat), then send them their link.
+            They're asked for a fresh code every 24 hours, and you can revoke, reset or audit each person
+            from the same screen.
           </p>
         </Section>
 

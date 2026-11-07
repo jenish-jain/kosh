@@ -151,5 +151,7 @@ mention in `README.md` and `frontend/src/screens/marketing/Docs.jsx`.
 
 ## Status
 - Part 1: `doc_link` shipped for Fixed + Insurance; rest pending.
-- Part 2: TOTP family access approved 2026-11-07; implementation in
-  progress.
+- Part 2: TOTP family access implemented 2026-11-07 (`backend/internal/share`,
+  `SharingModal.jsx`, `SharedReport.jsx`). Implementation notes vs. plan:
+  link regeneration is folded into **Reset** (new link + new secret together);
+  "last opened" is derived from the `ShareAccess` log rather than a column.

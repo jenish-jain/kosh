@@ -372,6 +372,44 @@ demo"** button — it starts a read-only session backed by the sample data in
 Kosh's public showcase, and it's on by default for any deployment with auth
 configured; there's nothing extra to set up.
 
+### Family sharing (optional)
+
+Give parents, a spouse or other family members a **read-only view of the
+whole-family report** without a password or Google account. Each person gets
+their own link and unlocks it with a 6-digit code from an authenticator app
+(Google Authenticator, Microsoft Authenticator, 1Password…) on their phone.
+No SMS provider is involved, so nothing about them leaves your server.
+
+1. Add to `backend/.env` (sign-in must already be set up, since sharing needs
+   `SESSION_SECRET`):
+   ```
+   SHARE_ENCRYPTION_KEY=   # generate with: openssl rand -hex 32
+   ```
+2. Restart. A **share** icon appears in the top bar.
+3. **Add family member** → with them next to you, have them scan the
+   **setup QR** into their authenticator app. It's shown only once, so never
+   send it over chat.
+4. Send them their **link** (WhatsApp is fine; it's useless without the code
+   from their phone). They open it, type the current code, and see the
+   report for 24 hours before being asked again.
+
+From the same screen you can **revoke** someone, **reset** them (new link and
+new setup QR, e.g. for a lost phone) and see an **access log** of every
+unlock, view, PDF download and wrong code.
+
+Security notes:
+- Link tokens are stored only as hashes; TOTP secrets are AES-GCM encrypted
+  with `SHARE_ENCRYPTION_KEY`, so view access to the Sheet isn't enough to
+  get in. Changing the key invalidates every recipient's setup (use
+  **Reset** on each).
+- 5 wrong codes lock that link for 15 minutes. Codes can't be reused.
+  Lockouts are stored in the Sheet, so they survive restarts and hold
+  across multiple Cloud Run instances.
+- Recipients get only the formatted report (the same data as **Export →
+  PDF**, whole family), never the raw data API, and can't edit anything.
+- Kosh creates the `Shares` and `ShareAccess` tabs itself. Don't edit them
+  by hand.
+
 ---
 
 ## 6. Document uploads & AI parsing (optional)
@@ -468,6 +506,7 @@ variables.
 | `GOOGLE_CLIENT_ID` | For sign-in & uploads | — | OAuth 2.0 Web client ID from Google Cloud Console |
 | `SESSION_SECRET` | For sign-in | — | Random string used to HMAC-sign session cookies (`openssl rand -base64 32`) |
 | `ALLOWED_EMAILS` | For sign-in | — | Comma-separated list of Google account emails allowed to sign in |
+| `SHARE_ENCRYPTION_KEY` | For family sharing | — | Encrypts family members' authenticator secrets (`openssl rand -hex 32`, min 32 chars). Also needs `SESSION_SECRET` |
 | `COOKIE_SECURE` | No | `true` | Set to `false` to allow cookies over plain HTTP (local testing only) |
 | `ANTHROPIC_API_KEY` | For uploads | — | Enables AI-assisted PDF/image parsing for FD, insurance, and metals |
 | `PROMPTS_DIR` | No | `prompts` | Directory of extraction prompt templates (`fd.md`, `insurance.md`, `metals.md`) |
@@ -485,12 +524,16 @@ kosh/
 ├── Makefile
 ├── Dockerfile
 ├── backend/
-│   ├── main.go              # HTTP server, routing, env config
-│   ├── handlers/
-│   │   ├── auth.go          # Google Sign-In, sessions, demo mode
-│   │   ├── data.go          # GET /api/data — reads all tabs
-│   │   ├── mutations.go     # POST/PUT/DELETE per sheet
-│   │   └── upload.go        # Document upload + AI parsing
+│   ├── main.go              # Env config + wiring
+│   ├── internal/
+│   │   ├── api/             # Routes, GET /api/data, mutations, report export
+│   │   ├── auth/            # Google Sign-In, sessions, demo mode
+│   │   ├── share/           # Family sharing: TOTP, share links, recipient report
+│   │   ├── store/           # Struct-tag ↔ sheet-row repositories
+│   │   ├── report/          # PDF/XLSX report builder
+│   │   ├── documents/       # Document upload + AI parsing
+│   │   ├── ai/              # Ask Kosh + tax recommendations
+│   │   └── models/          # Data types + finance calculations
 │   ├── sheets/
 │   │   └── client.go        # Google Sheets API wrapper
 │   ├── drive/               # Google Drive upload (user-owned storage)
