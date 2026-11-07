@@ -66,6 +66,15 @@ If the marketing site is served from a deploy that *isn't* the hosted
 service, build its frontend with `VITE_HOSTED_APP_URL=https://<hosted-host>/app`
 so "Start free trial" goes to the right place.
 
+## Deploying
+
+Hosted Kosh is the same Docker image as a self-hosted deploy, run as a
+second Cloud Run service (`kosh-hosted`; Terraform in
+jenish-jain/infrastructure, behind `create_kosh_hosted`). Set the repository
+variable `DEPLOY_HOSTED=true` and every push to `master` deploys the image
+to both services. Env vars and secrets are owned by Terraform; CI only
+changes the image.
+
 ## Plans, trials and access
 
 - New households get a **14-day trial** (`hosted.TrialLength`). Subscribing
