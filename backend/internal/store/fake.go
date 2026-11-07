@@ -9,7 +9,10 @@ import (
 // (and in dev mode, where family shares live in it). Safe for concurrent use.
 type FakeSheetsAPI struct {
 	Data map[string][][]interface{} // sheet name -> rows (row 0 = header)
-	mu   sync.Mutex
+	// Calls counts read round trips (ReadSheet and ReadSheets each count
+	// one), so tests can assert on API usage.
+	Calls int
+	mu    sync.Mutex
 }
 
 // NewFakeSheetsAPI returns an initialised FakeSheetsAPI with no sheets.
@@ -22,7 +25,25 @@ func NewFakeSheetsAPI() *FakeSheetsAPI {
 func (f *FakeSheetsAPI) ReadSheet(name string) ([][]interface{}, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.Calls++
 	return f.Data[name], nil
+}
+
+// ReadSheets implements BatchReader. Like the real API, it fails as a whole
+// if any requested tab doesn't exist.
+func (f *FakeSheetsAPI) ReadSheets(names []string) (map[string][][]interface{}, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Calls++
+	out := make(map[string][][]interface{}, len(names))
+	for _, n := range names {
+		rows, ok := f.Data[n]
+		if !ok {
+			return nil, fmt.Errorf("unable to parse range: %s", n)
+		}
+		out[n] = rows
+	}
+	return out, nil
 }
 
 // AppendRow appends row to the named sheet and returns its 1-indexed row number.

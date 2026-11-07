@@ -11,6 +11,7 @@ import (
 	"kosh/internal/ai"
 	"kosh/internal/models"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 type stubProvider struct {
@@ -49,7 +50,7 @@ func newTestHandler(t *testing.T, provider ai.Provider, isDemo, isSample bool) (
 	repos := store.NewRepositories(fake)
 	h := ai.NewTaxHandler(
 		provider,
-		repos,
+		tenant.Single(&tenant.Tenant{ID: "default", API: fake, Repos: repos}),
 		func(r *http.Request) *models.Data { return sampleData() },
 		func(r *http.Request) bool { return isDemo },
 		func(r *http.Request) bool { return isSample },

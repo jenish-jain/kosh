@@ -11,25 +11,24 @@ import (
 
 	"kosh/internal/models"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 	sh "kosh/sheets"
 )
 
 // Handler serves API data using typed repositories.
 type Handler struct {
-	repos     *store.Repositories
-	configAPI store.SheetsAPI // for reading the Config key-value sheet
-	devData   *models.Data
-	demoData  *models.Data             // lazily loaded; served to demo sessions in live mode
-	isDemo    func(*http.Request) bool // nil when auth (and therefore demo sessions) is disabled
+	tenants  tenant.Resolver
+	devData  *models.Data
+	demoData *models.Data             // lazily loaded; served to demo sessions in live mode
+	isDemo   func(*http.Request) bool // nil when auth (and therefore demo sessions) is disabled
 }
 
-// NewHandler constructs a Handler. When repos is backed by a real sheets client,
-// configAPI should be the same client (passed separately so Config reading can
-// use the SheetsAPI abstraction without coupling to *sh.Client). Pass nil for
-// configAPI to skip Config reads (dev/demo mode never reaches that path anyway).
-func NewHandler(repos *store.Repositories, configAPI store.SheetsAPI, isDemo func(*http.Request) bool) *Handler {
-	h := &Handler{repos: repos, configAPI: configAPI, isDemo: isDemo}
-	if configAPI == nil {
+// NewHandler constructs a Handler. tenants maps each request to the
+// household it reads/writes. devMode means there's no real spreadsheet:
+// every request is served dev_data.json and mutations no-op.
+func NewHandler(tenants tenant.Resolver, devMode bool, isDemo func(*http.Request) bool) *Handler {
+	h := &Handler{tenants: tenants, isDemo: isDemo}
+	if devMode {
 		h.devData = loadDevData()
 	}
 	return h
@@ -81,23 +80,28 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 	if h.servingSampleData(r) {
 		return h.sampleData()
 	}
-	d := h.fetchFromRepos()
+	t, err := h.tenants.Resolve(r)
+	if err != nil {
+		log.Printf("⚠ resolving tenant: %v", err)
+		return &models.Data{}
+	}
+	d := h.fetchFromRepos(t)
 	models.ComputeFixedValues(d.Fixed)
 	return d
 }
 
-// FamilyData returns the owner's dataset regardless of who is asking — dev
+// FamilyData returns the tenant's dataset regardless of who is asking — dev
 // data in dev mode, live Sheets otherwise. Used by family-share views, whose
 // requests carry no owner session (and must not be switched to demo data by
 // a stray demo cookie in the recipient's browser).
-func (h *Handler) FamilyData() *models.Data {
+func (h *Handler) FamilyData(t *tenant.Tenant) *models.Data {
 	var d *models.Data
 	if h.devData != nil {
 		cp := *h.devData
 		cp.Fixed = append([]models.Fixed(nil), cp.Fixed...)
 		d = &cp
 	} else {
-		d = h.fetchFromRepos()
+		d = h.fetchFromRepos(t)
 	}
 	models.ComputeFixedValues(d.Fixed)
 	return d
@@ -115,127 +119,111 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 		cp.Fixed = fixed
 		d = &cp
 	} else {
-		d = h.fetchFromRepos()
+		t, ok := tenant.FromRequest(h.tenants, w, r)
+		if !ok {
+			return
+		}
+		d = h.fetchFromRepos(t)
+		models.ComputeFixedValues(d.Fixed)
+		h.maybeSnapshotHistory(t, d)
+		writeJSON(w, d)
+		return
 	}
 	models.ComputeFixedValues(d.Fixed)
-	if !sample {
-		h.maybeSnapshotHistory(d)
-	}
 	writeJSON(w, d)
 }
 
-// fetchFromRepos reads all sheet tabs via the typed repositories and returns a
-// fully-populated Data struct. Sheet read errors are logged as warnings (a
-// missing/unshared tab should not crash the whole app).
-func (h *Handler) fetchFromRepos() *models.Data {
-	d := &models.Data{}
+// fetchFromRepos reads all of t's sheet tabs and returns a fully-populated
+// Data struct — in one batched API call when the backend supports it, else
+// tab by tab. A missing/unshared tab is logged and left empty rather than
+// failing the whole request.
+func (h *Handler) fetchFromRepos(t *tenant.Tenant) *models.Data {
+	repos := t.Repos
+	pre := prefetch(t, []string{
+		repos.Members.Sheet(), repos.MF.Sheet(), repos.Stocks.Sheet(), repos.Metals.Sheet(),
+		repos.Fixed.Sheet(), repos.Insurance.Sheet(), repos.Loans.Sheet(), repos.NPS.Sheet(),
+		repos.SIPs.Sheet(), repos.Lumpsums.Sheet(), repos.History.Sheet(), repos.Income.Sheet(),
+		repos.TaxRecommendations.Sheet(), repos.TaxRules.Sheet(), configSheet,
+	})
 
-	tabLog := func(tab string, e error) {
-		log.Printf("⚠  sheet %q unavailable: %v", tab, e)
-	}
-
-	if rows, e := h.repos.Members.All(); e == nil {
-		d.Members = rows
-	} else {
-		tabLog("Members", e)
-	}
-	if rows, e := h.repos.MF.All(); e == nil {
-		d.MF = rows
-	} else {
-		tabLog("MF", e)
-	}
-	if rows, e := h.repos.Stocks.All(); e == nil {
-		d.Stocks = rows
-	} else {
-		tabLog("Stocks", e)
-	}
-	if rows, e := h.repos.Metals.All(); e == nil {
-		d.Metals = rows
-	} else {
-		tabLog("Metals", e)
-	}
-	if rows, e := h.repos.Fixed.All(); e == nil {
-		// CurrentValue (col index 6) is computed at request time by
-		// ComputeFixedValues — the repository reads it from the sheet but it will
-		// be overwritten, so this is harmless.
-		d.Fixed = rows
-	} else {
-		tabLog("Fixed", e)
-	}
-	if rows, e := h.repos.Insurance.All(); e == nil {
-		d.Insurance = rows
-	} else {
-		tabLog("Insurance", e)
-	}
-	if rows, e := h.repos.Loans.All(); e == nil {
-		d.Loans = rows
-	} else {
-		tabLog("Loans", e)
-	}
-	if rows, e := h.repos.NPS.All(); e == nil {
-		d.NPS = rows
-	} else {
-		tabLog("NPS", e)
-	}
-	if rows, e := h.repos.SIPs.All(); e == nil {
-		d.SIPs = rows
-	} else {
-		tabLog("SIPs", e)
-	}
-	if rows, e := h.repos.Lumpsums.All(); e == nil {
-		d.Lumpsums = rows
-	} else {
-		tabLog("Lumpsums", e)
-	}
-	if rows, e := h.repos.History.All(); e == nil {
-		d.History = rows
-	} else {
-		tabLog("History", e)
-	}
-	if rows, e := h.repos.Income.All(); e == nil {
-		d.Income = rows
-	} else {
-		tabLog("Income", e)
-	}
-	if rows, e := h.repos.TaxRecommendations.All(); e == nil {
-		d.TaxRecommendations = rows
-	} else {
-		tabLog("TaxRecommendations", e)
-	}
-	if rows, e := h.repos.TaxRules.All(); e == nil {
-		d.TaxRules = rows
-	} else {
-		tabLog("TaxRules", e)
+	d := &models.Data{
+		Members: load(repos.Members, pre),
+		MF:      load(repos.MF, pre),
+		Stocks:  load(repos.Stocks, pre),
+		Metals:  load(repos.Metals, pre),
+		// CurrentValue is recomputed at request time by ComputeFixedValues,
+		// so the sheet's value being overwritten is harmless.
+		Fixed:              load(repos.Fixed, pre),
+		Insurance:          load(repos.Insurance, pre),
+		Loans:              load(repos.Loans, pre),
+		NPS:                load(repos.NPS, pre),
+		SIPs:               load(repos.SIPs, pre),
+		Lumpsums:           load(repos.Lumpsums, pre),
+		History:            load(repos.History, pre),
+		Income:             load(repos.Income, pre),
+		TaxRecommendations: load(repos.TaxRecommendations, pre),
+		TaxRules:           load(repos.TaxRules, pre),
 	}
 
-	// Config is a key-value sheet with no typed repository — read it directly.
-	if h.configAPI != nil {
-		if rows, e := h.configAPI.ReadSheet("Config"); e == nil {
-			cfg := map[string]string{}
-			for _, row := range rows[1:] {
-				if len(row) >= 2 {
-					k := strings.ToLower(strings.TrimSpace(sh.ColStr(row, 0)))
-					v := strings.TrimSpace(sh.ColStr(row, 1))
-					if k != "" {
-						cfg[k] = v
-					}
-				}
-			}
-			d.Config = parseConfig(cfg)
-		} else {
-			tabLog("Config", e)
+	// Config is a key-value sheet with no typed repository.
+	rows, ok := pre[configSheet]
+	if !ok {
+		var err error
+		if rows, err = t.API.ReadSheet(configSheet); err != nil {
+			log.Printf("⚠  sheet %q unavailable: %v", configSheet, err)
 		}
 	}
-
+	if len(rows) > 1 {
+		cfg := map[string]string{}
+		for _, row := range rows[1:] {
+			if len(row) >= 2 {
+				k := strings.ToLower(strings.TrimSpace(sh.ColStr(row, 0)))
+				v := strings.TrimSpace(sh.ColStr(row, 1))
+				if k != "" {
+					cfg[k] = v
+				}
+			}
+		}
+		d.Config = parseConfig(cfg)
+	}
 	return d
+}
+
+const configSheet = "Config"
+
+// prefetch batch-reads names if t's backend supports it. A nil result (no
+// batch support, or the batch failed — e.g. one tab is missing) makes load
+// fall back to per-tab reads, which tolerate a single missing tab.
+func prefetch(t *tenant.Tenant, names []string) map[string][][]interface{} {
+	br, ok := t.API.(store.BatchReader)
+	if !ok {
+		return nil
+	}
+	rows, err := br.ReadSheets(names)
+	if err != nil {
+		log.Printf("⚠  batch read failed, falling back to per-tab reads: %v", err)
+		return nil
+	}
+	return rows
+}
+
+func load[T any](repo *store.Repository[T], pre map[string][][]interface{}) []T {
+	if rows, ok := pre[repo.Sheet()]; ok {
+		return repo.Parse(rows)
+	}
+	rows, err := repo.All()
+	if err != nil {
+		log.Printf("⚠  sheet %q unavailable: %v", repo.Sheet(), err)
+	}
+	return rows
 }
 
 // maybeSnapshotHistory appends a History row for the current month if one
 // isn't already there, so the net-worth sparkline stays current without
 // manual monthly upkeep. No-op in dev mode or if net worth is still zero
 // (e.g. sheets not yet populated).
-func (h *Handler) maybeSnapshotHistory(d *models.Data) {
-	if h.configAPI == nil {
+func (h *Handler) maybeSnapshotHistory(t *tenant.Tenant, d *models.Data) {
+	if h.devData != nil {
 		return
 	}
 	month := time.Now().Format("Jan 06")
@@ -248,7 +236,7 @@ func (h *Handler) maybeSnapshotHistory(d *models.Data) {
 	if total == 0 {
 		return
 	}
-	if _, err := h.repos.History.Add(models.History{Month: month, Value: total}); err != nil {
+	if _, err := t.Repos.History.Add(models.History{Month: month, Value: total}); err != nil {
 		log.Printf("⚠ History snapshot failed: %v", err)
 		return
 	}

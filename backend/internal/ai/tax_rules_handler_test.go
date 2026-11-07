@@ -10,6 +10,7 @@ import (
 	"kosh/internal/ai"
 	"kosh/internal/models"
 	"kosh/internal/store"
+	"kosh/internal/tenant"
 )
 
 func newRulesTestHandler(t *testing.T, isDemo, isSample bool) (*ai.TaxRulesHandler, *store.Repositories) {
@@ -19,7 +20,7 @@ func newRulesTestHandler(t *testing.T, isDemo, isSample bool) (*ai.TaxRulesHandl
 		{"id", "fy", "regime", "status", "source", "generated_date", "activated_date", "rules_json", "notes"},
 	}
 	repos := store.NewRepositories(fake)
-	h := ai.NewTaxRulesHandler(repos,
+	h := ai.NewTaxRulesHandler(tenant.Single(&tenant.Tenant{ID: "default", API: fake, Repos: repos}),
 		func(r *http.Request) bool { return isDemo },
 		func(r *http.Request) bool { return isSample },
 	)

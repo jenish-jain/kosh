@@ -93,6 +93,23 @@ func (c *Client) ReadSheet(name string) ([][]interface{}, error) {
 	return resp.Values, nil
 }
 
+// ReadSheets reads several tabs in one values.batchGet round trip.
+// Implements store.BatchReader.
+func (c *Client) ReadSheets(names []string) (map[string][][]interface{}, error) {
+	resp, err := c.svc.Spreadsheets.Values.BatchGet(c.spreadsheetID).Ranges(names...).Do()
+	if err != nil {
+		return nil, fmt.Errorf("batch-reading sheets: %w", err)
+	}
+	if len(resp.ValueRanges) != len(names) {
+		return nil, fmt.Errorf("batch-reading sheets: asked for %d ranges, got %d", len(names), len(resp.ValueRanges))
+	}
+	out := make(map[string][][]interface{}, len(names))
+	for i, vr := range resp.ValueRanges {
+		out[names[i]] = vr.Values // responses come back in request order
+	}
+	return out, nil
+}
+
 // AppendRow adds a new row to the given sheet. Returns the new row number (1-indexed).
 func (c *Client) AppendRow(sheetName string, row []interface{}) (int, error) {
 	vr := &sheets.ValueRange{Values: [][]interface{}{row}}
