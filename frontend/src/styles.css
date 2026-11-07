@@ -655,4 +655,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .marketing-header { padding: 14px 18px !important; flex-wrap: wrap; }
   .marketing-nav-links { order: 3; width: 100%; gap: 20px !important; overflow-x: auto; scrollbar-width: none; padding-top: 2px; }
   .marketing-nav-links::-webkit-scrollbar { display: none; }
+
+  /* ─ Pricing ─ */
+  .pricing-grid { grid-template-columns: 1fr !important; }
 }
