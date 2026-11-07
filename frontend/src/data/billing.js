@@ -1,6 +1,5 @@
-// Hosted billing: API calls, Razorpay Checkout, and the access rule
-// (mirrors backend/internal/billing/entitlement.go — the server enforces
-// it; this only decides what to show).
+// Hosted billing: API calls, Razorpay Checkout, and what the household's
+// plan includes (the server enforces it; this only decides what to show).
 
 async function request(path, opts = {}) {
   const res = await fetch(path, { credentials: 'include', ...opts })
@@ -20,7 +19,27 @@ export const startCheckout = plan => post('/api/billing/checkout', { plan })
 export const verifyPayment = resp => post('/api/billing/verify', resp)
 export const cancelSubscription = () => post('/api/billing/cancel')
 
-export function hasFullAccess(b, now = Date.now()) {
+// Feature labels, mirroring backend/internal/billing/features.go.
+export const FEATURE_LABELS = {
+  edit: 'Adding and editing data',
+  share: 'Family sharing',
+  invite: 'Household invites',
+  ask: 'Ask Kosh',
+  parse: 'Document scanning',
+  tax: 'Tax recommendations',
+}
+
+// canUse: whether the household's tier includes feature. Self-hosted (no
+// household) and older responses without features allow everything.
+export const canUse = (household, feature) => household?.features?.[feature] !== false
+
+// The features the household's tier leaves out, as labels.
+export const missingFeatures = household =>
+  Object.keys(FEATURE_LABELS).filter(f => !canUse(household, f)).map(f => FEATURE_LABELS[f])
+
+// planRunning: a trial or paid period is in effect (the server's tier is
+// "trial" or "paid", not "free"). Mirrors billing.TierFor.
+export function planRunning(b, now = Date.now()) {
   if (!b) return true
   switch (b.status) {
     case 'trialing': return now < Date.parse(b.trial_ends_at)

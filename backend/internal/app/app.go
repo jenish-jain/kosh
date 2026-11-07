@@ -62,6 +62,9 @@ type Config struct {
 	RazorpayWebhookSecret string
 	RazorpayPlanMonthly   string
 	RazorpayPlanAnnual    string
+	// OperatorEmails may change service-wide settings (which features each
+	// tier gets) from the app.
+	OperatorEmails []string
 
 	// PublicConfig is merged into /api/auth/config (the hosteddev build uses
 	// it to tell the frontend to show its dev login).
@@ -95,6 +98,7 @@ func ConfigFromEnv() Config {
 		RazorpayWebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
 		RazorpayPlanMonthly:   os.Getenv("RAZORPAY_PLAN_MONTHLY"),
 		RazorpayPlanAnnual:    os.Getenv("RAZORPAY_PLAN_ANNUAL"),
+		OperatorEmails:        strings.Split(os.Getenv("OPERATOR_EMAILS"), ","),
 	}
 }
 
@@ -155,6 +159,7 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		summary  string
 		hostedH  *hosted.Handler
 		billingH *billing.Handler
+		operator *billing.Operator
 		cpStore  controlplane.Store
 	)
 	if hostedMode {
@@ -180,11 +185,19 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		if gw == nil {
 			gw = billing.NewRazorpay(cfg.RazorpayKeyID, cfg.RazorpayKeySecret, cfg.RazorpayWebhookSecret, http.DefaultClient)
 		}
+		policy := billing.NewPolicy(cpStore)
 		billingH, err = billing.NewHandler(ctx, cpStore, gw, map[string]string{
 			billing.PlanMonthly: cfg.RazorpayPlanMonthly, billing.PlanAnnual: cfg.RazorpayPlanAnnual,
-		}, authH.SessionEmail, isDemo)
+		}, policy, authH.SessionEmail, isDemo)
 		if err != nil {
 			return nil, err
+		}
+		hostedH.SetSubscriptionCanceller(billingH.CancelNow)
+		hostedH.SetEntitlements(billingH.Entitlements)
+		operator = billing.NewOperator(policy, cfg.OperatorEmails, authH.SessionEmail, isDemo)
+		hostedH.SetOperatorCheck(operator.Is)
+		if operator.Count() == 0 {
+			log.Println("⚠ OPERATOR_EMAILS not set — nobody can change which features each tier gets")
 		}
 		summary = "Mode: hosted (multi-household, Firestore control plane)"
 	} else {
@@ -261,9 +274,11 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 			// its signature verifies.
 			mux.HandleFunc("/api/billing/webhook", billingH.Webhook)
 			mux.HandleFunc("/api/billing/", protect(billingH.Routes))
+			mux.HandleFunc("/api/operator/", protect(operator.Routes))
 		}
 		opts = append(opts,
 			api.WithMiddleware(billingH.Enforce),
+			api.WithMiddleware(hostedH.Quotas),
 			// Razorpay Checkout: its script, its payment iframe, and the
 			// endpoints the iframe's parent page talks to.
 			api.WithCSPSources("script-src", "https://checkout.razorpay.com"),

@@ -83,6 +83,16 @@ type Invite struct {
 	ExpiresAt   time.Time
 }
 
+// FeaturePolicy is the operator's choice of which features each tier gets:
+// tier -> feature -> enabled. The store only persists it; the billing
+// package defines the tiers and features and fills in defaults for anything
+// the stored policy doesn't mention.
+type FeaturePolicy struct {
+	Tiers     map[string]map[string]bool
+	UpdatedBy string
+	UpdatedAt time.Time
+}
+
 // Store is the control-plane persistence interface. Implementations must
 // make every method safe for concurrent use and atomic on its own.
 type Store interface {
@@ -127,12 +137,20 @@ type Store interface {
 	// "2026-11") if that keeps the count within limit, returning the new
 	// count; otherwise it returns ErrQuotaExceeded and changes nothing.
 	ConsumeQuota(ctx context.Context, householdID, kind, period string, limit int) (int, error)
+	// ReleaseQuota gives back one use consumed by ConsumeQuota (e.g. the AI
+	// call it paid for failed). Never goes below zero.
+	ReleaseQuota(ctx context.Context, householdID, kind, period string) error
 	// Usage returns the counts recorded for period, by kind.
 	Usage(ctx context.Context, householdID, period string) (map[string]int, error)
 
 	// MarkEventProcessed records a webhook event ID, returning false if it
 	// was already recorded — for idempotent webhook handling.
 	MarkEventProcessed(ctx context.Context, eventID string) (bool, error)
+
+	// GetFeaturePolicy returns the saved policy, or ErrNotFound if the
+	// operator has never saved one.
+	GetFeaturePolicy(ctx context.Context) (FeaturePolicy, error)
+	PutFeaturePolicy(ctx context.Context, p FeaturePolicy) error
 }
 
 // NormalizeEmail is the one canonical form emails are stored and looked

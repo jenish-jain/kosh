@@ -19,8 +19,9 @@ const fmtWhen = iso => iso
 
 // Owner-side management of family share links. View switches between the
 // recipient list, the add form, the one-time enrolment screen and a
-// recipient's access log.
-export default function SharingModal({ onClose, showToast }) {
+// recipient's access log. canCreate is false when the hosted plan doesn't
+// include family sharing: existing links can still be revoked or removed.
+export default function SharingModal({ onClose, showToast, canCreate = true }) {
   const [view, setView] = useState({ name: 'list' })
   const [shares, setShares] = useState(null)
   const [error, setError] = useState(null)
@@ -46,6 +47,7 @@ export default function SharingModal({ onClose, showToast }) {
       {view.name === 'list' && (
         <ShareList
           shares={shares}
+          canCreate={canCreate}
           onAdd={() => setView({ name: 'add' })}
           onLog={s => setView({ name: 'log', share: s })}
           onReset={s => {
@@ -81,7 +83,7 @@ export default function SharingModal({ onClose, showToast }) {
   )
 }
 
-function ShareList({ shares, onAdd, onLog, onReset, onRevoke, onDelete }) {
+function ShareList({ shares, canCreate, onAdd, onLog, onReset, onRevoke, onDelete }) {
   return (
     <>
       <p className="share-intro">
@@ -109,7 +111,7 @@ function ShareList({ shares, onAdd, onLog, onReset, onRevoke, onDelete }) {
               </div>
               <div className="share-row-actions">
                 <button className="btn ghost sm" onClick={() => onLog(s)}>Log</button>
-                <button className="btn ghost sm" onClick={() => onReset(s)}>Reset</button>
+                {canCreate && <button className="btn ghost sm" onClick={() => onReset(s)}>Reset</button>}
                 {s.status !== 'revoked' && <button className="btn ghost sm" onClick={() => onRevoke(s)}>Revoke</button>}
                 <button className="btn ghost sm" onClick={() => onDelete(s)} title="Remove"><Icon name="trash" size={14} /></button>
               </div>
@@ -117,9 +119,13 @@ function ShareList({ shares, onAdd, onLog, onReset, onRevoke, onDelete }) {
           ))}
         </ul>
       )}
-      <div className="share-actions">
-        <button className="btn primary" onClick={onAdd}><Icon name="plus" size={14} /> Add family member</button>
-      </div>
+      {canCreate ? (
+        <div className="share-actions">
+          <button className="btn primary" onClick={onAdd}><Icon name="plus" size={14} /> Add family member</button>
+        </div>
+      ) : (
+        <p className="hosted-fine">Adding people to family sharing isn't included in your current plan. Existing links keep working, and you can still revoke them.</p>
+      )}
     </>
   )
 }
