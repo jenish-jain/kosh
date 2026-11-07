@@ -20,6 +20,7 @@ type AuthHandler struct {
 	allowedEmails map[string]bool
 	cookieSecure  bool
 	aiEnabled     bool
+	shareEnabled  bool
 }
 
 // NewHandler constructs an AuthHandler.
@@ -44,11 +45,16 @@ func (h *AuthHandler) SetAIEnabled(enabled bool) {
 	h.aiEnabled = enabled
 }
 
+// SetShareEnabled marks whether family sharing is configured.
+func (h *AuthHandler) SetShareEnabled(enabled bool) {
+	h.shareEnabled = enabled
+}
+
 // Config returns the auth configuration (client ID, whether auth is enabled).
 // This is served without authentication so the frontend knows how to render the
 // login page.
 func (h *AuthHandler) Config(w http.ResponseWriter, r *http.Request) {
-	cfg := map[string]interface{}{"enabled": true, "ai_enabled": h.aiEnabled}
+	cfg := map[string]interface{}{"enabled": true, "ai_enabled": h.aiEnabled, "share_enabled": h.shareEnabled}
 	if h.clientID != "" {
 		cfg["client_id"] = h.clientID
 		cfg["demo"] = true

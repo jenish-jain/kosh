@@ -16,6 +16,7 @@ import (
 	"kosh/internal/auth"
 	"kosh/internal/documents"
 	"kosh/internal/models"
+	"kosh/internal/share"
 	"kosh/internal/store"
 	sh "kosh/sheets"
 )
@@ -33,6 +34,7 @@ func main() {
 	anthropicKey   := os.Getenv("ANTHROPIC_API_KEY")
 	promptsDir     := sh.EnvOrDefault("PROMPTS_DIR", "prompts")
 	cookieSecure   := sh.EnvOrDefault("COOKIE_SECURE", "true") != "false"
+	shareKey       := os.Getenv("SHARE_ENCRYPTION_KEY")
 
 	// ── Auth ───────────────────────────────────────────────────────────────────
 	// Auth is always constructed — NewServer will use authH for /api/auth/* routes.
@@ -100,7 +102,13 @@ func main() {
 	// In dev mode (sheetClient == nil), repos is nil — NewHandler handles this
 	// by loading dev data. Use a fake API so repos is always non-nil.
 	if repos == nil {
-		repos = store.NewRepositories(store.NewFakeSheetsAPI())
+		fake := store.NewFakeSheetsAPI()
+		repos = store.NewRepositories(fake)
+		// Family shares are the one thing dev mode persists (in memory), so
+		// their tabs need the header row Repository.All expects to skip.
+		for _, r := range []store.AnyRepository{repos.Shares, repos.ShareAccess} {
+			fake.Data[r.Sheet()] = [][]interface{}{toRow(r.Columns())}
+		}
 	}
 
 	// ── API handler ────────────────────────────────────────────────────────────
@@ -155,8 +163,33 @@ func main() {
 		}
 	}
 
+	// ── Family sharing ─────────────────────────────────────────────────────────
+	// Needs SESSION_SECRET (share sessions are signed with a key derived from
+	// it — an empty secret would make them forgeable) and SHARE_ENCRYPTION_KEY
+	// (TOTP secrets are encrypted at rest in the Shares tab).
+	var shareH *share.Handler
+	switch {
+	case shareKey == "":
+		log.Println("⚠ Family sharing disabled (SHARE_ENCRYPTION_KEY not set)")
+	case sessionSecret == "":
+		log.Println("⚠ Family sharing disabled (SESSION_SECRET not set)")
+	default:
+		sealer, err := share.NewSealer(shareKey)
+		if err != nil {
+			log.Printf("⚠ Family sharing disabled: SHARE_ENCRYPTION_KEY must be at least %d characters (try `openssl rand -hex 32`)", share.MinKeyLength)
+			break
+		}
+		shareH = share.NewHandler(repos, sealer, sessionSecret, apiH.FamilyData, isDemo, cookieSecure)
+		authH.SetShareEnabled(true)
+		if sheetClient == nil {
+			log.Println("✓ Family sharing enabled (dev mode — shares live in memory and reset on restart)")
+		} else {
+			log.Println("✓ Family sharing enabled")
+		}
+	}
+
 	// ── HTTP server ────────────────────────────────────────────────────────────
-	handler := api.NewServer(authH, apiH, docH, aiH, taxH, taxRulesH, frontendDist)
+	handler := api.NewServer(authH, apiH, docH, aiH, taxH, taxRulesH, shareH, frontendDist)
 
 	addr := ":" + port
 	fmt.Printf("🪙  Kosh running at http://localhost%s\n", addr)
@@ -166,6 +199,14 @@ func main() {
 		fmt.Println("   Mode: live (reading/writing Google Sheets)")
 	}
 	log.Fatal(http.ListenAndServe(addr, handler))
+}
+
+func toRow(cols []string) []interface{} {
+	row := make([]interface{}, len(cols))
+	for i, c := range cols {
+		row[i] = c
+	}
+	return row
 }
 
 // seedTaxRules inserts the two bundled default TaxRuleSet rows (old + new

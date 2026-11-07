@@ -8,6 +8,7 @@ import (
 	"kosh/internal/ai"
 	"kosh/internal/auth"
 	"kosh/internal/documents"
+	"kosh/internal/share"
 )
 
 // cors wraps a handler with CORS headers + OPTIONS pre-flight handling.
@@ -57,12 +58,20 @@ func securityHeaders(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")
 		}
+		// Family-share pages carry the secret link token in the URL: never
+		// leak it via Referer, never cache it, never let it be indexed.
+		if strings.HasPrefix(r.URL.Path, "/s/") || strings.HasPrefix(r.URL.Path, "/api/share/") {
+			h.Set("Referrer-Policy", "no-referrer")
+			h.Set("Cache-Control", "no-store")
+			h.Set("X-Robots-Tag", "noindex, nofollow")
+		}
 		next.ServeHTTP(w, r)
 	})
 }
 
 // NewServer builds and returns the HTTP mux with all routes registered.
 // Pass aiH=nil when AI is disabled — the /api/chat route is simply not registered.
+// Likewise shareH=nil when family sharing isn't configured.
 func NewServer(
 	authH        *auth.AuthHandler,
 	apiH         *Handler,
@@ -70,6 +79,7 @@ func NewServer(
 	aiH          *ai.Handler,
 	taxH         *ai.TaxHandler,
 	taxRulesH    *ai.TaxRulesHandler,
+	shareH       *share.Handler,
 	frontendDist string,
 ) http.Handler {
 	mux := http.NewServeMux()
@@ -107,6 +117,13 @@ func NewServer(
 	if taxRulesH != nil {
 		mux.HandleFunc("/api/tax/rules/propose", protect(taxRulesH.Propose))
 		mux.HandleFunc("/api/tax/rules/", protect(taxRulesH.Route))
+	}
+	if shareH != nil {
+		mux.HandleFunc("/api/shares", protect(shareH.Owner))
+		mux.HandleFunc("/api/shares/", protect(shareH.Owner))
+		// Recipient routes are deliberately outside protect: they're gated
+		// by link token + TOTP code, then by the path-scoped share cookie.
+		mux.HandleFunc("/api/share/", cors(shareH.Recipient))
 	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
