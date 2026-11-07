@@ -53,10 +53,11 @@ Where (columns are now derived from `sheet:"..."` struct tags):
   can be scoped, logged and revoked per person.
 - **Live view, not a snapshot** — recipients always see current numbers.
 
-Defaults chosen (change at implementation time if needed):
-- Remember-device cookie: **7 days**, then the code is asked again.
-- Scope: **per recipient** — sections + member filter set individually
-  (e.g. Dad sees only his own holdings).
+- **Code asked again after 1 day** — the recipient session cookie lasts
+  24 hours.
+- **Scope: full family view for now** — every recipient sees the complete
+  household report (all sections, all members). Per-recipient scoping is
+  listed under "Later".
 
 ### Two different artefacts — never confuse them
 | | Share link / QR | Enrolment QR |
@@ -77,7 +78,7 @@ write quotas).
   `token_hash` (SHA-256 of the link token; the raw token is never stored),
   `totp_secret_enc` (AES-GCM, key from new env var `SHARE_ENCRYPTION_KEY` —
   anyone with view access to the Sheet must not be able to copy secrets),
-  `sections`, `member_scope`, `expires`, `revoked`, `failed_attempts`,
+  `expires`, `revoked`, `failed_attempts`,
   `locked_until`, `last_totp_step` (replay protection), `created`.
 - **`ShareAccess`** — access log: `share_id`, timestamp, outcome
   (ok / bad code / locked / revoked), coarse IP / user agent.
@@ -94,15 +95,14 @@ write quotas).
   - `POST /api/shares` → create recipient; returns link + enrolment QR
     **once**
   - `GET /api/shares` → list (never returns secrets/tokens)
-  - `PUT /api/shares/{id}` → edit scope/expiry, revoke, re-enrol
+  - `PUT /api/shares/{id}` → edit expiry, revoke, re-enrol
     (new secret), regenerate link
   - `GET /api/shares/{id}/access` → access log
 - Recipient endpoints (unauthenticated, separate code path):
   - `POST /api/share/verify` `{token, code}` → on success sets share cookie
-  - `GET /api/share/report` → read-only JSON for **only** the recipient's
-    sections/member scope, built server-side via
-    `report.BuildTables(data, member, sections)` — never filtered in the
-    frontend
+  - `GET /api/share/report` → read-only JSON of the family report, built
+    server-side via `report.BuildTables(data, "", allSections)` — the
+    recipient never receives the raw `/api/data` payload
   - `GET /api/share/report/export?format=pdf` → PDF watermarked with the
     recipient's name
 - Lockout: 5 wrong codes → locked 15 min (persisted). Generic error
@@ -112,7 +112,7 @@ write quotas).
   noindex`; tokens redacted from logs.
 
 ### 3. Frontend — owner "Sharing" screen (behind normal login)
-- Add recipient: name, relation, sections, member scope, optional expiry
+- Add recipient: name, relation, optional expiry
 - Show enrolment QR + share link/QR once, with a "scan this together now"
   instruction; copy-link button
 - List recipients with last access, status; revoke / re-enrol / regenerate
@@ -122,7 +122,7 @@ write quotas).
 
 ### 4. Frontend — recipient view (`/s/<token>`, phone-first)
 - Minimal code-entry page (6-digit numeric input, large tap targets)
-- Read-only report: allowed sections only, no nav, no edit controls, no
+- Read-only family report, no nav, no edit controls, no
   other Kosh data; emergency runbooks + doc links once Part 1 lands
 - "Download PDF" button
 
@@ -132,8 +132,8 @@ old one dead). No self-service recovery, by design.
 
 ### 6. Tests
 Wrong code, replayed code, clock-drift edges, expired/revoked share,
-lockout persistence, share cookie rejected on `/api/*`, out-of-scope
-sections never returned, demo mode blocks owner endpoints.
+lockout persistence, share cookie rejected on `/api/*`, owner session
+not accepted as a share session, demo mode blocks owner endpoints.
 
 ### 7. Docs (same PR as the feature)
 `SHARE_ENCRYPTION_KEY` + sharing setup in `docs/SELF_HOSTING.md`; feature
@@ -144,10 +144,12 @@ mention in `README.md` and `frontend/src/screens/marketing/Docs.jsx`.
 ## Later
 - **Passkeys (WebAuthn)** as an alternative to TOTP — Face ID / fingerprint,
   nothing to type; best UX for older family members
+- Per-recipient scope (sections + member filter, e.g. Dad sees only his
+  own holdings)
 - Optional "notify me when someone opens the share"
 - `doc_link` / `emergency_steps` for MF, Stocks, Metals
 
 ## Status
 - Part 1: `doc_link` shipped for Fixed + Insurance; rest pending.
-- Part 2: plan revised to TOTP family access on 2026-11-07. Not yet
-  implemented.
+- Part 2: TOTP family access approved 2026-11-07; implementation in
+  progress.
