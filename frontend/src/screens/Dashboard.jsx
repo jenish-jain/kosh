@@ -1,5 +1,5 @@
 import { classTotals, memberTotal, scope } from '../data/aggregate.js'
-import { fmtINR, fmtCompact, fmtDate } from '../data/format.js'
+import { fmtINR, fmtCompact, fmtDate, sharePct } from '../data/format.js'
 import { ED_ORDER, ED_COL, ED_LABEL, OUTFLOW_COLOR, OUTFLOW_LABEL } from '../data/constants.js'
 import { todayDisplay, todayDay, upcomingOutflows } from '../data/schedule.js'
 import { KICK, SERIF } from '../data/tokens.js'
@@ -92,7 +92,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
             </div>
             <div className="num serif-num" style={{ fontSize: 22, marginTop: 8 }}>{fmtCompact(s.value)}</div>
             <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>
-              {Math.round(s.value / total * 100)}% of total
+              {sharePct(s.value, total)}% of total
             </div>
           </div>
         ))}
@@ -115,7 +115,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
                   <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
                     <span className="num serif-num" style={{ fontSize: 20 }}>{fmtCompact(s.value)}</span>
                     <span className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginLeft: 10 }}>
-                      {Math.round(s.value / total * 100)}%
+                      {sharePct(s.value, total)}%
                     </span>
                   </div>
                 </div>
@@ -133,7 +133,7 @@ export default function Dashboard({ data, memberId, setScreen, onSelectMember })
                     <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
                       <div className="num serif-num" style={{ fontSize: 22 }}>{fmtCompact(v)}</div>
                       <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600 }}>
-                        {Math.round(v / total * 100)}% share
+                        {sharePct(v, total)}% share
                       </div>
                     </div>
                   </div>

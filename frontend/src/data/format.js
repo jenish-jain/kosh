@@ -31,6 +31,12 @@ export function fmtPct(n, dp = 1) {
   return (n >= 0 ? '+' : '') + n.toFixed(dp) + '%'
 }
 
+// Whole-number share of part in whole, 0 when whole is 0 — a brand-new
+// household with nothing entered yet would otherwise show "NaN%".
+export function sharePct(part, whole) {
+  return whole > 0 ? Math.round(part / whole * 100) : 0
+}
+
 export function fmtDate(d) {
   if (!d) return ''
   const dt = typeof d === 'string' ? new Date(d) : d

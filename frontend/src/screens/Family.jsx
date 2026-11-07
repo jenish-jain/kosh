@@ -1,5 +1,5 @@
 import { classTotals, memberTotal, holdingsFor } from '../data/aggregate.js'
-import { fmtINR, fmtCompact } from '../data/format.js'
+import { fmtINR, fmtCompact, sharePct } from '../data/format.js'
 import { ED_ORDER, ED_COL, ED_LABEL } from '../data/constants.js'
 import { todayDisplay } from '../data/schedule.js'
 import { KICK, SERIF } from '../data/tokens.js'
@@ -48,7 +48,7 @@ function FamilyOverview({ data, onSelect }) {
                 </div>
                 <div className="num serif-num" style={{ fontSize: 22, marginTop: 8 }}>{fmtCompact(v)}</div>
                 <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>
-                  {Math.round(v / household * 100)}% share
+                  {sharePct(v, household)}% share
                 </div>
               </div>
             )
@@ -166,7 +166,7 @@ function MemberProfile({ data, memberId, setScreen }) {
             </div>
             <div className="num serif-num" style={{ fontSize: 21, marginTop: 8 }}>{fmtCompact(s.value)}</div>
             <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>
-              {Math.round(s.value / c.total.cur * 100)}%
+              {sharePct(s.value, c.total.cur)}%
             </div>
           </div>
         ))}
