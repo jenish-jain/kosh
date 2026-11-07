@@ -507,6 +507,7 @@ variables.
 | `SESSION_SECRET` | For sign-in | — | Random string used to HMAC-sign session cookies (`openssl rand -base64 32`) |
 | `ALLOWED_EMAILS` | For sign-in | — | Comma-separated list of Google account emails allowed to sign in |
 | `SHARE_ENCRYPTION_KEY` | For family sharing | — | Encrypts family members' authenticator secrets (`openssl rand -hex 32`, min 32 chars). Also needs `SESSION_SECRET` |
+| `KOSH_MODE` | No | `selfhost` | Leave unset when self-hosting. `hosted` runs the multi-household managed service (see [HOSTED_PLAN.md](../HOSTED_PLAN.md)) and needs its own settings |
 | `COOKIE_SECURE` | No | `true` | Set to `false` to allow cookies over plain HTTP (local testing only) |
 | `ANTHROPIC_API_KEY` | For uploads | — | Enables AI-assisted PDF/image parsing for FD, insurance, and metals |
 | `PROMPTS_DIR` | No | `prompts` | Directory of extraction prompt templates (`fd.md`, `insurance.md`, `metals.md`) |
@@ -531,6 +532,9 @@ kosh/
 │   │   ├── share/           # Family sharing: TOTP, share links, recipient report
 │   │   ├── store/           # Struct-tag ↔ sheet-row repositories
 │   │   ├── tenant/          # Which household's Sheet a request uses (one, when self-hosted)
+│   │   ├── app/             # Builds the server from config (main.go just reads env)
+│   │   ├── hosted/          # Managed service only: sign-up, households, invites
+│   │   ├── controlplane/    # Managed service only: account/billing store (no financial data)
 │   │   ├── report/          # PDF/XLSX report builder
 │   │   ├── documents/       # Document upload + AI parsing
 │   │   ├── ai/              # Ask Kosh + tax recommendations

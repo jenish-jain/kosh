@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -29,6 +30,34 @@ func NewClient(credentialsPath, spreadsheetID string) (*Client, error) {
 		return nil, fmt.Errorf("creating sheets service: %w", err)
 	}
 	return &Client{svc: svc, spreadsheetID: spreadsheetID}, nil
+}
+
+// NewClientFromTokenSource returns a client acting as the OAuth user behind
+// ts (hosted mode: the household owner's drive.file grant) rather than a
+// service account.
+func NewClientFromTokenSource(ctx context.Context, ts oauth2.TokenSource, spreadsheetID string) (*Client, error) {
+	svc, err := sheets.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		return nil, fmt.Errorf("creating sheets service: %w", err)
+	}
+	return &Client{svc: svc, spreadsheetID: spreadsheetID}, nil
+}
+
+// CreateSpreadsheet creates a new, empty spreadsheet titled title in the
+// Drive of the user behind ts and returns its ID. With the drive.file scope
+// it's one of the few files Kosh can ever see in that Drive.
+func CreateSpreadsheet(ctx context.Context, ts oauth2.TokenSource, title string) (string, error) {
+	svc, err := sheets.NewService(ctx, option.WithTokenSource(ts))
+	if err != nil {
+		return "", fmt.Errorf("creating sheets service: %w", err)
+	}
+	ss, err := svc.Spreadsheets.Create(&sheets.Spreadsheet{
+		Properties: &sheets.SpreadsheetProperties{Title: title},
+	}).Context(ctx).Do()
+	if err != nil {
+		return "", fmt.Errorf("creating spreadsheet: %w", err)
+	}
+	return ss.SpreadsheetId, nil
 }
 
 // EnsureTabs creates any missing tabs and writes the header row if row 1 is empty.

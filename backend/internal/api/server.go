@@ -71,7 +71,9 @@ func securityHeaders(next http.Handler) http.Handler {
 
 // NewServer builds and returns the HTTP mux with all routes registered.
 // Pass aiH=nil when AI is disabled — the /api/chat route is simply not registered.
-// Likewise shareH=nil when family sharing isn't configured.
+// Likewise shareH=nil when family sharing isn't configured. extra, if set,
+// registers mode-specific routes (hosted mode's /api/hosted/*); it receives
+// the session-checking wrapper so it can protect them.
 func NewServer(
 	authH        *auth.AuthHandler,
 	apiH         *Handler,
@@ -80,6 +82,7 @@ func NewServer(
 	taxH         *ai.TaxHandler,
 	taxRulesH    *ai.TaxRulesHandler,
 	shareH       *share.Handler,
+	extra        func(mux *http.ServeMux, protect func(http.HandlerFunc) http.HandlerFunc),
 	frontendDist string,
 ) http.Handler {
 	mux := http.NewServeMux()
@@ -124,6 +127,9 @@ func NewServer(
 		// Recipient routes are deliberately outside protect: they're gated
 		// by link token + TOTP code, then by the path-scoped share cookie.
 		mux.HandleFunc("/api/share/", cors(shareH.Recipient))
+	}
+	if extra != nil {
+		extra(mux, protect)
 	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
