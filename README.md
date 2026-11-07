@@ -88,4 +88,12 @@ cd frontend && npm test
 
 ## License
 
-[MIT](LICENSE) — use it, fork it, self-host it, make it yours.
+Copyright © 2026 Jenish Jain. Licensed under the
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
+
+Use it, fork it, self-host it for your family — all free. The one condition:
+if you run a **modified** Kosh as a service for other people, you must offer
+them your modified source under the same license.
+
+Releases before November 2026 were published under the MIT License, and
+copies obtained under those terms keep them.
