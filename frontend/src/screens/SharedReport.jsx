@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Icon } from '../components/Icons.jsx'
 import { KICK, SERIF } from '../data/tokens.js'
-import { verifyShare, fetchSharedReport, lockShare, sharedPdfUrl } from '../data/shareApi.js'
+import { verifyShare, fetchSharedReport, lockShare, downloadSharedPdf } from '../data/shareApi.js'
 
-// Public, read-only family report opened from a share link (/s/:token).
-// The token identifies the recipient; a 6-digit authenticator code unlocks
-// it for a day.
+// Public, read-only family report opened from a share link. New links carry
+// the token in the fragment (/s#<token>) so it never reaches the server's
+// logs; older /s/<token> links still work. The token identifies the
+// recipient; a 6-digit authenticator code unlocks it for a day.
 export default function SharedReport() {
-  const { token } = useParams()
+  const params = useParams()
+  const token = params.token || window.location.hash.slice(1)
   const [state, setState] = useState('checking') // checking | code | ready
   const [report, setReport] = useState(null)
 
@@ -108,7 +110,7 @@ function ReportView({ token, report, onLock }) {
           <div className="shared-hello">Hi {report.recipient}</div>
         </div>
         <div className="shared-head-actions">
-          <a className="btn sm" href={sharedPdfUrl(token)} download><Icon name="download" size={14} /> PDF</a>
+          <PdfButton token={token} />
           <button className="btn ghost sm" onClick={onLock} title="Lock this device">Lock</button>
         </div>
       </header>
@@ -150,5 +152,18 @@ function ReportView({ token, report, onLock }) {
         Shared privately with {report.recipient}. Please don't forward this page or the PDF.
       </footer>
     </div>
+  )
+}
+
+function PdfButton({ token }) {
+  const [busy, setBusy] = useState(false)
+  const download = async () => {
+    setBusy(true)
+    try { await downloadSharedPdf(token) } catch (e) { window.alert(e.message) } finally { setBusy(false) }
+  }
+  return (
+    <button className="btn sm" onClick={download} disabled={busy}>
+      <Icon name="download" size={14} /> {busy ? 'Preparing…' : 'PDF'}
+    </button>
   )
 }

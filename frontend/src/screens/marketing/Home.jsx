@@ -6,7 +6,7 @@ import { useDocumentTitle } from '../../data/useDocumentTitle.js'
 const VALUE_PROPS = [
   {
     title: 'Your data stays yours',
-    body: 'Kosh reads and writes a Google Sheet you own — no third-party database holding your financial life. Self-host it, or run it privately for your own family.',
+    body: 'Kosh reads and writes a Google Sheet you own — no third-party database holding your financial life. Use hosted Kosh, or self-host it for free.',
   },
   {
     title: 'Everything in one ledger',

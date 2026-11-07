@@ -19,6 +19,17 @@ think about money.
 
 ---
 
+## Two ways to use it
+
+- **Hosted Kosh**: sign up with Google and you're in, with a 14-day free
+  trial and then ₹149/month or ₹1,499/year for the whole household. Your
+  data still lives in a Google Sheet in *your* Drive. See
+  [pricing](https://kosh.jenishjain.in/pricing).
+- **Self-hosted**: free and open source (AGPL-3.0). Run it on your own
+  Google Cloud project; everything below is about this route.
+
+---
+
 ## Quick start (run it locally)
 
 Dev mode uses `backend/dev_data.json` — no Google credentials needed, and
@@ -71,6 +82,10 @@ Google account — nothing passes through the project author's servers.
 The only third parties involved are Google itself (Sheets/Drive, and
 Sign-In if you enable it) and, optionally, Anthropic (for AI-assisted
 document parsing, if you turn that on).
+
+On hosted Kosh the financial data still lives in a Sheet in the customer's
+own Drive; the service keeps only account and billing records (see
+[docs/HOSTED.md](docs/HOSTED.md)).
 
 ---
 

@@ -21,6 +21,12 @@ type AuthHandler struct {
 	cookieSecure  bool
 	aiEnabled     bool
 	shareEnabled  bool
+	// openSignup (hosted mode) lets any verified Google account sign in;
+	// what it can then see is decided by household membership, not by
+	// allowedEmails.
+	openSignup bool
+	// extraConfig is merged into the public /api/auth/config response.
+	extraConfig map[string]any
 }
 
 // NewHandler constructs an AuthHandler.
@@ -45,6 +51,25 @@ func (h *AuthHandler) SetAIEnabled(enabled bool) {
 	h.aiEnabled = enabled
 }
 
+// SetOpenSignup switches from the ALLOWED_EMAILS allow-list to open
+// sign-up (hosted mode).
+func (h *AuthHandler) SetOpenSignup(open bool) { h.openSignup = open }
+
+// SetConfigValue adds a key to the public /api/auth/config response. Only
+// for non-secret values the login page needs.
+func (h *AuthHandler) SetConfigValue(key string, v any) {
+	if h.extraConfig == nil {
+		h.extraConfig = map[string]any{}
+	}
+	h.extraConfig[key] = v
+}
+
+// SessionEmail returns the signed-in email for r, if any — demo sessions
+// included (see IsDemoSession).
+func (h *AuthHandler) SessionEmail(r *http.Request) (string, bool) {
+	return h.emailFromCookie(r)
+}
+
 // SetShareEnabled marks whether family sharing is configured.
 func (h *AuthHandler) SetShareEnabled(enabled bool) {
 	h.shareEnabled = enabled
@@ -58,6 +83,9 @@ func (h *AuthHandler) Config(w http.ResponseWriter, r *http.Request) {
 	if h.clientID != "" {
 		cfg["client_id"] = h.clientID
 		cfg["demo"] = true
+	}
+	for k, v := range h.extraConfig {
+		cfg[k] = v
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cfg)
@@ -87,7 +115,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	email := strings.ToLower(info.Email)
-	if !h.allowedEmails[email] {
+	if !h.openSignup && !h.allowedEmails[email] {
 		http.Error(w, fmt.Sprintf("%s is not on the Kosh access list", info.Email), http.StatusForbidden)
 		return
 	}

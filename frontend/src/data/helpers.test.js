@@ -365,3 +365,10 @@ describe('upcomingOutflows', () => {
     expect(upcomingOutflows(emptyData, null, 30, fixedDate)).toEqual([])
   })
 })
+
+import { sharePct } from './format.js'
+
+describe('sharePct', () => {
+  it('rounds the share', () => expect(sharePct(1, 3)).toBe(33))
+  it('is 0 rather than NaN for an empty household', () => expect(sharePct(0, 0)).toBe(0))
+})

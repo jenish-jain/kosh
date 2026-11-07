@@ -3,6 +3,8 @@ package store
 import (
 	"fmt"
 	"sync"
+
+	sh "kosh/sheets"
 )
 
 // FakeSheetsAPI is an in-memory implementation of SheetsAPI for use in tests
@@ -80,4 +82,22 @@ func (f *FakeSheetsAPI) DeleteRow(sheetName, id string) error {
 		}
 	}
 	return fmt.Errorf("row with id %s not found in %s", id, sheetName)
+}
+
+// EnsureTabs writes each missing tab's header row, mirroring the real
+// client closely enough for provisioning code to run against the fake.
+func (f *FakeSheetsAPI) EnsureTabs(tabs []sh.TabDef) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, t := range tabs {
+		if len(f.Data[t.Name]) > 0 {
+			continue
+		}
+		header := make([]interface{}, len(t.Columns))
+		for i, c := range t.Columns {
+			header[i] = c
+		}
+		f.Data[t.Name] = [][]interface{}{header}
+	}
+	return nil
 }

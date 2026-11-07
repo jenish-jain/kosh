@@ -24,18 +24,54 @@ func cors(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// content security policy — only whitelists what Kosh actually needs.
-const contentSecurityPolicy = "default-src 'self'; " +
-	"script-src 'self' https://accounts.google.com; " +
-	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-	"font-src 'self' https://fonts.gstatic.com; " +
-	"img-src 'self' data:; " +
-	"connect-src 'self' https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com; " +
-	"frame-src https://accounts.google.com; " +
-	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+// cspDirectives is the content security policy — only what Kosh actually
+// needs. Modes can add sources via WithCSPSources.
+var cspDirectives = []struct {
+	name    string
+	sources []string
+}{
+	{"default-src", []string{"'self'"}},
+	{"script-src", []string{"'self'", "https://accounts.google.com"}},
+	{"style-src", []string{"'self'", "'unsafe-inline'", "https://fonts.googleapis.com"}},
+	{"font-src", []string{"'self'", "https://fonts.gstatic.com"}},
+	{"img-src", []string{"'self'", "data:"}},
+	{"connect-src", []string{"'self'", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://accounts.google.com"}},
+	{"frame-src", []string{"https://accounts.google.com"}},
+	{"object-src", []string{"'none'"}},
+	{"base-uri", []string{"'self'"}},
+	{"form-action", []string{"'self'"}},
+	{"frame-ancestors", []string{"'none'"}},
+}
+
+func buildCSP(extra map[string][]string) string {
+	parts := make([]string, 0, len(cspDirectives))
+	for _, d := range cspDirectives {
+		parts = append(parts, d.name+" "+strings.Join(append(append([]string{}, d.sources...), extra[d.name]...), " "))
+	}
+	return strings.Join(parts, "; ")
+}
+
+// ServerOption customises NewServer.
+type ServerOption func(*serverOptions)
+
+type serverOptions struct {
+	csp        map[string][]string
+	middleware []func(http.Handler) http.Handler
+}
+
+// WithCSPSources adds sources to a CSP directive (e.g. a payment provider's
+// checkout script and frame).
+func WithCSPSources(directive string, sources ...string) ServerOption {
+	return func(o *serverOptions) { o.csp[directive] = append(o.csp[directive], sources...) }
+}
+
+// WithMiddleware wraps the routes, inside the security headers.
+func WithMiddleware(m func(http.Handler) http.Handler) ServerOption {
+	return func(o *serverOptions) { o.middleware = append(o.middleware, m) }
+}
 
 // securityHeaders adds basic security response headers to every response.
-func securityHeaders(next http.Handler) http.Handler {
+func securityHeaders(next http.Handler, contentSecurityPolicy string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
@@ -71,7 +107,9 @@ func securityHeaders(next http.Handler) http.Handler {
 
 // NewServer builds and returns the HTTP mux with all routes registered.
 // Pass aiH=nil when AI is disabled — the /api/chat route is simply not registered.
-// Likewise shareH=nil when family sharing isn't configured.
+// Likewise shareH=nil when family sharing isn't configured. extra, if set,
+// registers mode-specific routes (hosted mode's /api/hosted/*); it receives
+// the session-checking wrapper so it can protect them.
 func NewServer(
 	authH        *auth.AuthHandler,
 	apiH         *Handler,
@@ -80,8 +118,14 @@ func NewServer(
 	taxH         *ai.TaxHandler,
 	taxRulesH    *ai.TaxRulesHandler,
 	shareH       *share.Handler,
+	extra        func(mux *http.ServeMux, protect func(http.HandlerFunc) http.HandlerFunc),
 	frontendDist string,
+	opts ...ServerOption,
 ) http.Handler {
+	o := serverOptions{csp: map[string][]string{}}
+	for _, opt := range opts {
+		opt(&o)
+	}
 	mux := http.NewServeMux()
 
 	protect := func(h http.HandlerFunc) http.HandlerFunc {
@@ -125,6 +169,9 @@ func NewServer(
 		// by link token + TOTP code, then by the path-scoped share cookie.
 		mux.HandleFunc("/api/share/", cors(shareH.Recipient))
 	}
+	if extra != nil {
+		extra(mux, protect)
+	}
 	mux.HandleFunc("/api/", protect(apiH.Mutations))
 
 	// ── Frontend static files ────────────────────────────────────────────────
@@ -138,5 +185,9 @@ func NewServer(
 		fs.ServeHTTP(w, r)
 	})
 
-	return securityHeaders(mux)
+	var h http.Handler = mux
+	for i := len(o.middleware) - 1; i >= 0; i-- {
+		h = o.middleware[i](h)
+	}
+	return securityHeaders(h, buildCSP(o.csp))
 }

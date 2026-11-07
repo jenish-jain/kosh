@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -85,7 +86,11 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 		log.Printf("⚠ resolving tenant: %v", err)
 		return &models.Data{}
 	}
-	d := h.fetchFromRepos(t)
+	d, err := h.fetchFromRepos(t)
+	if err != nil {
+		log.Printf("⚠ loading data: %v", err)
+		return &models.Data{}
+	}
 	models.ComputeFixedValues(d.Fixed)
 	return d
 }
@@ -94,17 +99,20 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 // data in dev mode, live Sheets otherwise. Used by family-share views, whose
 // requests carry no owner session (and must not be switched to demo data by
 // a stray demo cookie in the recipient's browser).
-func (h *Handler) FamilyData(t *tenant.Tenant) *models.Data {
+func (h *Handler) FamilyData(t *tenant.Tenant) (*models.Data, error) {
 	var d *models.Data
 	if h.devData != nil {
 		cp := *h.devData
 		cp.Fixed = append([]models.Fixed(nil), cp.Fixed...)
 		d = &cp
 	} else {
-		d = h.fetchFromRepos(t)
+		var err error
+		if d, err = h.fetchFromRepos(t); err != nil {
+			return nil, err
+		}
 	}
 	models.ComputeFixedValues(d.Fixed)
-	return d
+	return d, nil
 }
 
 func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +131,11 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			return
 		}
-		d = h.fetchFromRepos(t)
+		d, err := h.fetchFromRepos(t)
+		if err != nil {
+			writeTenantError(w, err)
+			return
+		}
 		models.ComputeFixedValues(d.Fixed)
 		h.maybeSnapshotHistory(t, d)
 		writeJSON(w, d)
@@ -136,15 +148,20 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 // fetchFromRepos reads all of t's sheet tabs and returns a fully-populated
 // Data struct — in one batched API call when the backend supports it, else
 // tab by tab. A missing/unshared tab is logged and left empty rather than
-// failing the whole request.
-func (h *Handler) fetchFromRepos(t *tenant.Tenant) *models.Data {
+// failing the whole request — but losing access to the whole spreadsheet
+// (a tenant.HTTPError, e.g. a revoked Google grant) is returned, so it's
+// never mistaken for an empty one.
+func (h *Handler) fetchFromRepos(t *tenant.Tenant) (*models.Data, error) {
 	repos := t.Repos
-	pre := prefetch(t, []string{
+	pre, err := prefetch(t, []string{
 		repos.Members.Sheet(), repos.MF.Sheet(), repos.Stocks.Sheet(), repos.Metals.Sheet(),
 		repos.Fixed.Sheet(), repos.Insurance.Sheet(), repos.Loans.Sheet(), repos.NPS.Sheet(),
 		repos.SIPs.Sheet(), repos.Lumpsums.Sheet(), repos.History.Sheet(), repos.Income.Sheet(),
 		repos.TaxRecommendations.Sheet(), repos.TaxRules.Sheet(), configSheet,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	d := &models.Data{
 		Members: load(repos.Members, pre),
@@ -186,25 +203,42 @@ func (h *Handler) fetchFromRepos(t *tenant.Tenant) *models.Data {
 		}
 		d.Config = parseConfig(cfg)
 	}
-	return d
+	return d, nil
 }
 
 const configSheet = "Config"
 
 // prefetch batch-reads names if t's backend supports it. A nil result (no
 // batch support, or the batch failed — e.g. one tab is missing) makes load
-// fall back to per-tab reads, which tolerate a single missing tab.
-func prefetch(t *tenant.Tenant, names []string) map[string][][]interface{} {
+// fall back to per-tab reads, which tolerate a single missing tab. A
+// tenant.HTTPError means the whole spreadsheet is unreachable and is
+// returned instead.
+func prefetch(t *tenant.Tenant, names []string) (map[string][][]interface{}, error) {
 	br, ok := t.API.(store.BatchReader)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	rows, err := br.ReadSheets(names)
 	if err != nil {
+		var he tenant.HTTPError
+		if errors.As(err, &he) {
+			return nil, err
+		}
 		log.Printf("⚠  batch read failed, falling back to per-tab reads: %v", err)
-		return nil
+		return nil, nil
 	}
-	return rows
+	return rows, nil
+}
+
+// writeTenantError responds with a tenant.HTTPError's own status, else 500.
+func writeTenantError(w http.ResponseWriter, err error) {
+	var he tenant.HTTPError
+	if errors.As(err, &he) {
+		http.Error(w, he.Error(), he.HTTPStatus())
+		return
+	}
+	log.Printf("⚠ loading data: %v", err)
+	http.Error(w, "couldn't load your data", http.StatusInternalServerError)
 }
 
 func load[T any](repo *store.Repository[T], pre map[string][][]interface{}) []T {

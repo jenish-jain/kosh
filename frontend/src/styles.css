@@ -485,6 +485,43 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .enrol-linkqr { margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
 .enrol-linkqr summary { cursor: pointer; }
 
+/* ── Family members ── */
+.color-picker { display: flex; flex-wrap: wrap; gap: 10px; }
+.color-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
+.color-dot.active { border-color: var(--bg); box-shadow: 0 0 0 2px var(--ink); }
+
+/* ── Hosted: onboarding / join / reconnect ── */
+.hosted-page { min-height: 100vh; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 32px 16px; box-sizing: border-box; }
+.hosted-card { width: 100%; max-width: 420px; text-align: center; }
+.hosted-title { font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.2; margin: 0 0 14px; }
+.hosted-text { font-size: 14px; color: var(--ink-2); line-height: 1.65; margin: 0 0 18px; }
+.hosted-cta { width: 100%; justify-content: center; padding: 12px; font-size: 14.5px; margin-bottom: 10px; }
+.hosted-fine { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 8px 0 0; }
+.hosted-foot { margin-top: 28px; font-size: 12.5px; color: var(--ink-3); }
+.linklike { background: none; border: none; padding: 0; color: var(--accent-ink); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* ── Hosted: plan ── */
+.plan-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 32px; font-size: 13px; border-bottom: 1px solid var(--line); }
+.plan-banner.info { background: var(--accent-soft); color: var(--accent-ink); }
+.plan-banner.warn { background: var(--warn-soft); color: var(--ink); }
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.plan-card { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+.plan-price { font-family: var(--serif); font-size: 28px; margin-top: 6px; }
+.plan-price span { font-family: inherit; font-size: 13px; color: var(--ink-3); margin-left: 2px; }
+
+.usage-box { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); }
+.usage-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.tiers-scroll { overflow-x: auto; margin: 4px 0 8px; }
+.tiers-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tiers-table th, .tiers-table td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.tiers-table thead th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.tiers-table th[scope="row"], .tiers-table thead th:first-child { text-align: left; font-weight: normal; }
+.tier-toggle { display: inline-flex; padding: 6px; border-radius: 6px; cursor: pointer; }
+.tier-toggle input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.tier-toggle.changed { background: var(--gold-soft, var(--accent-soft)); }
+.danger-zone { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
+.btn.danger { background: var(--neg); border-color: var(--neg); color: #fff; }
+
 /* ── Family sharing (recipient page) ── */
 .shared-page { min-height: 100vh; background: var(--bg); max-width: 980px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; }
 .shared-center { display: flex; align-items: center; justify-content: center; }
@@ -550,6 +587,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   /* ─ Modals: cap height accounting for bottom tab bar (≈60px) ─ */
   .modal-backdrop { padding: 16px 12px 70px; }
   .modal-card { max-height: min(88vh, 800px); width: 100% !important; border-radius: 12px 12px 8px 8px; }
+
+  /* ─ Plan ─ */
+  .plan-banner { padding: 10px 18px; flex-wrap: wrap; }
+  .plan-grid { grid-template-columns: 1fr; }
 
   /* ─ Family sharing ─ */
   .share-row { flex-wrap: wrap; }
@@ -618,7 +659,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .marketing-row-text { order: 1 !important; }
   .marketing-row-image { order: 2 !important; }
 
-  /* ─ Marketing header: hide the middle nav links, keep logo + Sign in ─ */
-  .marketing-header { padding: 14px 18px !important; }
-  .marketing-nav-links { display: none !important; }
+  /* ─ Marketing header: logo + Sign in on top, nav links as a row below ─ */
+  .marketing-header { padding: 14px 18px !important; flex-wrap: wrap; }
+  .marketing-nav-links { order: 3; width: 100%; gap: 20px !important; overflow-x: auto; scrollbar-width: none; padding-top: 2px; }
+  .marketing-nav-links::-webkit-scrollbar { display: none; }
+
+  /* ─ Pricing ─ */
+  .pricing-grid { grid-template-columns: 1fr !important; }
 }

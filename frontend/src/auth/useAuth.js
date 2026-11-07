@@ -7,6 +7,8 @@ export function useAuth() {
   const [demoAvailable, setDemoAvailable] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
   const [shareEnabled, setShareEnabled] = useState(false)
+  const [mode, setMode] = useState('selfhost')
+  const [devLogin, setDevLogin] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/config')
@@ -15,6 +17,8 @@ export function useAuth() {
         setDemoAvailable(!!cfg.demo)
         setAiEnabled(!!cfg.ai_enabled)
         setShareEnabled(!!cfg.share_enabled)
+        setMode(cfg.mode || 'selfhost')
+        setDevLogin(!!cfg.dev_login)
         if (!cfg.enabled) { setAuthState('authed'); return }
         setClientId(cfg.client_id)
         return fetch('/api/auth/me', { credentials: 'include' })
@@ -38,5 +42,5 @@ export function useAuth() {
     setAuthState('login')
   }
 
-  return { authState, user, clientId, demoAvailable, aiEnabled, shareEnabled, handleLogin, handleDemo, handleLogout }
+  return { authState, user, clientId, demoAvailable, aiEnabled, shareEnabled, mode, devLogin, handleLogin, handleDemo, handleLogout }
 }

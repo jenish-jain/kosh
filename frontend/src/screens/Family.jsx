@@ -1,13 +1,16 @@
+import { useState } from 'react'
 import { classTotals, memberTotal, holdingsFor } from '../data/aggregate.js'
-import { fmtINR, fmtCompact } from '../data/format.js'
+import { fmtINR, fmtCompact, sharePct } from '../data/format.js'
 import { ED_ORDER, ED_COL, ED_LABEL } from '../data/constants.js'
 import { todayDisplay } from '../data/schedule.js'
 import { KICK, SERIF } from '../data/tokens.js'
 import { EdStack, EdRule, Avatar } from '../components/Primitives.jsx'
 import { Icon } from '../components/Icons.jsx'
+import MembersModal from '../components/MembersModal.jsx'
 
 // ── Family overview ──────────────────────────────────────────
-function FamilyOverview({ data, onSelect }) {
+function FamilyOverview({ data, onSelect, showToast }) {
+  const [managing, setManaging] = useState(false)
   const household = memberTotal(data, null)
   const hc = classTotals(data, null)
   const hgain = hc.total.cur - hc.total.inv
@@ -17,9 +20,23 @@ function FamilyOverview({ data, onSelect }) {
     <div className="fade-in">
       <div className="stmt-band">
         <div style={{ ...KICK, letterSpacing: '.18em' }}>Family portfolios</div>
-        <div className="stmt-meta">{(data.members || []).length} members · As on {todayDisplay()}</div>
+        <div className="stmt-meta">
+          {(data.members || []).length} members · As on {todayDisplay()}
+          <button className="btn ghost sm" onClick={() => setManaging(true)} style={{ marginLeft: 8 }}>
+            <Icon name="edit" size={13} /> Manage
+          </button>
+        </div>
       </div>
       <EdRule thick />
+      {managing && <MembersModal data={data} onClose={() => setManaging(false)} showToast={showToast} />}
+      {(data.members || []).length === 0 && (
+        <div className="share-warn" style={{ marginBottom: 24 }}>
+          Start by adding the people whose finances you track, beginning with yourself.
+          <div style={{ marginTop: 10 }}>
+            <button className="btn primary sm" onClick={() => setManaging(true)}><Icon name="plus" size={13} /> Add family member</button>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 40, flexWrap: 'wrap' }}>
@@ -48,7 +65,7 @@ function FamilyOverview({ data, onSelect }) {
                 </div>
                 <div className="num serif-num" style={{ fontSize: 22, marginTop: 8 }}>{fmtCompact(v)}</div>
                 <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>
-                  {Math.round(v / household * 100)}% share
+                  {sharePct(v, household)}% share
                 </div>
               </div>
             )
@@ -166,7 +183,7 @@ function MemberProfile({ data, memberId, setScreen }) {
             </div>
             <div className="num serif-num" style={{ fontSize: 21, marginTop: 8 }}>{fmtCompact(s.value)}</div>
             <div className="num" style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>
-              {Math.round(s.value / c.total.cur * 100)}%
+              {sharePct(s.value, c.total.cur)}%
             </div>
           </div>
         ))}
@@ -218,8 +235,8 @@ function MemberProfile({ data, memberId, setScreen }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────
-export default function Family({ data, memberId, setScreen, onSelect }) {
+export default function Family({ data, memberId, setScreen, onSelect, showToast }) {
   return memberId
     ? <MemberProfile data={data} memberId={memberId} setScreen={setScreen} />
-    : <FamilyOverview data={data} onSelect={onSelect} />
+    : <FamilyOverview data={data} onSelect={onSelect} showToast={showToast} />
 }

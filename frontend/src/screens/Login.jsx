@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { KICK, SERIF } from '../data/tokens.js'
 
-export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
+export default function Login({ clientId, demoAvailable, onDemo, onLogin, hosted, devLogin }) {
   const btnRef  = useRef(null)
   const [error, setError] = useState(null)
   const [busy,  setBusy]  = useState(false)
   const [demoBusy, setDemoBusy] = useState(false)
+  const [devEmail, setDevEmail] = useState('')
+
+  // hosteddev builds only: sign in with any email, no Google.
+  const handleDevLogin = async e => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dev/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: devEmail }),
+      })
+      if (res.ok) onLogin(await res.json())
+      else setError(await res.text())
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const handleDemo = async () => {
     setDemoBusy(true)
@@ -19,6 +36,7 @@ export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
   }
 
   useEffect(() => {
+    if (devLogin) return
     let mounted = true
 
     const init = () => {
@@ -67,7 +85,7 @@ export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
       return () => { mounted = false; clearInterval(iv) }
     }
     return () => { mounted = false }
-  }, [clientId, onLogin])
+  }, [clientId, onLogin, devLogin])
 
   return (
     <div style={{
@@ -90,11 +108,20 @@ export default function Login({ clientId, demoAvailable, onDemo, onLogin }) {
 
         {/* Sign-in area */}
         <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginBottom: 24, lineHeight: 1.6 }}>
-          Sign in with your Google account to continue.<br />
-          Access is restricted to invited members.
+          {hosted ? (
+            <>Sign in with Google to open your household,<br />or start a 14-day free trial. No card needed.</>
+          ) : (
+            <>Sign in with your Google account to continue.<br />Access is restricted to invited members.</>
+          )}
         </div>
 
-        {busy ? (
+        {devLogin ? (
+          <form onSubmit={handleDevLogin} style={{ display: 'flex', gap: 8 }}>
+            <input className="input" type="email" required placeholder="any@email (dev build)" value={devEmail}
+              onChange={e => setDevEmail(e.target.value)} aria-label="Dev sign-in email" />
+            <button className="btn primary" disabled={busy}>Sign in</button>
+          </form>
+        ) : busy ? (
           <div style={{ ...KICK, color: 'var(--accent)' }}>Verifying…</div>
         ) : (
           <div ref={btnRef} style={{ display: 'flex', justifyContent: 'center' }} />
