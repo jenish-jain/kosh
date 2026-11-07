@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Modal, Field } from './Primitives.jsx'
 import { Icon } from './Icons.jsx'
 import { KICK } from '../data/tokens.js'
-import { hasFullAccess, daysLeft } from '../data/billing.js'
+import { planRunning, canUse, daysLeft } from '../data/billing.js'
 import { getHousehold, inviteMember, cancelInvite, removeMember, leaveHousehold, deleteHousehold } from '../data/hostedApi.js'
 
-function planSummary(b) {
-  if (!hasFullAccess(b)) return 'Read-only (no active plan)'
+function planSummary(household) {
+  const b = household.billing
+  if (!planRunning(b)) return canUse(household, 'edit') ? 'Free plan' : 'Read-only (no active plan)'
   if (b.status === 'trialing') return `Free trial, ${daysLeft(b.trial_ends_at)} day(s) left`
   if (b.cancel_at_period_end || b.status === 'cancelled') return 'Cancelled, active until the paid period ends'
   if (b.status === 'past_due') return 'Payment being retried'
@@ -17,7 +18,7 @@ const fmtDate = iso => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric
 
 // Hosted mode: who's in the household. The owner invites (by link, bound to
 // the invitee's Google account) and removes members; members can leave.
-export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast }) {
+export default function HouseholdModal({ onClose, onLeft, onOpenPlan, onOpenOperator, showToast }) {
   const [state, setState] = useState(null)
   const [error, setError] = useState(null)
   const [email, setEmail] = useState('')
@@ -66,7 +67,7 @@ export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast 
           <div className="share-row" style={{ borderTop: '1px solid var(--line)' }}>
             <div className="share-row-main">
               <div className="cell-strong">Plan</div>
-              <div className="cell-sub">{planSummary(state.household.billing)}</div>
+              <div className="cell-sub">{planSummary(state.household)}</div>
             </div>
             <div className="share-row-actions"><button className="btn ghost sm" onClick={onOpenPlan}>{isOwner ? 'Manage' : 'View'}</button></div>
           </div>
@@ -104,7 +105,10 @@ export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast 
             ))}
           </ul>
 
-          {isOwner && (
+          {isOwner && !canUse(state.household, 'invite') && (
+            <p className="hosted-fine" style={{ marginTop: 18 }}>Inviting people isn't included in your current plan.</p>
+          )}
+          {isOwner && canUse(state.household, 'invite') && (
             <form onSubmit={invite} style={{ marginTop: 18 }}>
               <Field label="Invite by Google account email">
                 <div className="enrol-link">
@@ -122,6 +126,16 @@ export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast 
                 <input className="input" value={newLink.url} readOnly onFocus={e => e.target.select()} />
                 <button className="btn" onClick={() => copy(newLink.url)}>Copy</button>
               </div>
+            </div>
+          )}
+
+          {onOpenOperator && (
+            <div className="share-row" style={{ borderTop: '1px solid var(--line)', marginTop: 18 }}>
+              <div className="share-row-main">
+                <div className="cell-strong">Feature tiers</div>
+                <div className="cell-sub">Operator: choose what free, trial and paid households get</div>
+              </div>
+              <div className="share-row-actions"><button className="btn ghost sm" onClick={onOpenOperator}>Open</button></div>
             </div>
           )}
 

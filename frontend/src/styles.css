@@ -511,6 +511,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 .usage-box { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); }
 .usage-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.tiers-scroll { overflow-x: auto; margin: 4px 0 8px; }
+.tiers-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tiers-table th, .tiers-table td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.tiers-table thead th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.tiers-table th[scope="row"], .tiers-table thead th:first-child { text-align: left; font-weight: normal; }
+.tier-toggle { display: inline-flex; padding: 6px; border-radius: 6px; cursor: pointer; }
+.tier-toggle input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.tier-toggle.changed { background: var(--gold-soft, var(--accent-soft)); }
 .danger-zone { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
 .btn.danger { background: var(--neg); border-color: var(--neg); color: #fff; }
 
