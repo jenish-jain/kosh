@@ -3,6 +3,7 @@ import { useData } from '../../data/context.jsx'
 import { Toast } from '../Primitives.jsx'
 import { Icon } from '../Icons.jsx'
 import ExportModal from '../ExportModal.jsx'
+import SharingModal from '../SharingModal.jsx'
 import Sidebar from './Sidebar.jsx'
 import MemberSwitcher from './MemberSwitcher.jsx'
 import LoadingScreen from './LoadingScreen.jsx'
@@ -19,7 +20,7 @@ import PinLock from '../PinLock.jsx'
 import PinSettings from '../PinSettings.jsx'
 import AskModal from '../AskModal.jsx'
 
-export default function AppShell({ user, onLogout, aiEnabled }) {
+export default function AppShell({ user, onLogout, aiEnabled, shareEnabled }) {
   const { data, loading, error } = useData()
   const [screen, setScreenRaw] = useState(() => localStorage.getItem('kosh.screen') || 'dashboard')
   const [member, setMemberRaw] = useState(() => { const v = localStorage.getItem('kosh.member'); return v === 'null' || !v ? null : v })
@@ -27,6 +28,7 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
   const [showPinSettings, setShowPinSettings] = useState(false)
   const [showAsk, setShowAsk] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  const [showSharing, setShowSharing] = useState(false)
   const pinLock = usePinLock()
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
@@ -62,6 +64,11 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
       <div className="main">
         <header className="topbar">
           <div className="topbar-spacer" style={{ flex: 1 }} />
+          {shareEnabled && (
+            <button className="btn ghost sm" onClick={() => setShowSharing(true)} title="Share with family" aria-label="Share with family" style={{ marginRight: 4 }}>
+              <Icon name="share" size={15} />
+            </button>
+          )}
           <button className="btn ghost sm" onClick={() => setShowExport(true)} title="Export report" style={{ marginRight: 10 }}>
             <Icon name="download" size={15} />
           </button>
@@ -77,6 +84,7 @@ export default function AppShell({ user, onLogout, aiEnabled }) {
       {pinLock.locked && <PinLock onVerify={pinLock.verify} />}
       {showPinSettings && <PinSettings pinLock={pinLock} onClose={() => setShowPinSettings(false)} />}
       {showAsk && <AskModal onClose={() => setShowAsk(false)} />}
+      {showSharing && <SharingModal onClose={() => setShowSharing(false)} showToast={showToast} />}
       {showExport && <ExportModal data={data} memberId={member} onClose={() => setShowExport(false)} />}
     </div>
   )

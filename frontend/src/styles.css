@@ -461,6 +461,48 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 ::-webkit-scrollbar-thumb { background: #d2ccc0; border-radius: 999px; border: 3px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* ── Family sharing (owner modal) ── */
+.share-intro { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin: 0 0 16px; }
+.share-empty { font-size: 13px; color: var(--ink-3); padding: 18px 0; text-align: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.share-error { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--r); background: var(--neg-soft); color: var(--neg); font-size: 12.5px; line-height: 1.6; }
+.share-warn { margin-top: 12px; padding: 10px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--ink); font-size: 12.5px; line-height: 1.6; }
+.share-list { list-style: none; margin: 0 0 4px; padding: 0; border-top: 1px solid var(--line); }
+.share-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.share-row-main { flex: 1; min-width: 0; }
+.share-row-main .neg { color: var(--neg); }
+.share-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.share-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.enrol-step { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.enrol-step-head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.enrol-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; flex-shrink: 0; }
+.enrol-qr { display: flex; justify-content: center; margin: 8px 0 12px; }
+.qr-box { background: #fff; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); box-sizing: content-box; }
+.qr-box img { display: block; }
+.enrol-secret { font-size: 12.5px; color: var(--ink-3); text-align: center; line-height: 1.6; }
+.enrol-secret code { display: inline-block; font-size: 13px; color: var(--ink); letter-spacing: .06em; word-break: break-all; }
+.enrol-link { display: flex; gap: 8px; }
+.enrol-link .input { flex: 1; min-width: 0; font-size: 12.5px; }
+.enrol-linkqr { margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+.enrol-linkqr summary { cursor: pointer; }
+
+/* ── Family sharing (recipient page) ── */
+.shared-page { min-height: 100vh; background: var(--bg); max-width: 980px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; }
+.shared-center { display: flex; align-items: center; justify-content: center; }
+.shared-code-card { width: 100%; max-width: 360px; text-align: center; }
+.shared-code-label { display: block; font-size: 14px; color: var(--ink-2); line-height: 1.6; margin-bottom: 14px; }
+.shared-code-input { text-align: center; font-family: var(--serif); font-size: 32px; letter-spacing: .3em; padding: 12px; margin-bottom: 14px; }
+.shared-code-btn { width: 100%; justify-content: center; padding: 12px; font-size: 15px; }
+.shared-code-foot { margin-top: 20px; font-size: 12.5px; color: var(--ink-3); line-height: 1.6; }
+.shared-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 18px; border-bottom: 1.5px solid var(--ink); }
+.shared-hello { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.shared-head-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.shared-head-actions a { text-decoration: none; color: inherit; }
+.shared-hero { padding: 28px 0 8px; }
+.shared-section { margin-top: 36px; }
+.shared-section-title { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0 0 14px; }
+.shared-page .tbl tfoot td { border-top: 1.5px solid var(--ink); border-bottom: none; }
+.shared-foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); text-align: center; line-height: 1.6; }
+
 /* ── Mobile ── */
 @media (max-width: 768px) {
   /* ─ Sidebar → bottom tab bar ─ */
@@ -508,6 +550,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   /* ─ Modals: cap height accounting for bottom tab bar (≈60px) ─ */
   .modal-backdrop { padding: 16px 12px 70px; }
   .modal-card { max-height: min(88vh, 800px); width: 100% !important; border-radius: 12px 12px 8px 8px; }
+
+  /* ─ Family sharing ─ */
+  .share-row { flex-wrap: wrap; }
+  .share-row-actions { width: 100%; justify-content: flex-end; }
+  .enrol-link { flex-wrap: wrap; }
+  .enrol-link .input { flex-basis: 100%; }
+  .shared-page { padding: 20px 16px 40px; }
+  .shared-section-title { font-size: 19px; }
 
   /* ─ Hero number: scale for narrow screens ─ */
   .hero-num { font-size: clamp(34px, 9vw, 72px); }
