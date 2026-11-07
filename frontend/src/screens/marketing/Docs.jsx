@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import MarketingLayout, { Container } from './MarketingLayout.jsx'
 import { KICK, SERIF } from '../../data/tokens.js'
 import { useDocumentTitle } from '../../data/useDocumentTitle.js'
@@ -48,6 +49,10 @@ export default function Docs() {
             full reference guide
           </a>{' '}
           on GitHub has every tab schema and environment variable in detail.
+        </p>
+        <p style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.7, maxWidth: 560, margin: '14px auto 0' }}>
+          Rather not run it yourself? <Link to="/pricing" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Hosted Kosh</Link> is
+          the same app, run for you, with your data still in a Sheet in your own Drive.
         </p>
       </Container>
 

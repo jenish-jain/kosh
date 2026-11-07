@@ -9,6 +9,10 @@ Each section is independent — you can stop after **Local dev mode** if you
 just want to try Kosh, or go all the way to **Deploying** if you want a
 private install your family can reach from anywhere.
 
+Rather not run it yourself? [Hosted Kosh](https://kosh.jenishjain.in/pricing)
+is the same app, run for you. (Operating that hosted service is covered
+separately in [HOSTED.md](HOSTED.md).)
+
 ---
 
 ## 1. Prerequisites
@@ -507,7 +511,7 @@ variables.
 | `SESSION_SECRET` | For sign-in | — | Random string used to HMAC-sign session cookies (`openssl rand -base64 32`) |
 | `ALLOWED_EMAILS` | For sign-in | — | Comma-separated list of Google account emails allowed to sign in |
 | `SHARE_ENCRYPTION_KEY` | For family sharing | — | Encrypts family members' authenticator secrets (`openssl rand -hex 32`, min 32 chars). Also needs `SESSION_SECRET` |
-| `KOSH_MODE` | No | `selfhost` | Leave unset when self-hosting. `hosted` runs the multi-household managed service (see [HOSTED_PLAN.md](../HOSTED_PLAN.md)) and needs its own settings |
+| `KOSH_MODE` | No | `selfhost` | Leave unset when self-hosting. `hosted` runs the multi-household managed service and needs its own settings; see [HOSTED.md](HOSTED.md) |
 | `COOKIE_SECURE` | No | `true` | Set to `false` to allow cookies over plain HTTP (local testing only) |
 | `ANTHROPIC_API_KEY` | For uploads | — | Enables AI-assisted PDF/image parsing for FD, insurance, and metals |
 | `PROMPTS_DIR` | No | `prompts` | Directory of extraction prompt templates (`fd.md`, `insurance.md`, `metals.md`) |
