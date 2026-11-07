@@ -651,7 +651,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .marketing-row-text { order: 1 !important; }
   .marketing-row-image { order: 2 !important; }
 
-  /* ─ Marketing header: hide the middle nav links, keep logo + Sign in ─ */
-  .marketing-header { padding: 14px 18px !important; }
-  .marketing-nav-links { display: none !important; }
+  /* ─ Marketing header: logo + Sign in on top, nav links as a row below ─ */
+  .marketing-header { padding: 14px 18px !important; flex-wrap: wrap; }
+  .marketing-nav-links { order: 3; width: 100%; gap: 20px !important; overflow-x: auto; scrollbar-width: none; padding-top: 2px; }
+  .marketing-nav-links::-webkit-scrollbar { display: none; }
 }
