@@ -509,6 +509,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .plan-price { font-family: var(--serif); font-size: 28px; margin-top: 6px; }
 .plan-price span { font-family: inherit; font-size: 13px; color: var(--ink-3); margin-left: 2px; }
 
+.usage-box { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); }
+.usage-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.danger-zone { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
+.btn.danger { background: var(--neg); border-color: var(--neg); color: #fff; }
+
 /* ── Family sharing (recipient page) ── */
 .shared-page { min-height: 100vh; background: var(--bg); max-width: 980px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; }
 .shared-center { display: flex; align-items: center; justify-content: center; }

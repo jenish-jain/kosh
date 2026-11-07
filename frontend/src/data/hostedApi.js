@@ -27,3 +27,5 @@ export const cancelInvite    = id => send('DELETE', `/api/hosted/invites/${encod
 export const acceptInvite    = token => send('POST', '/api/hosted/invites/accept', { token })
 export const removeMember    = email => send('DELETE', `/api/hosted/members/${encodeURIComponent(email)}`)
 export const leaveHousehold  = () => send('POST', '/api/hosted/leave')
+export const deleteHousehold = confirm => send('DELETE', '/api/hosted/household', { confirm })
+export const getUsage        = () => request('/api/hosted/usage')

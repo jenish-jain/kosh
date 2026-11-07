@@ -3,7 +3,7 @@ import { Modal, Field } from './Primitives.jsx'
 import { Icon } from './Icons.jsx'
 import { KICK } from '../data/tokens.js'
 import { hasFullAccess, daysLeft } from '../data/billing.js'
-import { getHousehold, inviteMember, cancelInvite, removeMember, leaveHousehold } from '../data/hostedApi.js'
+import { getHousehold, inviteMember, cancelInvite, removeMember, leaveHousehold, deleteHousehold } from '../data/hostedApi.js'
 
 function planSummary(b) {
   if (!hasFullAccess(b)) return 'Read-only (no active plan)'
@@ -23,6 +23,8 @@ export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast 
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [newLink, setNewLink] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
 
   const refresh = useCallback(() => {
     getHousehold().then(setState).catch(e => setError(e.message))
@@ -120,6 +122,28 @@ export default function HouseholdModal({ onClose, onLeft, onOpenPlan, showToast 
                 <input className="input" value={newLink.url} readOnly onFocus={e => e.target.select()} />
                 <button className="btn" onClick={() => copy(newLink.url)}>Copy</button>
               </div>
+            </div>
+          )}
+
+          {isOwner && (
+            <div className="danger-zone">
+              {!deleting ? (
+                <button className="btn ghost sm" onClick={() => setDeleting(true)}>Delete household…</button>
+              ) : (
+                <>
+                  <p className="share-intro" style={{ marginBottom: 10 }}>
+                    This cancels your subscription immediately, removes everyone's access, and disconnects Kosh from your Google Drive.
+                    <strong> Your spreadsheet stays in your Drive</strong>, so you keep all your data. Type <strong>{state.household.name}</strong> to confirm.
+                  </p>
+                  <div className="enrol-link">
+                    <input className="input" value={confirmName} onChange={e => setConfirmName(e.target.value)} aria-label="Household name to confirm" />
+                    <button className="btn danger" disabled={busy || confirmName.trim() !== state.household.name}
+                      onClick={() => run(() => deleteHousehold(confirmName), () => { window.alert('Your household was deleted. Your spreadsheet is still in your Google Drive.'); onLeft() })}>
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
