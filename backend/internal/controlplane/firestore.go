@@ -429,6 +429,28 @@ func (f *Firestore) ConsumeQuota(ctx context.Context, householdID, kind, period 
 	return count, err
 }
 
+func (f *Firestore) ReleaseQuota(ctx context.Context, householdID, kind, period string) error {
+	ref := f.usageRef(householdID, period)
+	return f.c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(ref)
+		if isCode(err, codes.NotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var u fsUsage
+		if err := snap.DataTo(&u); err != nil {
+			return err
+		}
+		if u.Counts[kind] <= 0 {
+			return nil
+		}
+		u.Counts[kind]--
+		return tx.Set(ref, u)
+	}, firestore.MaxAttempts(quotaTxAttempts))
+}
+
 func (f *Firestore) Usage(ctx context.Context, householdID, period string) (map[string]int, error) {
 	snap, err := f.usageRef(householdID, period).Get(ctx)
 	if isCode(err, codes.NotFound) {

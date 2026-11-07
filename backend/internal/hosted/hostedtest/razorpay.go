@@ -65,7 +65,7 @@ func (f *Razorpay) FetchSubscription(_ context.Context, id string) (billing.Subs
 	return *s, nil
 }
 
-func (f *Razorpay) CancelSubscription(_ context.Context, id string) (billing.Subscription, error) {
+func (f *Razorpay) CancelSubscription(_ context.Context, id string, atCycleEnd bool) (billing.Subscription, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, ok := f.subs[id]
@@ -74,7 +74,7 @@ func (f *Razorpay) CancelSubscription(_ context.Context, id string) (billing.Sub
 	}
 	// Like Razorpay: an unstarted subscription cancels now; a running one
 	// stays active until its cycle ends.
-	if s.Status == "created" || s.Status == "authenticated" {
+	if !atCycleEnd || s.Status == "created" || s.Status == "authenticated" {
 		s.Status = "cancelled"
 	}
 	return *s, nil

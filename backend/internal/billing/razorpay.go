@@ -42,8 +42,9 @@ type Gateway interface {
 	FetchPlan(ctx context.Context, planID string) (Plan, error)
 	CreateSubscription(ctx context.Context, planID string, totalCount int, startAt time.Time, notes map[string]string) (Subscription, error)
 	FetchSubscription(ctx context.Context, id string) (Subscription, error)
-	// CancelSubscription cancels at the end of the current billing cycle.
-	CancelSubscription(ctx context.Context, id string) (Subscription, error)
+	// CancelSubscription cancels at the end of the current billing cycle,
+	// or immediately when atCycleEnd is false (account deletion).
+	CancelSubscription(ctx context.Context, id string, atCycleEnd bool) (Subscription, error)
 	// VerifyPayment checks the signature Checkout returns after a
 	// subscription's authorization payment.
 	VerifyPayment(paymentID, subscriptionID, signature string) bool
@@ -131,9 +132,13 @@ func (r *Razorpay) FetchSubscription(ctx context.Context, id string) (Subscripti
 	return s, err
 }
 
-func (r *Razorpay) CancelSubscription(ctx context.Context, id string) (Subscription, error) {
+func (r *Razorpay) CancelSubscription(ctx context.Context, id string, atCycleEnd bool) (Subscription, error) {
+	end := 0
+	if atCycleEnd {
+		end = 1
+	}
 	var s Subscription
-	err := r.call(ctx, http.MethodPost, "/subscriptions/"+url.PathEscape(id)+"/cancel", map[string]int{"cancel_at_cycle_end": 1}, &s)
+	err := r.call(ctx, http.MethodPost, "/subscriptions/"+url.PathEscape(id)+"/cancel", map[string]int{"cancel_at_cycle_end": end}, &s)
 	return s, err
 }
 

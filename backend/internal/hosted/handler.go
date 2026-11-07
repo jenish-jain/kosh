@@ -1,6 +1,7 @@
 package hosted
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -38,6 +39,14 @@ type Handler struct {
 	sessionEmail func(*http.Request) (string, bool)
 	isDemo       func(*http.Request) bool
 	now          func() time.Time
+
+	// cancelSubscription stops billing immediately (account deletion).
+	cancelSubscription func(ctx context.Context, subscriptionID string) error
+}
+
+// SetSubscriptionCanceller wires billing into account deletion.
+func (h *Handler) SetSubscriptionCanceller(fn func(ctx context.Context, subscriptionID string) error) {
+	h.cancelSubscription = fn
 }
 
 // NewHandler constructs a Handler.
@@ -72,6 +81,10 @@ func (h *Handler) Routes(w http.ResponseWriter, r *http.Request) {
 		h.reconnect(w, r, email)
 	case path == "household" && r.Method == http.MethodGet:
 		h.household(w, r, email)
+	case path == "household" && r.Method == http.MethodDelete:
+		h.deleteHousehold(w, r, email)
+	case path == "usage" && r.Method == http.MethodGet:
+		h.usage(w, r, email)
 	case path == "invites" && r.Method == http.MethodPost:
 		h.invite(w, r, email)
 	case path == "invites/accept" && r.Method == http.MethodPost:
@@ -495,6 +508,59 @@ func (h *Handler) leave(w http.ResponseWriter, r *http.Request, email string) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+// deleteHousehold closes the account: billing stops, Kosh's Google access
+// is revoked, and every control-plane record goes. The spreadsheet stays in
+// the owner's Drive — it was always theirs.
+func (h *Handler) deleteHousehold(w http.ResponseWriter, r *http.Request, email string) {
+	hh, ok := h.ownerOnly(w, r, email)
+	if !ok {
+		return
+	}
+	var body struct {
+		Confirm string `json:"confirm"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	if confirm, _ := cleanName(body.Confirm); confirm != hh.Name {
+		http.Error(w, "Type your household's name exactly to confirm.", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	// Billing first, and fatal: a deleted customer must never be charged.
+	if id := hh.Billing.SubscriptionID; id != "" && h.cancelSubscription != nil {
+		if err := h.cancelSubscription(ctx, id); err != nil {
+			serverError(w, "cancelling your subscription", err)
+			return
+		}
+	}
+	if rt, err := h.sealer.Open(hh.RefreshTokenEnc, hh.ID); err == nil {
+		if err := h.google.Revoke(ctx, rt); err != nil {
+			// Not fatal: the token is about to be deleted with the record,
+			// and the customer can also remove Kosh in their Google account.
+			log.Printf("⚠ hosted: revoking Google access for %s: %v", hh.ID, err)
+		}
+	}
+	if err := h.store.DeleteHousehold(ctx, hh.ID); err != nil {
+		serverError(w, "deleting your household", err)
+		return
+	}
+	h.resolver.Invalidate(hh.ID)
+	writeJSON(w, map[string]string{"status": "ok", "sheet_url": "https://docs.google.com/spreadsheets/d/" + hh.SpreadsheetID})
+}
+
+func (h *Handler) usage(w http.ResponseWriter, r *http.Request, email string) {
+	m, _, ok := h.membership(w, r, email)
+	if !ok {
+		return
+	}
+	now := h.now()
+	used, err := h.store.Usage(r.Context(), m.HouseholdID, period(now))
+	if err != nil {
+		serverError(w, "loading usage", err)
+		return
+	}
+	writeJSON(w, map[string]any{"period": period(now), "resets_at": nextReset(now), "used": used, "limits": MonthlyQuotas})
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────

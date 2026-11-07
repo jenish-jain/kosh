@@ -186,6 +186,7 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		if err != nil {
 			return nil, err
 		}
+		hostedH.SetSubscriptionCanceller(billingH.CancelNow)
 		summary = "Mode: hosted (multi-household, Firestore control plane)"
 	} else {
 		var t *tenant.Tenant
@@ -264,6 +265,7 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 		}
 		opts = append(opts,
 			api.WithMiddleware(billingH.Enforce),
+			api.WithMiddleware(hostedH.Quotas),
 			// Razorpay Checkout: its script, its payment iframe, and the
 			// endpoints the iframe's parent page talks to.
 			api.WithCSPSources("script-src", "https://checkout.razorpay.com"),

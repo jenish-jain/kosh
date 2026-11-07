@@ -177,7 +177,7 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request, email string)
 			writeJSON(w, h.checkoutView(existing.ID, body.Plan, email))
 			return
 		case existing.Status == "created":
-			if _, err := h.gw.CancelSubscription(ctx, existing.ID); err != nil {
+			if _, err := h.gw.CancelSubscription(ctx, existing.ID, false); err != nil {
 				log.Printf("⚠ billing: cancelling abandoned subscription %s: %v", existing.ID, err)
 			}
 		}
@@ -259,7 +259,7 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request, email string) {
 		http.Error(w, "There's no subscription to cancel.", http.StatusBadRequest)
 		return
 	}
-	if _, err := h.gw.CancelSubscription(r.Context(), id); err != nil {
+	if _, err := h.gw.CancelSubscription(r.Context(), id, true); err != nil {
 		serverError(w, "cancelling your subscription", err)
 		return
 	}
@@ -389,6 +389,20 @@ func Apply(b *controlplane.Billing, sub Subscription, planKey string, now time.T
 		b.CurrentPeriodEnd = time.Unix(sub.ChargeAt, 0).UTC()
 	}
 	b.UpdatedAt = now.UTC()
+}
+
+// CancelNow stops a household's subscription immediately (account
+// deletion). A subscription that has already ended is fine.
+func (h *Handler) CancelNow(ctx context.Context, subID string) error {
+	sub, err := h.gw.FetchSubscription(ctx, subID)
+	if err != nil {
+		return err
+	}
+	if sub.Status == "cancelled" || sub.Status == "completed" || sub.Status == "expired" {
+		return nil
+	}
+	_, err = h.gw.CancelSubscription(ctx, subID, false)
+	return err
 }
 
 // Enforce wraps the server: a household without Full access (trial over,

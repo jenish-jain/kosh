@@ -254,6 +254,15 @@ func (m *Memory) ConsumeQuota(_ context.Context, householdID, kind, period strin
 	return counts[kind], nil
 }
 
+func (m *Memory) ReleaseQuota(_ context.Context, householdID, kind, period string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if c := m.usage[householdID][period]; c != nil && c[kind] > 0 {
+		c[kind]--
+	}
+	return nil
+}
+
 func (m *Memory) Usage(_ context.Context, householdID, period string) (map[string]int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

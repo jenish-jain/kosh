@@ -127,6 +127,9 @@ type Store interface {
 	// "2026-11") if that keeps the count within limit, returning the new
 	// count; otherwise it returns ErrQuotaExceeded and changes nothing.
 	ConsumeQuota(ctx context.Context, householdID, kind, period string, limit int) (int, error)
+	// ReleaseQuota gives back one use consumed by ConsumeQuota (e.g. the AI
+	// call it paid for failed). Never goes below zero.
+	ReleaseQuota(ctx context.Context, householdID, kind, period string) error
 	// Usage returns the counts recorded for period, by kind.
 	Usage(ctx context.Context, householdID, period string) (map[string]int, error)
 

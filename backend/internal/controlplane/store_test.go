@@ -261,6 +261,25 @@ func TestStore_ConsumeQuotaIsAtomic(t *testing.T) {
 	})
 }
 
+func TestStore_ReleaseQuota(t *testing.T) {
+	forEachStore(t, func(t *testing.T, s Store) {
+		hh := uniq("hh")
+		s.ReleaseQuota(ctx, hh, "ask", "2026-11") // nothing consumed yet: no-op
+		s.ConsumeQuota(ctx, hh, "ask", "2026-11", 1)
+		if _, err := s.ConsumeQuota(ctx, hh, "ask", "2026-11", 1); !errors.Is(err, ErrQuotaExceeded) {
+			t.Fatalf("want exceeded, got %v", err)
+		}
+		s.ReleaseQuota(ctx, hh, "ask", "2026-11")
+		s.ReleaseQuota(ctx, hh, "ask", "2026-11") // must not go negative
+		if u, _ := s.Usage(ctx, hh, "2026-11"); u["ask"] != 0 {
+			t.Fatalf("usage after release: %+v", u)
+		}
+		if _, err := s.ConsumeQuota(ctx, hh, "ask", "2026-11", 1); err != nil {
+			t.Fatalf("released use should be available again: %v", err)
+		}
+	})
+}
+
 func TestStore_MarkEventProcessed(t *testing.T) {
 	forEachStore(t, func(t *testing.T, s Store) {
 		id := uniq("evt")
