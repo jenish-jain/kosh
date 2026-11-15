@@ -18,6 +18,18 @@ type Data struct {
 
 	TaxRecommendations []TaxRecommendation `json:"tax_recommendations"`
 	TaxRules           []TaxRuleSet        `json:"tax_rules"`
+
+	// MetalRates is set when Metals' TodayPrice was replaced by live rates.
+	MetalRates *MetalRates `json:"metal_rates,omitempty"`
+}
+
+// MetalRates are published per-gram benchmark rates (999 purity, excl. GST).
+type MetalRates struct {
+	Source  string  `json:"source"`  // "IBJA"
+	Date    string  `json:"date"`    // publication date, YYYY-MM-DD
+	Session string  `json:"session"` // "AM" or "PM"
+	Gold    float64 `json:"gold"`    // ₹ per gram
+	Silver  float64 `json:"silver"`  // ₹ per gram
 }
 
 type Member struct {
