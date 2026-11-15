@@ -125,3 +125,40 @@ func TestHandler_UnresolvableTenantIsRejected(t *testing.T) {
 		t.Errorf("Mutations: want 401, got %d", rr.Code)
 	}
 }
+
+func TestGetData_LiveMetalRatesReplaceSheetPrice(t *testing.T) {
+	tn, fake := liveTenant(t, "default", "Asha")
+	sheet := tn.Repos.Metals.Sheet()
+	row := map[string]interface{}{"id": "g1", "type": "Gold", "grams": "10", "buy_rate": "9000", "today_price": "9500", "member": "m1"}
+	silver := map[string]interface{}{"id": "s1", "type": "Silver", "grams": "100", "buy_rate": "90", "today_price": "95", "member": "m1"}
+	for _, r := range []map[string]interface{}{row, silver} {
+		var cells []interface{}
+		for _, c := range tn.Repos.Metals.Columns() {
+			v, ok := r[c]
+			if !ok {
+				v = ""
+			}
+			cells = append(cells, v)
+		}
+		fake.Data[sheet] = append(fake.Data[sheet], cells)
+	}
+
+	h := api.NewHandler(tenant.Single(tn), false, notDemo)
+	rates := &models.MetalRates{Source: "IBJA", Date: "2026-11-13", Session: "PM", Gold: 13580.9, Silver: 178}
+	h.SetMetalRates(func() *models.MetalRates { return rates })
+
+	_, d := getData(t, h, httptest.NewRequest(http.MethodGet, "/api/data", nil))
+	if len(d.Metals) != 2 || d.Metals[0].TodayPrice != 13580.9 || d.Metals[1].TodayPrice != 178 {
+		t.Fatalf("metals not repriced: %+v", d.Metals)
+	}
+	if d.MetalRates == nil || *d.MetalRates != *rates {
+		t.Fatalf("metal_rates = %+v", d.MetalRates)
+	}
+
+	// Rates unavailable: the sheet's today_price stands and no rates are reported.
+	h.SetMetalRates(func() *models.MetalRates { return nil })
+	_, d = getData(t, h, httptest.NewRequest(http.MethodGet, "/api/data", nil))
+	if d.Metals[0].TodayPrice != 9500 || d.MetalRates != nil {
+		t.Fatalf("fallback: metals=%+v rates=%+v", d.Metals, d.MetalRates)
+	}
+}
