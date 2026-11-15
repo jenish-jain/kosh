@@ -20,16 +20,25 @@ const ICON_BTN = {
   transition: 'color .15s, background .15s',
 }
 
-export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpenPinSettings, onLockNow, aiEnabled, onOpenAsk }) {
+export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpenPinSettings, onLockNow, aiEnabled, onOpenAsk, collapsed, onToggleCollapse }) {
   const household = data ? netWorth(data, null) : 0
   return (
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark">क</div>
-        <div>
+        <div className="brand-text">
           <div className="brand-name">Kosh</div>
           <div className="brand-sub">Family Wealth</div>
         </div>
+        <button
+          className="sidebar-toggle"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
+          title={(collapsed ? 'Expand' : 'Collapse') + ' sidebar (Ctrl+B)'}
+        >
+          <Icon name="chev" size={16} style={{ transform: collapsed ? 'none' : 'rotate(180deg)' }} />
+        </button>
       </div>
       <nav className="nav">
         <div className="nav-label">Track</div>
@@ -38,8 +47,9 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
             key={n.id}
             className={'nav-item' + (screen === n.id ? ' active' : '')}
             onClick={() => setScreen(n.id)}
+            title={collapsed ? n.label : undefined}
           >
-            <Icon name={n.icon} size={18} /> {n.label}
+            <Icon name={n.icon} size={18} /> <span className="nav-text">{n.label}</span>
           </button>
         ))}
         {aiEnabled && (
@@ -52,11 +62,11 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
         )}
       </nav>
       {aiEnabled && (
-        <button className="ask-kosh-btn" onClick={onOpenAsk}>
+        <button className="ask-kosh-btn" onClick={onOpenAsk} title={collapsed ? 'Ask Kosh' : undefined} aria-label="Ask Kosh">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          Ask Kosh
+          <span className="nav-text">Ask Kosh</span>
         </button>
       )}
       <div className="sidebar-foot">
@@ -71,7 +81,7 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
             <div className="net-val" style={{ opacity: .4 }}>—</div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+        <div className="sidebar-actions">
           {onLockNow && (
             <button
               onClick={onLockNow}
@@ -99,19 +109,20 @@ export default function Sidebar({ screen, setScreen, data, user, onLogout, onOpe
             </svg>
           </button>
           {user && onLogout && (
-            <button onClick={onLogout} style={{ ...ICON_BTN, flex: 1, justifyContent: 'flex-start', gap: 6, fontSize: 12, fontWeight: 600 }}
+            <button onClick={onLogout} className="sidebar-logout" style={{ ...ICON_BTN, flex: 1, justifyContent: 'flex-start', gap: 6, fontSize: 12, fontWeight: 600 }}
+              title={collapsed ? (user.demo ? 'Exit demo' : `Sign out ${user.email}`) : undefined}
               onMouseEnter={e => { e.currentTarget.style.color = 'var(--ink)'; e.currentTarget.style.background = 'var(--border)' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.background = 'none' }}
             >
               <Icon name="x" size={14} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span className="nav-text" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.demo ? 'Exit demo' : user.email}
               </span>
             </button>
           )}
         </div>
         <a
-          href="https://jenishjain.in/" target="_blank" rel="noopener noreferrer"
+          href="https://jenishjain.in/" target="_blank" rel="noopener noreferrer" className="sidebar-credit"
           style={{
             display: 'block', marginTop: 10, fontSize: 9, letterSpacing: '.04em',
             color: 'var(--ink-3)', opacity: .5, textDecoration: 'none',

@@ -39,6 +39,7 @@
   --r-xs: 4px;
 
   --sidebar-w: 248px;
+  --sidebar-w-collapsed: 68px;
   --serif: 'Newsreader', Georgia, serif;
 }
 
@@ -120,6 +121,40 @@ a { color: inherit; text-decoration: none; }
 .sidebar-net .stat-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .16em; font-weight: 700; color: var(--ink-3); }
 .sidebar-net .net-val { font-family: var(--serif); font-size: 20px; font-weight: 500; margin-top: 4px; }
 .sidebar-net .net-sub { font-size: 11px; font-weight: 600; color: var(--ink-3); margin-top: 3px; }
+.sidebar-actions { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+
+/* ── Sidebar toggle ── */
+.brand-text { min-width: 0; }
+.sidebar-toggle {
+  margin-left: auto;
+  width: 28px; height: 28px; flex: 0 0 28px;
+  display: grid; place-items: center;
+  background: none; border: none; border-radius: 8px;
+  color: var(--ink-3); cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.sidebar-toggle:hover { color: var(--ink); background: var(--line-2); }
+.sidebar-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ── Collapsed sidebar (desktop only; mobile tab bar overrides below) ── */
+.app.sidebar-collapsed .sidebar {
+  width: var(--sidebar-w-collapsed);
+  flex-basis: var(--sidebar-w-collapsed);
+  padding-left: 10px; padding-right: 10px;
+}
+.app.sidebar-collapsed .brand { flex-direction: column; gap: 14px; padding: 0 0 4px; }
+.app.sidebar-collapsed .sidebar-toggle { margin-left: 0; }
+.app.sidebar-collapsed .brand-text,
+.app.sidebar-collapsed .nav-label,
+.app.sidebar-collapsed .nav-text,
+.app.sidebar-collapsed .sidebar-net,
+.app.sidebar-collapsed .sidebar-credit { display: none !important; }
+.app.sidebar-collapsed .nav { margin-top: 18px; }
+.app.sidebar-collapsed .nav-item { justify-content: center; padding: 10px 0; gap: 0; }
+.app.sidebar-collapsed .ask-kosh-btn { justify-content: center; margin: 0 0 12px; padding: 10px 0; }
+.app.sidebar-collapsed .sidebar-foot { padding: 10px 0 4px; }
+.app.sidebar-collapsed .sidebar-actions { flex-direction: column; margin-top: 0; }
+.app.sidebar-collapsed .sidebar-logout { flex: 0 0 auto !important; justify-content: center !important; }
 
 /* ── Main ── */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -403,6 +438,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 /* ── Fade in ── */
 @media (prefers-reduced-motion: no-preference) {
   .fade-in { animation: fade .35s ease both; }
+  @media (min-width: 769px) { .sidebar { transition: width .2s ease, flex-basis .2s ease; } }
   @keyframes fade { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
 
@@ -552,6 +588,12 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   }
   .brand { display: none; }
   .sidebar-foot { display: none; }
+  .sidebar-toggle { display: none; }
+  /* Collapse is a desktop-only preference — the tab bar always looks the same. */
+  .app.sidebar-collapsed .sidebar { width: 100%; flex-basis: auto; padding: 0; }
+  .app.sidebar-collapsed .nav { margin-top: 0; }
+  .app.sidebar-collapsed .nav-text { display: inline !important; }
+  .app.sidebar-collapsed .nav-item { padding: 10px 4px; gap: 4px; }
   .ask-kosh-btn { display: none; }
   .ask-nav-item { display: flex; }
   .nav { flex-direction: row; margin-top: 0; gap: 0; flex: 1; }
