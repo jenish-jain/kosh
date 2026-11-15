@@ -189,7 +189,7 @@ The `id` column must be unique within the tab — use any stable string (e.g.
 | date_purchased | date string | `2026-03-29` (YYYY-MM-DD) |
 | grams | number | `11` |
 | buy_rate | number | `14680` — ₹ per gram at time of purchase |
-| today_price | number | `15200` — current ₹ per gram (update manually) |
+| today_price | number | `15200` — ₹ per gram; replaced at read time by IBJA's live 999 rate unless `LIVE_METAL_RATES=false` (also the fallback if IBJA is unreachable) |
 | place | string | `Tanishq` — where purchased |
 | member | string | `you` |
 
@@ -337,8 +337,8 @@ config key.
 | saved_by_filing | `64350` | Tax saved vs. filing everything under self |
 
 **Monthly upkeep** — once a month, update:
-1. `current` in MF, `last_price` in Stocks, `today_price` in Metals, and
-   `outstanding` in Loans with latest figures.
+1. `current` in MF, `last_price` in Stocks, and `outstanding` in Loans with
+   latest figures (plus `today_price` in Metals only if `LIVE_METAL_RATES=false`).
 2. `Config.capital_gains_this_year` if you've realised gains.
 
 (Net worth history is captured automatically — see the History section above.)
@@ -514,6 +514,7 @@ variables.
 | `KOSH_MODE` | No | `selfhost` | Leave unset when self-hosting. `hosted` runs the multi-household managed service and needs its own settings; see [HOSTED.md](HOSTED.md) |
 | `COOKIE_SECURE` | No | `true` | Set to `false` to allow cookies over plain HTTP (local testing only) |
 | `ANTHROPIC_API_KEY` | For uploads | — | Enables AI-assisted PDF/image parsing for FD, insurance, and metals |
+| `LIVE_METAL_RATES` | No | `true` | Values gold/silver holdings at IBJA's latest published 999 rate (fetched from ibjarates.com, cached hourly). `false` uses the sheet's `today_price` |
 | `PROMPTS_DIR` | No | `prompts` | Directory of extraction prompt templates (`fd.md`, `insurance.md`, `metals.md`) |
 | `GOOGLE_CREDENTIALS_B64` | Docker only | — | Base64-encoded service-account JSON — decoded to `CREDENTIALS_PATH` at container startup, for platforms with no secret-file mounting |
 

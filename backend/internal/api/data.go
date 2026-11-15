@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kosh/internal/metalrates"
 	"kosh/internal/models"
 	"kosh/internal/store"
 	"kosh/internal/tenant"
@@ -20,8 +21,33 @@ import (
 type Handler struct {
 	tenants  tenant.Resolver
 	devData  *models.Data
-	demoData *models.Data             // lazily loaded; served to demo sessions in live mode
-	isDemo   func(*http.Request) bool // nil when auth (and therefore demo sessions) is disabled
+	demoData *models.Data              // lazily loaded; served to demo sessions in live mode
+	isDemo   func(*http.Request) bool  // nil when auth (and therefore demo sessions) is disabled
+	rates    func() *models.MetalRates // live gold/silver rates; nil when disabled
+}
+
+// SetMetalRates makes every data read value gold and silver holdings at the
+// live rate returned by rates (nil = keep the sheet's today_price).
+func (h *Handler) SetMetalRates(rates func() *models.MetalRates) {
+	h.rates = rates
+}
+
+// computeDerived fills values that are calculated at read time rather than
+// trusted from the sheet: fixed-income current values and live metal prices.
+// d.Metals is replaced with a fresh slice, so d may be a shallow copy of
+// cached sample data.
+func (h *Handler) computeDerived(d *models.Data) {
+	models.ComputeFixedValues(d.Fixed)
+	if h.rates == nil {
+		return
+	}
+	r := h.rates()
+	if r == nil {
+		return
+	}
+	d.Metals = append([]models.Metal(nil), d.Metals...)
+	metalrates.Apply(d.Metals, r)
+	d.MetalRates = r
 }
 
 // NewHandler constructs a Handler. tenants maps each request to the
@@ -79,7 +105,9 @@ func loadDevData() *models.Data {
 // LoadData returns the appropriate dataset for the request — used by the AI handler.
 func (h *Handler) LoadData(r *http.Request) *models.Data {
 	if h.servingSampleData(r) {
-		return h.sampleData()
+		d := sampleCopy(h.sampleData())
+		h.computeDerived(d)
+		return d
 	}
 	t, err := h.tenants.Resolve(r)
 	if err != nil {
@@ -91,7 +119,7 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 		log.Printf("⚠ loading data: %v", err)
 		return &models.Data{}
 	}
-	models.ComputeFixedValues(d.Fixed)
+	h.computeDerived(d)
 	return d
 }
 
@@ -102,16 +130,14 @@ func (h *Handler) LoadData(r *http.Request) *models.Data {
 func (h *Handler) FamilyData(t *tenant.Tenant) (*models.Data, error) {
 	var d *models.Data
 	if h.devData != nil {
-		cp := *h.devData
-		cp.Fixed = append([]models.Fixed(nil), cp.Fixed...)
-		d = &cp
+		d = sampleCopy(h.devData)
 	} else {
 		var err error
 		if d, err = h.fetchFromRepos(t); err != nil {
 			return nil, err
 		}
 	}
-	models.ComputeFixedValues(d.Fixed)
+	h.computeDerived(d)
 	return d, nil
 }
 
@@ -119,13 +145,7 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 	var d *models.Data
 	sample := h.servingSampleData(r)
 	if sample {
-		// Shallow-copy so we don't mutate the cached struct across requests.
-		src := h.sampleData()
-		cp := *src
-		fixed := make([]models.Fixed, len(cp.Fixed))
-		copy(fixed, cp.Fixed)
-		cp.Fixed = fixed
-		d = &cp
+		d = sampleCopy(h.sampleData())
 	} else {
 		t, ok := tenant.FromRequest(h.tenants, w, r)
 		if !ok {
@@ -136,13 +156,21 @@ func (h *Handler) GetData(w http.ResponseWriter, r *http.Request) {
 			writeTenantError(w, err)
 			return
 		}
-		models.ComputeFixedValues(d.Fixed)
+		h.computeDerived(d)
 		h.maybeSnapshotHistory(t, d)
 		writeJSON(w, d)
 		return
 	}
-	models.ComputeFixedValues(d.Fixed)
+	h.computeDerived(d)
 	writeJSON(w, d)
+}
+
+// sampleCopy shallow-copies cached sample data so computeDerived's in-place
+// writes (Fixed values, live metal rates) never touch the shared cache.
+func sampleCopy(src *models.Data) *models.Data {
+	cp := *src
+	cp.Fixed = append([]models.Fixed(nil), cp.Fixed...)
+	return &cp
 }
 
 // fetchFromRepos reads all of t's sheet tabs and returns a fully-populated

@@ -2,7 +2,8 @@
 
 A calm, editorial-design wealth dashboard backed by Google Sheets — built for
 tracking a household's mutual funds, stocks, FDs, insurance, loans, gold, and
-more in one place, with a tax-aware view across family members.
+more in one place, with a tax-aware view across family members. Gold and
+silver are valued at the day's IBJA benchmark rate automatically.
 
 There's no database to manage and no third-party service holding your
 financial data — Kosh reads and writes a Google Sheet you own, and that's it.

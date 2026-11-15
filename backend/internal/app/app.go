@@ -20,6 +20,7 @@ import (
 	"kosh/internal/controlplane"
 	"kosh/internal/documents"
 	"kosh/internal/hosted"
+	"kosh/internal/metalrates"
 	"kosh/internal/share"
 	"kosh/internal/store"
 	"kosh/internal/tenant"
@@ -46,6 +47,9 @@ type Config struct {
 	AIProvider     string
 	OllamaURL      string
 	OllamaModel    string
+	// LiveMetalRates values gold/silver holdings at IBJA's published rate
+	// instead of the sheet's today_price.
+	LiveMetalRates bool
 
 	// Self-host only.
 	SpreadsheetID   string
@@ -83,6 +87,7 @@ func ConfigFromEnv() Config {
 		AnthropicKey:       os.Getenv("ANTHROPIC_API_KEY"),
 		PromptsDir:         sh.EnvOrDefault("PROMPTS_DIR", "prompts"),
 		AIEnabled:          sh.EnvOrDefault("AI_ENABLED", "false") == "true",
+		LiveMetalRates:     sh.EnvOrDefault("LIVE_METAL_RATES", "true") != "false",
 		AIProvider:         sh.EnvOrDefault("AI_PROVIDER", "ollama"),
 		OllamaURL:          sh.EnvOrDefault("OLLAMA_URL", "http://localhost:11434"),
 		OllamaModel:        sh.EnvOrDefault("OLLAMA_MODEL", "llama3.1"),
@@ -211,6 +216,10 @@ func New(ctx context.Context, cfg Config, deps Deps) (*App, error) {
 	}
 
 	apiH := api.NewHandler(tenants, devMode, isDemo)
+	if cfg.LiveMetalRates {
+		apiH.SetMetalRates(metalrates.NewFetcher("", nil).Get)
+		log.Println("✓ Live gold/silver rates enabled — source: IBJA")
+	}
 	// Propose doesn't itself call an AI provider (that happens via the existing
 	// /api/upload/tax_rules parse step) — it's always available, unlike aiH/taxH.
 	taxRulesH := ai.NewTaxRulesHandler(tenants, isDemo, apiH.IsSampleData)

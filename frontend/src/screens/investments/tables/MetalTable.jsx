@@ -2,6 +2,9 @@ import EditableTable from '../../../components/shared/EditableTable.jsx'
 import { fmtINR, fmtDate } from '../../../data/format.js'
 
 export default function MetalTable({ data, rows, all, dirty, setDirty }) {
+  // When the server applied live IBJA rates, today_price is that rate and
+  // isn't editable — a typed value would be overwritten on the next load.
+  const rates = data.metal_rates
   const mark = (id, field, val) =>
     setDirty(d => ({ ...d, [id]: { ...(d[id] || {}), [field]: val } }))
 
@@ -21,7 +24,9 @@ export default function MetalTable({ data, rows, all, dirty, setDirty }) {
     all && { key: 'member', label: 'Owner', isMember: true },
     { key: 'grams',       label: 'Grams',       align: 'right', editable: true, format: v => v + ' g' },
     { key: 'buy_rate',    label: 'Buy rate /g',  align: 'right', editable: true, format: fmtINR },
-    { key: 'today_price', label: 'Today /g',     align: 'right', editable: true, format: fmtINR },
+    rates
+      ? { key: 'today_price', label: 'Today /g',  align: 'right', format: v => <span className="num">{fmtINR(v)}</span> }
+      : { key: 'today_price', label: 'Today /g',  align: 'right', editable: true, format: fmtINR },
     {
       key: 'invested_computed',
       label: 'Invested',
@@ -47,6 +52,12 @@ export default function MetalTable({ data, rows, all, dirty, setDirty }) {
   ].filter(Boolean)
 
   return (
+    <>
+    {rates && rows.length > 0 && (
+      <div className="metal-rates-note">
+        Today's price is the IBJA 999 rate for {fmtDate(rates.date + 'T00:00')} ({rates.session}) · gold {fmtINR(rates.gold)}/g · silver {fmtINR(rates.silver)}/g · excl. GST &amp; making charges
+      </div>
+    )}
     <EditableTable
       rows={rows}
       columns={columns}
@@ -60,5 +71,6 @@ export default function MetalTable({ data, rows, all, dirty, setDirty }) {
         curFn: r => (r.grams || 0) * (r.today_price || 0),
       }}
     />
+    </>
   )
 }
