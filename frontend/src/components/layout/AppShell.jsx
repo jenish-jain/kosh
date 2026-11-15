@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useData } from '../../data/context.jsx'
 import { Toast } from '../Primitives.jsx'
 import { Icon } from '../Icons.jsx'
@@ -37,7 +37,26 @@ export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, hous
   const [showHousehold, setShowHousehold] = useState(false)
   const [showPlan, setShowPlan] = useState(false)
   const [showTiers, setShowTiers] = useState(false)
+  const [collapsed, setCollapsedRaw] = useState(() => localStorage.getItem('kosh.sidebarCollapsed') === '1')
   const pinLock = usePinLock()
+
+  const toggleCollapsed = () => setCollapsedRaw(c => {
+    localStorage.setItem('kosh.sidebarCollapsed', c ? '0' : '1')
+    return !c
+  })
+
+  // Ctrl+B (⌘B on macOS) toggles the sidebar, except while typing in a field.
+  useEffect(() => {
+    const onKey = e => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'b') return
+      const t = e.target
+      if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return
+      e.preventDefault()
+      toggleCollapsed()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const setScreen = s => { setScreenRaw(s); localStorage.setItem('kosh.screen', s) }
   const setMember = m => { setMemberRaw(m); localStorage.setItem('kosh.member', m ?? 'null') }
@@ -62,12 +81,13 @@ export default function AppShell({ user, onLogout, aiEnabled, shareEnabled, hous
   })()
 
   return (
-    <div className="app">
+    <div className={'app' + (collapsed ? ' sidebar-collapsed' : '')}>
       <Sidebar
         screen={screen} setScreen={setScreen} data={data} user={user} onLogout={onLogout}
         onOpenPinSettings={() => setShowPinSettings(true)}
         onLockNow={pinLock.pinConfigured ? pinLock.lockNow : null}
         aiEnabled={aiEnabled && canUse(household, 'ask')} onOpenAsk={() => setShowAsk(true)}
+        collapsed={collapsed} onToggleCollapse={toggleCollapsed}
       />
       <div className="main">
         <header className="topbar">
