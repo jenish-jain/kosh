@@ -10,6 +10,7 @@ const SECTIONS = [
   { id: 'sign-in', label: 'Adding Google Sign-In' },
   { id: 'family-sharing', label: 'Sharing with family' },
   { id: 'ai', label: 'AI features' },
+  { id: 'metal-rates', label: 'Gold & silver rates' },
   { id: 'deploying', label: 'Deploying' },
 ]
 
@@ -135,6 +136,18 @@ ALLOWED_EMAILS=you@gmail.com,partner@gmail.com`}</Code>
           </p>
           <Code>{'ANTHROPIC_API_KEY=sk-ant-...'}</Code>
           <p>Without it, both features are simply unavailable — the rest of the app works normally.</p>
+        </Section>
+
+        <Section id="metal-rates" title="Gold & silver rates">
+          <p>
+            Gold and silver holdings are valued at the latest rate published by{' '}
+            <a href="https://ibjarates.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)' }}>IBJA</a>{' '}
+            (999 purity, per gram, excluding GST and making charges), refreshed hourly — no setup needed.
+            Only the public rate page is fetched; none of your data leaves your server. To turn it off and
+            keep typing <code>today_price</code> into the sheet yourself:
+          </p>
+          <Code>{'LIVE_METAL_RATES=false'}</Code>
+          <p>If IBJA can't be reached, the sheet's <code>today_price</code> is used instead.</p>
         </Section>
 
         <Section id="deploying" title="Deploying">
